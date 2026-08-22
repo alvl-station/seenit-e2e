@@ -36,6 +36,49 @@ class CatalogPage {
   async openCard(index = 0) {
     await this.cards.nth(index).click();
   }
+
+  /* ---- view modes (list / grid-s / grid-m / grid-l) ---- */
+  async switchView(v) {
+    await this.page.locator(`#viewToggle button[data-v="${v}"]`).click();
+  }
+  async currentView() {
+    return this.page.evaluate(() => document.body.dataset.view);
+  }
+
+  /* ---- per-card geometry, for layout assertions ---- */
+  cardPoster(index = 0) { return this.cards.nth(index).locator('.poster'); }
+  cardTitle(index = 0) { return this.cards.nth(index).locator('h3'); }
+  cardYearText(index = 0) { return this.cards.nth(index).locator('.card-meta-row .year'); }
+  cardRatingBadge(index = 0) { return this.cards.nth(index).locator('.rating-badge'); }
+  /** Full named award pills vs the compact trophy+count fallback (grid-s/list). */
+  cardBadgesFull(index = 0) { return this.cards.nth(index).locator('.badges-full'); }
+  cardBadgesCompact(index = 0) { return this.cards.nth(index).locator('.badges-compact'); }
+  /** Index of the first card that carries award badges, or -1. */
+  async firstCardIndexWithAwards() {
+    const n = await this.cards.count();
+    for (let i = 0; i < Math.min(n, 30); i++) {
+      if (await this.cards.nth(i).locator('.badges-full .badge, .badges-compact').count() > 0) return i;
+    }
+    return -1;
+  }
+
+  /* ---- genre chips ---- */
+  genreChip(index = 0) { return this.page.locator('#genreChips .chip').nth(index); }
+  /** First chip that is NOT the "all genres" one (index 0 is always "Усі жанри"). */
+  firstRealGenreChip() { return this.page.locator('#genreChips .chip').nth(1); }
+  async chipIsActive(chip) {
+    return chip.evaluate(el => el.classList.contains('active'));
+  }
+  async chipBorderColor(chip) {
+    return chip.evaluate(el => getComputedStyle(el).borderColor);
+  }
+
+  /* ---- tabs ---- */
+  recommendTab() { return this.page.locator('#tabs .tab[data-tab="liked"]'); }
+  allTab() { return this.page.locator('#tabs .tab[data-tab="all"]'); }
+  async tabIsActive(tab) {
+    return tab.evaluate(el => el.classList.contains('active'));
+  }
 }
 
 module.exports = { CatalogPage };
