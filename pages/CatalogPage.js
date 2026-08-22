@@ -42,6 +42,12 @@ class CatalogPage {
     return this.cards.count();
   }
 
+  /** Text of the "nothing found" panel, or null when there are results. */
+  async emptyMessageText() {
+    const n = await this.emptyMessage.count();
+    return n ? (await this.emptyMessage.innerText()).trim() : null;
+  }
+
   async search(query) {
     await this.searchInput.fill(query);
   }
