@@ -120,3 +120,63 @@ Given('I scroll the catalog to offset {int}', async ({ catalog, ctx }, y) => {
 Then('the page has no sideways scroll', async ({ catalog }) => {
   expect(await catalog.hasHorizontalOverflow()).toBe(false);
 });
+
+/* ---- delete mode ----
+ * READ-ONLY by construction: there is no step here that confirms a deletion,
+ * and enterDeleteMode() arms the dialog to answer "no" first. kino/movies is
+ * one global catalog shared by every login, so a confirmed delete from CI
+ * would remove the owner's real films.
+ */
+When('I enter delete mode', async ({ catalog }) => {
+  await catalog.enterDeleteMode();
+  expect(await catalog.deleteModeIsOn()).toBe(true);
+});
+When('I cancel delete mode', async ({ catalog }) => {
+  await catalog.leaveDeleteMode();
+});
+When('I select the first card for deletion', async ({ catalog }) => {
+  await catalog.selectForDelete(0);
+});
+Then('the delete bar is visible', async ({ catalog }) => {
+  expect(await catalog.deleteBarIsVisible()).toBe(true);
+});
+Then('the delete bar is hidden', async ({ catalog }) => {
+  expect(await catalog.deleteBarIsVisible()).toBe(false);
+});
+Then('no card is selected for deletion', async ({ catalog }) => {
+  expect(await catalog.selectedCount()).toBe(0);
+});
+Then('{int} card is selected for deletion', async ({ catalog }, n) => {
+  expect(await catalog.selectedCount()).toBe(n);
+});
+Then('the delete button is enabled', async ({ catalog }) => {
+  expect(await catalog.deleteConfirmIsEnabled()).toBe(true);
+});
+Then('the delete button is disabled', async ({ catalog }) => {
+  expect(await catalog.deleteConfirmIsEnabled()).toBe(false);
+});
+Then('the delete bar says {string}', async ({ catalog }, text) => {
+  expect(await catalog.deleteBarText()).toContain(text);
+});
+Then('the movie modal is not open', async ({ catalog }) => {
+  expect(await catalog.modalIsOpen()).toBe(false);
+});
+
+/* ---- tab counts ----
+ * Strengthens the existing toggles coverage: those scenarios checked that a
+ * tab activates and deactivates, never that the number beside it is true.
+ * The number was the part that was wrong in production — "Дивився (4)" over
+ * a list of three, because a mark outlived the film it pointed at.
+ */
+Then('the {string} tab count matches the films it lists', async ({ catalog }, tab) => {
+  // The production bug in one assertion: the chip read "Дивився (4)" while
+  // the list under it held three films, because a mark outlived the movie it
+  // pointed at. Whatever the number claims, the list has to contain that
+  // many — the tab is already isolated to its own films at this point.
+  const count = tab === 'Дивився' ? await catalog.watchedTabCount() : await catalog.likedTabCount();
+  test.skip(count === null, `nothing marked as "${tab}" right now`);
+  expect(await catalog.cardCount()).toBe(count);
+});
+When('I isolate the catalog to watched films', async ({ catalog }) => {
+  await catalog.tapWatchedToggle();
+});
