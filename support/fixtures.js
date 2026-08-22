@@ -9,11 +9,14 @@
 // zero login boilerplate. Read-only rule (seenit-frontend REQUIREMENTS
 // T-4) applies to everything built on top: the test account sees the REAL
 // shared catalog — look, search, open and close; never toggle or save.
-const base = require('@playwright/test');
+// The base `test` comes from playwright-bdd (its bdd-enabled extension of
+// Playwright's), so createBdd() in steps/ accepts our extended version.
+const { test: bddBase } = require('playwright-bdd');
+const { expect } = require('@playwright/test');
 const { LoginPage } = require('../pages/LoginPage');
 const { CatalogPage } = require('../pages/CatalogPage');
 
-const test = base.test.extend({
+const test = bddBase.extend({
   catalog: async ({ page }, use) => {
     const login = new LoginPage(page);
     const catalog = new CatalogPage(page);
@@ -30,6 +33,10 @@ const test = base.test.extend({
     await catalog.waitForCatalogLoaded();
     await use(catalog);
   },
+  // Scratch object shared by the steps of ONE scenario (playwright-bdd
+  // steps are separate functions, so anything one step finds for the next —
+  // a modal instance, a remembered offset — travels through here).
+  ctx: async ({}, use) => { await use({}); },
 });
 
-module.exports = { test, expect: base.expect };
+module.exports = { test, expect };

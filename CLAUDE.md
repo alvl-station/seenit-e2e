@@ -29,19 +29,27 @@ expensive job in the chain. The prices, all non-negotiable:
 
 ## Layout — everything in its obvious place
 ```
-tests/     ONLY Playwright specs (*.spec.js), one file per area, each with
-           a standard header: Area + which BUGS/REQ ids it covers
+features/  Gherkin scenarios (*.feature, English) — THE human-readable
+           source of truth, one file per area, each Feature description
+           naming the BUGS/REQ ids it covers
+steps/     step definitions — thin wrappers binding Gherkin lines to the
+           page objects; no selectors here, ever
 pages/     ONLY page objects, one class per screen/overlay
-support/   fixtures.js — the shared `test`/`expect`; specs import from here,
-           never from '@playwright/test' directly (the `catalog` fixture
-           hands every test a logged-in catalog, no credential plumbing)
+support/   fixtures.js — the extended `test` (from playwright-bdd) whose
+           `catalog` fixture hands every scenario a logged-in catalog, and
+           `ctx` carries state between the steps of one scenario
 scripts/   the log redactor + its node:test unit suite, co-located
+.features-gen/  bddgen output (gitignored) — playwright.config's testDir
 ```
+Run: `npm run smoke` (= `bddgen && playwright test`). Device profiles are
+projects selected by scenario tags: untagged = desktop; `@phone-portrait`
+and `@phone-landscape` run in emulated touch viewports.
 
 ## Test rules
 - Strict Page Object Model: `pages/*.js`, one class per screen/overlay
-  (`LoginPage`, `CatalogPage`, `MovieModalPage`, `AddModalPage`); specs never
-  touch selectors directly.
+  (`LoginPage`, `CatalogPage`, `MovieModalPage`, `AddModalPage`). Steps never
+  touch selectors directly — a new assertion means a page-object method
+  first, then a step, then the Gherkin line.
 - **Read-only against real data.** The app has no per-user data yet
   (`kino/watched`/`kino/liked` are global Firebase refs) — every login
   mutates the same real catalog. Log in, look, search, open/close modals.

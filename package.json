@@ -3,9 +3,10 @@
   "private": true,
   "scripts": {
     "test": "node --test",
-    "smoke": "playwright test --config playwright.config.js"
+    "smoke": "bddgen && playwright test --config playwright.config.js"
   },
   "devDependencies": {
-    "@playwright/test": "^1.48.0"
+    "@playwright/test": "^1.48.0",
+    "playwright-bdd": "^9.2.0"
   }
 }
