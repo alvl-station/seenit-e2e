@@ -81,6 +81,12 @@ jobs:
       # fill() arguments and this report is public (REQUIREMENTS S-4/S-5).
       # Screenshots/videos are safe because the login fields are visually
       # masked (support/fixtures.js).
+      # NOT preinstalled on ubuntu-latest (assumed it was; the first drill
+      # run reported ENOENT and kept every video untrimmed).
+      - name: Install ffmpeg
+        if: always()
+        run: sudo apt-get install -y --no-install-recommends ffmpeg
+
       - name: Trim failure videos to 3s
         if: always()
         run: node scripts/trim-videos.js allure-results 3

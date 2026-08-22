@@ -7,7 +7,9 @@
 // result files reference attachments by filename, which doesn't change.
 //
 // Videos exist only for failures (video: 'retain-on-failure'), so on a green
-// run this is a no-op. ffmpeg is preinstalled on GitHub's ubuntu runners.
+// run this is a no-op. ffmpeg is NOT preinstalled on ubuntu-latest — the
+// workflow installs it; a missing binary is reported loudly rather than
+// silently leaving full-length videos in the report.
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
@@ -23,6 +25,13 @@ if (!fs.existsSync(dir)) {
 const videos = fs.readdirSync(dir).filter(f => f.endsWith('.webm'));
 if (!videos.length) {
   console.log('No videos in allure-results (green run) — nothing to trim.');
+  process.exit(0);
+}
+
+try {
+  execFileSync('ffmpeg', ['-version'], { stdio: 'ignore' });
+} catch (err) {
+  console.error('::warning::ffmpeg not found — videos stay full length in the report.');
   process.exit(0);
 }
 
