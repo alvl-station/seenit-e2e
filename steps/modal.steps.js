@@ -140,3 +140,14 @@ Then('the add modal is no wider than the screen', async ({ ctx, page }) => {
   const box = await ctx.addModal.overlay.boundingBox();
   expect(box.width).toBeLessThanOrEqual(page.viewportSize().width + 1);
 });
+
+Then('every award pill icon is vertically centred within its pill', async ({ ctx, page }) => {
+  const offsets = await modalOf(ctx, page).awardPillIconOffsets();
+  expect(offsets.length, 'no award pill icons found').toBeGreaterThan(0);
+  for (const { label, offset } of offsets) {
+    // 1px of slack for sub-pixel rounding; the baseline bug produced
+    // several px of lift, so this is nowhere near a flaky threshold.
+    expect(Math.abs(offset), `"${label}" icon is off-centre by ${offset.toFixed(2)}px`)
+      .toBeLessThanOrEqual(1);
+  }
+});
