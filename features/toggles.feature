@@ -24,3 +24,15 @@ Feature: Toggle-off on second tap and hover on touch
     When I touch-tap the first genre chip
     And I touch-tap the first genre chip again
     Then the chip is inactive and its border color matches the remembered one
+
+  # Strengthens this feature's existing coverage: the scenarios above check
+  # that a tab activates and deactivates, never that the number beside it is
+  # true. The number was the half that was wrong in production — "Дивився
+  # (4)" over a list of three films, because a mark outlived its movie.
+  Scenario: The "Дивився" count matches the films it lists
+    When I isolate the catalog to watched films
+    Then the "Дивився" tab count matches the films it lists
+
+  Scenario: The "Рекомендую" count matches the films it lists
+    When I tap the "Рекомендую" tab
+    Then the "Рекомендую" tab count matches the films it lists

@@ -113,6 +113,50 @@ class CatalogPage {
     });
   }
 
+  /* ---- delete mode ----
+   * READ-ONLY, deliberately. kino/movies is a single global catalog shared by
+   * every login (there is no per-user data — see CLAUDE.md), so a confirmed
+   * delete from CI would destroy the owner's real films. These helpers can
+   * enter the mode, select and cancel; nothing here confirms, and the
+   * confirm dialog is auto-dismissed as a second line of defence.
+   */
+  get deleteModeButton() { return this.page.locator('#deleteModeBtn'); }
+  get deleteBar() { return this.page.locator('#deleteBar'); }
+  get deleteBarCount() { return this.page.locator('#deleteCount'); }
+  get deleteConfirmButton() { return this.page.locator('#deleteConfirmBtn'); }
+  get deleteCancelButton() { return this.page.locator('#deleteCancelBtn'); }
+
+  /** Arms the dialog to always answer "no", then enters delete mode. */
+  async enterDeleteMode() {
+    this.page.on('dialog', d => d.dismiss());
+    await this.deleteModeButton.click();
+  }
+  async leaveDeleteMode() { await this.deleteCancelButton.click(); }
+  async deleteModeIsOn() {
+    return (await this.deleteModeButton.getAttribute('aria-pressed')) === 'true';
+  }
+  async deleteBarIsVisible() { return this.deleteBar.isVisible(); }
+  async selectForDelete(index = 0) { await this.cards.nth(index).click(); }
+  async selectedCount() { return this.page.locator('.card.is-selected').count(); }
+  async deleteConfirmIsEnabled() { return this.deleteConfirmButton.isEnabled(); }
+  async deleteBarText() { return (await this.deleteBarCount.innerText()).trim(); }
+  async modalIsOpen() {
+    return this.page.locator('#modalOverlay.open').isVisible().catch(() => false);
+  }
+
+  get watchedToggle() { return this.page.locator('#watchedToggle'); }
+  async tapWatchedToggle() { await this.watchedToggle.click(); }
+
+  /* ---- tab counts ---- */
+  /** The N inside "Дивився (N)", or null when the chip shows no number. */
+  async watchedTabCount() { return this._tabCount('#nWatched'); }
+  async likedTabCount() { return this._tabCount('#nLiked'); }
+  async _tabCount(sel) {
+    const text = (await this.page.locator(sel).innerText()).trim();
+    const m = /\((\d+)\)/.exec(text);
+    return m ? Number(m[1]) : null;
+  }
+
   /* ---- genre chips ---- */
   genreChip(index = 0) { return this.page.locator('#genreChips .chip').nth(index); }
   /** First chip that is NOT the "all genres" one (index 0 is always "Усі жанри"). */
