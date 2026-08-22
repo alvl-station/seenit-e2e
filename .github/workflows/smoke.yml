@@ -1,0 +1,103 @@
+# Stage 2 of SeenIt's event-driven deploy chain: seenit-frontend's deploy.yml
+# dispatches run-smoke here after pushing a build to the public `seenit` repo;
+# this suite hits the live URL and dispatches the verdict back
+# (smoke-passed / smoke-failed), which seenit-frontend's verdict.yml turns
+# into mark-deployed or rollback.
+#
+# This repo is PUBLIC on purpose — Actions minutes are unlimited for public
+# repos, and the Playwright run (browser install included) is the most
+# expensive job in the whole chain. The prices of being public are paid
+# below, deliberately:
+#   - triggers are ONLY repository_dispatch/workflow_dispatch. Never
+#     pull_request: a fork PR must not be able to start a run that holds
+#     TEST_USER.
+#   - every byte of output passes through scripts/redact-secrets.js BEFORE
+#     touching disk: the log is a public artifact, and the login/password
+#     are jq-derived from the TEST_USER JSON, so Actions' automatic masking
+#     has never seen them (it masks only exact secret strings it was given).
+#   - Playwright traces are never uploaded: a trace records each action's
+#     arguments — including the literal password typed into fill().
+name: Smoke
+
+on:
+  repository_dispatch:
+    types: [run-smoke]
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "URL to smoke-test (blank = production)"
+        required: false
+        default: ""
+        type: string
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Wait for the deploy to actually be served
+        run: |
+          URL="${{ github.event.client_payload.base_url || inputs.base_url || 'https://alvl-station.github.io/seenit/' }}"
+          echo "Waiting for $URL"
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" "$URL" || echo 000)
+            if [ "$code" = "200" ]; then echo "Serving (attempt $i)."; exit 0; fi
+            sleep 2
+          done
+          echo "::warning::Never returned 200 after 60s, running the suite anyway."
+
+      - name: Run smoke suite (redacted output)
+        id: run
+        run: |
+          set -o pipefail
+          echo "$TEST_USER" | jq -e 'has("login") and has("password")' > /dev/null || {
+            echo "::error::TEST_USER secret does not look like valid JSON with 'login' and 'password' fields."
+            exit 1
+          }
+          export SMOKE_TEST_USERNAME="$(echo "$TEST_USER" | jq -r '.login')"
+          export SMOKE_TEST_PASSWORD="$(echo "$TEST_USER" | jq -r '.password')"
+          echo "::add-mask::$SMOKE_TEST_USERNAME"
+          echo "::add-mask::$SMOKE_TEST_PASSWORD"
+          npx playwright test --config playwright.config.js 2>&1 \
+            | node scripts/redact-secrets.js SMOKE_TEST_USERNAME SMOKE_TEST_PASSWORD \
+            | tee smoke-test-log.txt
+        env:
+          BASE_URL: ${{ github.event.client_payload.base_url || inputs.base_url || 'https://alvl-station.github.io/seenit/' }}
+          TEST_USER: ${{ secrets.TEST_USER }}
+
+      - name: Upload redacted report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-report
+          # NEVER test-results/ — Playwright traces contain the password
+          # passed to fill(), and artifacts on a public repo are
+          # downloadable by anyone.
+          path: |
+            smoke-test-log.txt
+            playwright-report/
+          retention-days: 14
+          if-no-files-found: ignore
+
+      # The verdict is an event, not a return value: seenit-frontend never
+      # waits for this run. Skipped for manual (workflow_dispatch) runs —
+      # only a real deploy dispatch should be able to move deployed-latest
+      # or trigger a rollback.
+      - name: Report verdict back to seenit-frontend
+        if: always() && github.event_name == 'repository_dispatch'
+        run: |
+          if [ "${{ steps.run.outcome }}" = "success" ]; then EVENT=smoke-passed; else EVENT=smoke-failed; fi
+          gh api -X POST /repos/alvl-station/seenit-frontend/dispatches \
+            -f event_type="$EVENT" \
+            -f 'client_payload[ref]=${{ github.event.client_payload.ref }}' \
+            -f 'client_payload[deploy_run]=${{ github.event.client_payload.deploy_run }}' \
+            -f 'client_payload[e2e_run_url]=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
+        env:
+          GH_TOKEN: ${{ secrets.UI_CALLBACK_PAT }}
