@@ -6,6 +6,9 @@ const { defineConfig, devices } = require('@playwright/test');
 // default, so this is runnable by hand too: BASE_URL=... npm run test:e2e).
 module.exports = defineConfig({
   testDir: '.',
+  // Only *.spec.js — tests/redact-secrets.test.js is a node:test suite (run
+  // by `npm test`), not a Playwright one, and must not be collected here.
+  testMatch: '**/*.spec.js',
   timeout: 30_000,
   expect: { timeout: 10_000 },
   fullyParallel: true,

@@ -18,6 +18,23 @@ class MovieModalPage {
     await this.closeButton.click();
     await this.overlay.waitFor({ state: 'hidden' });
   }
+
+  /* ---- award pills + the anchored info popover ---- */
+  awardPills() { return this.page.locator('#modalOverlay .award-pill'); }
+  /** Only the tappable ones (a group with nothing to reveal gets no affordance). */
+  tappableAwardPills() { return this.page.locator('#modalOverlay .award-pill.award-badge'); }
+  criticBadge() { return this.page.locator('#modalOverlay .critic-badge'); }
+  popover() { return this.page.locator('#infoPopover'); }
+  async popoverIsShown() {
+    return this.page.evaluate(() => {
+      const el = document.getElementById('infoPopover');
+      return !!el && el.classList.contains('show');
+    });
+  }
+  /** Click a neutral spot (the title) — an open popover must dismiss. */
+  async clickOutsidePopover() {
+    await this.title.click();
+  }
 }
 
 module.exports = { MovieModalPage };
