@@ -30,9 +30,15 @@ const test = bddBase.extend({
     await page.addStyleTag({
       content: '#loginUser, #loginPass { -webkit-text-security: disc; }',
     }).catch(() => { /* best-effort */ });
+    // #loginOverlay is visible on load by DESIGN and only hides once
+    // Firebase's onAuthStateChanged fires with the restored user — an
+    // instant check races that and always sees the overlay. Wait for it to
+    // go, and only then call it an auth problem.
     const login = new LoginPage(page);
-    if (await login.isShown()) {
-      throw new Error('Not authenticated — the setup project should have signed in. Session expired or TEST_USER is wrong.');
+    try {
+      await login.waitUntilHidden(20000);
+    } catch (err) {
+      throw new Error('Not authenticated — the setup project should have signed in. Session expired, TEST_USER is wrong, or Firebase is throttling the account.');
     }
     await catalog.waitForCatalogLoaded();
     await use(catalog);
