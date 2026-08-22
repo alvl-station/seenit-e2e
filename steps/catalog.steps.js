@@ -198,3 +198,52 @@ Then('the delete bar controls are inside the screen', async ({ catalog, page }) 
       .toBeLessThanOrEqual(width + 1);
   }
 });
+
+/* ---- marking films (the first steps here that WRITE) ----
+ * Safe only because marks are per-account now: CI writes into its own uid's
+ * subtree and the database rules refuse anything else. Every scenario using
+ * these puts the mark back, so a run leaves the account as it found it.
+ */
+Given('I remember the {string} count', async ({ catalog, ctx }, tab) => {
+  ctx.tab = tab;
+  ctx.countBefore = tab === 'Дивився'
+    ? await catalog.watchedTabCount()
+    : await catalog.likedTabCount();
+});
+Given('I remember the title of the first card', async ({ catalog, ctx }) => {
+  ctx.title = await catalog.cardTitleText(0);
+});
+When('I toggle {string} on the first card', async ({ catalog }, which) => {
+  if (which === 'переглянуто') await catalog.toggleWatchedOnCard(0);
+  else await catalog.toggleLikedOnCard(0);
+});
+When('I reload the catalog', async ({ catalog, page }) => {
+  await page.reload();
+  await catalog.waitForCatalogLoaded();
+});
+Then('the first card is shown as watched', async ({ catalog }) => {
+  expect(await catalog.cardIsWatched(0)).toBe(true);
+});
+Then('the first card is not shown as watched', async ({ catalog }) => {
+  expect(await catalog.cardIsWatched(0)).toBe(false);
+});
+
+const countFor = async (catalog, tab) =>
+  tab === 'Дивився' ? await catalog.watchedTabCount() : await catalog.likedTabCount();
+
+Then('the {string} count is one higher than remembered', async ({ catalog, ctx }, tab) => {
+  // null means the chip showed no number at all, which is what "zero marks"
+  // looks like — so the step after the first mark expects 1, not null + 1.
+  await expect
+    .poll(() => countFor(catalog, tab))
+    .toBe((ctx.countBefore || 0) + 1);
+});
+Then('the {string} count is back to what I remembered', async ({ catalog, ctx }, tab) => {
+  await expect.poll(() => countFor(catalog, tab)).toBe(ctx.countBefore);
+});
+Then('that title is no longer in the default view', async ({ catalog, ctx }) => {
+  await expect.poll(() => catalog.indexOfCardTitled(ctx.title)).toBe(-1);
+});
+Then('that title is listed', async ({ catalog, ctx }) => {
+  await expect.poll(() => catalog.indexOfCardTitled(ctx.title)).toBeGreaterThanOrEqual(0);
+});

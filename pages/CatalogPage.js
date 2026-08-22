@@ -147,6 +147,32 @@ class CatalogPage {
   get watchedToggle() { return this.page.locator('#watchedToggle'); }
   async tapWatchedToggle() { await this.watchedToggle.click(); }
 
+  /* ---- per-card watched/liked toggles ----
+   * Safe to USE now, and that is new. These lists used to be global nodes
+   * shared by every login, so a test that toggled one changed the owner's
+   * real data — which is why the whole suite was read-only. Marks now hang
+   * off the signed-in uid, so CI toggles its own account's list and nobody
+   * else's. kino/movies is still shared, so adding and deleting films stays
+   * forbidden here.
+   */
+  cardWatchedToggle(index = 0) { return this.cards.nth(index).locator('[data-act="watch"]'); }
+  cardLikedToggle(index = 0) { return this.cards.nth(index).locator('[data-act="like"]'); }
+  async toggleWatchedOnCard(index = 0) { await this.cardWatchedToggle(index).click(); }
+  async toggleLikedOnCard(index = 0) { await this.cardLikedToggle(index).click(); }
+  async cardIsWatched(index = 0) {
+    return this.cards.nth(index).evaluate(el => el.classList.contains('is-watched'));
+  }
+  async cardTitleText(index = 0) {
+    return (await this.cardTitle(index).innerText()).trim();
+  }
+  /** Index of the visible card with this title, or -1. */
+  async indexOfCardTitled(title) {
+    return this.page.evaluate(
+      t => [...document.querySelectorAll('.card')].findIndex(c => c.querySelector('h3').textContent.trim() === t),
+      title,
+    );
+  }
+
   /* ---- tab counts ---- */
   /** The N inside "Дивився (N)", or null when the chip shows no number. */
   async watchedTabCount() { return this._tabCount('#nWatched'); }
