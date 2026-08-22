@@ -165,6 +165,26 @@ class CatalogPage {
   async cardTitleText(index = 0) {
     return (await this.cardTitle(index).innerText()).trim();
   }
+  /**
+   * Toggling BY TITLE, not by index — and that is the point, not a
+   * nicety. The default view hides watched titles, so the moment a film is
+   * marked it leaves the grid and every later index points at a different
+   * film. A cleanup step working by index would unmark the wrong one and
+   * leave the original marked, quietly accumulating state in the account.
+   */
+  cardTitled(title) {
+    return this.cards.filter({ has: this.page.locator('h3', { hasText: title }) }).first();
+  }
+  async toggleWatchedOnCardTitled(title) {
+    await this.cardTitled(title).locator('[data-act="watch"]').click();
+  }
+  async toggleLikedOnCardTitled(title) {
+    await this.cardTitled(title).locator('[data-act="like"]').click();
+  }
+  async cardTitledIsWatched(title) {
+    return this.cardTitled(title).evaluate(el => el.classList.contains('is-watched'));
+  }
+
   /** Index of the visible card with this title, or -1. */
   async indexOfCardTitled(title) {
     return this.page.evaluate(

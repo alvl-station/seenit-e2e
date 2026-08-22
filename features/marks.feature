@@ -8,36 +8,44 @@ Feature: Marking a film watched or recommended
   database rules refuse anything else.
 
   kino/movies is still one shared catalog, so adding or deleting a film
-  stays forbidden here. Each scenario also puts the mark back, so a run
-  leaves the test account exactly as it found it.
+  stays forbidden here.
 
-  Scenario: Marking a film watched updates the card and the tab count
+  Every scenario removes its own mark again, and does so BY TITLE. That is
+  not a stylistic choice: marking a film hides it from the default view, so
+  "the first card" is a different film immediately afterwards, and a cleanup
+  step working by position would unmark the wrong one and leave the original
+  marked for good.
+
+  Scenario: Marking a film watched raises the count and hides it from the default view
     Given I remember the "Дивився" count
     When I toggle "переглянуто" on the first card
-    Then the first card is shown as watched
-    And the "Дивився" count is one higher than remembered
-    When I toggle "переглянуто" on the first card
-    Then the first card is not shown as watched
-    And the "Дивився" count is back to what I remembered
+    Then the "Дивився" count is one higher than remembered
+    And that title is no longer in the default view
+    When I isolate the catalog to watched films
+    Then that title is listed
+    And that film is shown as watched
+    When I toggle "переглянуто" on that film
+    Then the "Дивився" count is back to what I remembered
 
-  Scenario: Marking a film recommended updates the tab count
+  Scenario: Marking a film recommended raises its count and leaves it visible
+    # "Рекомендую" is an independent list — unlike "переглянуто" it does not
+    # filter the film out of the default view.
     Given I remember the "Рекомендую" count
     When I toggle "рекомендую" on the first card
     Then the "Рекомендую" count is one higher than remembered
-    When I toggle "рекомендую" on the first card
+    And that title is listed
+    When I toggle "рекомендую" on that film
     Then the "Рекомендую" count is back to what I remembered
 
-  Scenario: A watched film disappears from the default view and returns
-    # The default view hides watched titles, so marking one is also the
-    # quickest way to check that filter against real data.
-    Given I remember the title of the first card
+  Scenario: The watched tab lists exactly what its count claims
+    # The production bug this suite could not catch before: the chip read
+    # "Дивився (4)" over a list of three films.
+    Given I remember the "Дивився" count
     When I toggle "переглянуто" on the first card
-    Then that title is no longer in the default view
-    When I isolate the catalog to watched films
-    Then that title is listed
-    And the "Дивився" tab count matches the films it lists
-    When I toggle "переглянуто" on the first card
-    Then the catalog shows at least one movie
+    And I isolate the catalog to watched films
+    Then the "Дивився" tab count matches the films it lists
+    When I toggle "переглянуто" on that film
+    Then the "Дивився" count is back to what I remembered
 
   Scenario: A mark survives a page reload
     # Proves the mark reached the database rather than only the local copy —
@@ -47,5 +55,5 @@ Feature: Marking a film watched or recommended
     And I reload the catalog
     Then the "Дивився" count is one higher than remembered
     When I isolate the catalog to watched films
-    And I toggle "переглянуто" on the first card
+    And I toggle "переглянуто" on that film
     Then the "Дивився" count is back to what I remembered

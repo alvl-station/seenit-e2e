@@ -213,19 +213,24 @@ Given('I remember the {string} count', async ({ catalog, ctx }, tab) => {
 Given('I remember the title of the first card', async ({ catalog, ctx }) => {
   ctx.title = await catalog.cardTitleText(0);
 });
-When('I toggle {string} on the first card', async ({ catalog }, which) => {
+When('I toggle {string} on the first card', async ({ catalog, ctx }, which) => {
+  // Remember which film it was: marking it hides it from the default view,
+  // so "the first card" is a different film from here on and only the title
+  // identifies it again.
+  ctx.title = await catalog.cardTitleText(0);
   if (which === 'переглянуто') await catalog.toggleWatchedOnCard(0);
   else await catalog.toggleLikedOnCard(0);
+});
+When('I toggle {string} on that film', async ({ catalog, ctx }, which) => {
+  if (which === 'переглянуто') await catalog.toggleWatchedOnCardTitled(ctx.title);
+  else await catalog.toggleLikedOnCardTitled(ctx.title);
+});
+Then('that film is shown as watched', async ({ catalog, ctx }) => {
+  expect(await catalog.cardTitledIsWatched(ctx.title)).toBe(true);
 });
 When('I reload the catalog', async ({ catalog, page }) => {
   await page.reload();
   await catalog.waitForCatalogLoaded();
-});
-Then('the first card is shown as watched', async ({ catalog }) => {
-  expect(await catalog.cardIsWatched(0)).toBe(true);
-});
-Then('the first card is not shown as watched', async ({ catalog }) => {
-  expect(await catalog.cardIsWatched(0)).toBe(false);
 });
 
 const countFor = async (catalog, tab) =>
