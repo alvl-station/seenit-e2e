@@ -34,7 +34,11 @@ test.describe('phone portrait', () => {
 
     await modal.close();
     expect(await catalog.bodyIsScrollLocked()).toBe(false);
-    expect(await catalog.scrollY()).toBe(before);
+    // html { scroll-behavior: smooth } ANIMATES the restoring scrollTo — an
+    // immediate read sees mid-animation (CI caught 12/82/163 before this
+    // polled). ±2px absorbs mobile-emulation rounding.
+    await expect.poll(async () => Math.abs(await catalog.scrollY() - before))
+      .toBeLessThanOrEqual(2);
   });
 
   test('add-movie modal locks scroll too, and its form fits the phone screen (BUGS #8)', async ({ page }) => {
