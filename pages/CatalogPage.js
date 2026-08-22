@@ -37,6 +37,25 @@ class CatalogPage {
     await this.cards.nth(index).click();
   }
 
+  /**
+   * Opens the first card already fully inside the CURRENT viewport, without
+   * letting Playwright auto-scroll to reach one — for tests that assert the
+   * scroll position survives an open/close cycle, where an implicit scroll
+   * before the click would silently move the goalposts.
+   */
+  async openVisibleCard() {
+    const n = await this.cards.count();
+    const vh = this.page.viewportSize().height;
+    for (let i = 0; i < n; i++) {
+      const box = await this.cards.nth(i).boundingBox();
+      if (box && box.y >= 0 && box.y + box.height <= vh) {
+        await this.cards.nth(i).click({ position: { x: 10, y: 10 } });
+        return true;
+      }
+    }
+    return false;
+  }
+
   /* ---- view modes (list / grid-s / grid-m / grid-l) ---- */
   async switchView(v) {
     await this.page.locator(`#viewToggle button[data-v="${v}"]`).click();

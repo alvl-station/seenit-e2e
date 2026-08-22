@@ -20,7 +20,11 @@ test.describe('phone portrait', () => {
     const before = await catalog.scrollY();
     expect(before).toBeGreaterThan(0);
 
-    await catalog.openCard(0);
+    // Click a card that's ALREADY in view — a plain openCard(0) lets
+    // Playwright auto-scroll back to the top card, which moves the very
+    // position this test is about (first run failed exactly that way).
+    const clicked = await catalog.openVisibleCard();
+    test.skip(!clicked, 'no card fully visible at this scroll offset');
     const modal = new MovieModalPage(page);
     await modal.waitUntilOpen();
     // position:fixed body (not just overflow:hidden) is the load-bearing
