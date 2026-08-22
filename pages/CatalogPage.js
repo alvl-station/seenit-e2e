@@ -18,11 +18,24 @@ class CatalogPage {
     await this.page.goto(path);
   }
 
-  // The catalog only ever has content once Firebase's initial 'value' read
-  // resolves (see moviesRef.on('value', ...) in src/app.js) — no fixed
-  // sleep, just wait for the first real card to show up.
+  /**
+   * Waits for the LIVE Firebase catalog, not the first paint.
+   *
+   * src/movies-data.js is a build-time snapshot rendered instantly so the
+   * page is never blank; it carries no awards and no critic scores at all.
+   * Waiting only for "a card is visible" therefore returns during that
+   * placeholder render — which silently skipped five scenarios once login
+   * got fast enough (a saved session) to beat the Firebase read. Enrichment
+   * fields only ever come from Firebase, so their appearance IS the signal
+   * that the real data landed.
+   */
   async waitForCatalogLoaded(timeout = 20000) {
     await this.cards.first().waitFor({ state: 'visible', timeout });
+    await this.page.waitForFunction(
+      () => !!document.querySelector('.badge--critic, .badges-full .badge, .badges-compact'),
+      null,
+      { timeout },
+    );
   }
 
   async cardCount() {
