@@ -27,10 +27,21 @@ expensive job in the chain. The prices, all non-negotiable:
   every action's arguments, including the literal password typed into
   `fill()` on the login form.
 
+## Layout — everything in its obvious place
+```
+tests/     ONLY Playwright specs (*.spec.js), one file per area, each with
+           a standard header: Area + which BUGS/REQ ids it covers
+pages/     ONLY page objects, one class per screen/overlay
+support/   fixtures.js — the shared `test`/`expect`; specs import from here,
+           never from '@playwright/test' directly (the `catalog` fixture
+           hands every test a logged-in catalog, no credential plumbing)
+scripts/   the log redactor + its node:test unit suite, co-located
+```
+
 ## Test rules
 - Strict Page Object Model: `pages/*.js`, one class per screen/overlay
-  (`LoginPage`, `CatalogPage`, `MovieModalPage`); specs never touch selectors
-  directly.
+  (`LoginPage`, `CatalogPage`, `MovieModalPage`, `AddModalPage`); specs never
+  touch selectors directly.
 - **Read-only against real data.** The app has no per-user data yet
   (`kino/watched`/`kino/liked` are global Firebase refs) — every login
   mutates the same real catalog. Log in, look, search, open/close modals.
@@ -45,7 +56,7 @@ expensive job in the chain. The prices, all non-negotiable:
 ```bash
 npm install                  # once (Playwright)
 npx playwright install chromium
-npm test                     # unit tests for the redactor
+npm test                     # node:test unit suite for the redactor (scripts/)
 BASE_URL=... SMOKE_TEST_USERNAME=... SMOKE_TEST_PASSWORD=... npm run smoke
 ```
 

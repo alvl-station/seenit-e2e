@@ -1,18 +1,16 @@
-// The mobile-UX batch from seenit-frontend's BUGS.md #8: scroll-lock while
-// an overlay is open (background used to stay draggable on iOS Safari),
-// orientation handling, and the add-form overflowing off a phone screen.
-// Everything here is read-only (REQUIREMENTS T-4): the add modal is only
-// ever OPENED and CLOSED — saving from a test is forbidden.
-const { test, expect } = require('@playwright/test');
-const { openLoggedInCatalog } = require('./support/session');
-const { MovieModalPage } = require('./pages/MovieModalPage');
-const { AddModalPage } = require('./pages/AddModalPage');
+// Area: phone-viewport behaviour (portrait + landscape).
+// Covers: BUGS #8 — scroll-lock with exact position restore, add-form fit
+// at 390px, lock refcounting, landscape rendering without sideways scroll.
+// The add modal is only ever opened and closed (REQ T-4).
+const { test, expect } = require('../support/fixtures');
+const { MovieModalPage } = require('../pages/MovieModalPage');
+const { AddModalPage } = require('../pages/AddModalPage');
+
 
 test.describe('phone portrait', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
-  test('movie modal locks background scroll and restores the exact position on close (BUGS #8)', async ({ page }) => {
-    const catalog = await openLoggedInCatalog(page);
+  test('movie modal locks background scroll and restores the exact position on close (BUGS #8)', async ({ catalog, page }) => {
 
     // Scroll somewhere real first — the shipped regression class here is
     // "position lost after closing the modal", invisible when testing at 0.
@@ -41,8 +39,7 @@ test.describe('phone portrait', () => {
       .toBeLessThanOrEqual(2);
   });
 
-  test('add-movie modal locks scroll too, and its form fits the phone screen (BUGS #8)', async ({ page }) => {
-    const catalog = await openLoggedInCatalog(page);
+  test('add-movie modal locks scroll too, and its form fits the phone screen (BUGS #8)', async ({ catalog, page }) => {
     const addModal = new AddModalPage(page);
 
     await addModal.open();
@@ -58,10 +55,9 @@ test.describe('phone portrait', () => {
     expect(await catalog.bodyIsScrollLocked()).toBe(false);
   });
 
-  test('nested overlays: closing the movie modal after the popover keeps the lock count right (BUGS #8)', async ({ page }) => {
+  test('nested overlays: closing the movie modal after the popover keeps the lock count right (BUGS #8)', async ({ catalog, page }) => {
     // lockScroll() is reference-counted — a popover opening over a modal
     // then both closing must end fully unlocked, not stuck locked.
-    const catalog = await openLoggedInCatalog(page);
     await catalog.openCard(0);
     const modal = new MovieModalPage(page);
     await modal.waitUntilOpen();
@@ -76,8 +72,7 @@ test.describe('phone portrait', () => {
 test.describe('phone landscape', () => {
   test.use({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true });
 
-  test('landscape orientation renders the catalog without sideways scroll (BUGS #8)', async ({ page }) => {
-    const catalog = await openLoggedInCatalog(page);
+  test('landscape orientation renders the catalog without sideways scroll (BUGS #8)', async ({ catalog, page }) => {
     expect(await catalog.cardCount()).toBeGreaterThan(0);
     expect(await catalog.hasHorizontalOverflow()).toBe(false);
 

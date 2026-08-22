@@ -5,9 +5,9 @@ const { defineConfig, devices } = require('@playwright/test');
 // start, BASE_URL always points at a real deployment (production by
 // default, so this is runnable by hand too: BASE_URL=... npm run test:e2e).
 module.exports = defineConfig({
-  testDir: '.',
-  // Only *.spec.js — tests/redact-secrets.test.js is a node:test suite (run
-  // by `npm test`), not a Playwright one, and must not be collected here.
+  // tests/ holds ONLY Playwright specs; the node:test suite for the log
+  // redactor lives next to its script in scripts/ (run by `npm test`).
+  testDir: './tests',
   testMatch: '**/*.spec.js',
   timeout: 30_000,
   expect: { timeout: 10_000 },

@@ -1,23 +1,15 @@
-// Layout regressions that the jsdom test layer is BLIND to (it does no real
-// layout) — each of these shipped as a real bug, documented in
-// seenit-frontend's BUGS.md:
-//
-//   #2  list view collapsed into a vertical stack (flex-direction not
-//       repeated in the override), award badges stretched narrow cards
-//   #11 the rating badge overlapped the type/year text on a narrow card
-//       instead of wrapping under it
-//
-// All read-only: switch view modes, measure boxes. Never toggles or writes.
-const { test, expect } = require('@playwright/test');
-const { openLoggedInCatalog } = require('./support/session');
+// Area: card layout across view modes.
+// Covers: BUGS #2 (list-view row layout, badge stretching), BUGS #11
+// (rating-badge wrap on a narrow card). Real-browser only — jsdom does no
+// layout. All read-only (REQ T-4).
+const { test, expect } = require('../support/fixtures');
 
 function overlaps(a, b) {
   return !(a.x + a.width <= b.x || b.x + b.width <= a.x ||
            a.y + a.height <= b.y || b.y + b.height <= a.y);
 }
 
-test('list view lays a card out as a horizontal row, not a vertical stack (BUGS #2)', async ({ page }) => {
-  const catalog = await openLoggedInCatalog(page);
+test('list view lays a card out as a horizontal row, not a vertical stack (BUGS #2)', async ({ catalog, page }) => {
   await catalog.switchView('list');
   expect(await catalog.currentView()).toBe('list');
 
@@ -33,8 +25,7 @@ test('list view lays a card out as a horizontal row, not a vertical stack (BUGS 
   expect(card.height).toBeLessThan(card.width / 2);
 });
 
-test('small-grid cards show the compact trophy badge, never full pills that stretch the card (BUGS #2)', async ({ page }) => {
-  const catalog = await openLoggedInCatalog(page);
+test('small-grid cards show the compact trophy badge, never full pills that stretch the card (BUGS #2)', async ({ catalog, page }) => {
   const i = await catalog.firstCardIndexWithAwards();
   test.skip(i === -1, 'no movie with awards in the catalog right now');
 
@@ -51,8 +42,7 @@ test('small-grid cards show the compact trophy badge, never full pills that stre
 test.describe('narrow phone viewport', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test('rating badge wraps under the type/year line instead of overlapping it (BUGS #11)', async ({ page }) => {
-    const catalog = await openLoggedInCatalog(page);
+  test('rating badge wraps under the type/year line instead of overlapping it (BUGS #11)', async ({ catalog, page }) => {
     await catalog.switchView('grid-s');
 
     // Check every visible card that has both pieces — the bug showed on

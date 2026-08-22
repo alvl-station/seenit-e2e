@@ -1,18 +1,10 @@
-// The award/critic popover rules from seenit-frontend's REQUIREMENTS.md,
-// checked against the real deployed page (BUGS #2's popup-drift half, plus
-// the award-naming rules that survive whatever stale data the catalog holds):
-//
-//   A-1/A-3  badges only ever show a curated ceremony name, in English —
-//            structural, so it holds even for rows backfilled before the
-//            language rules (the name never comes from stored text)
-//   U-4      an explanation appears anchored NEXT to the tapped element,
-//            never covering it, never at the bottom of the screen
-//   U-5      a pill is only tappable when a tap reveals something
-//
-// All read-only: open a modal, tap badges, measure. Never toggles or writes.
-const { test, expect } = require('@playwright/test');
-const { openLoggedInCatalog } = require('./support/session');
-const { MovieModalPage } = require('./pages/MovieModalPage');
+// Area: award/critic badges and their anchored popover.
+// Covers: REQ A-1/A-3 (curated English ceremony names only), REQ U-4
+// (anchored next to the tapped element, never covering it), the popup-drift
+// half of BUGS #2. All read-only (REQ T-4).
+const { test, expect } = require('../support/fixtures');
+const { MovieModalPage } = require('../pages/MovieModalPage');
+
 
 // The ONLY names a badge may carry — AWARD_INFO's curated English set
 // (seenit-frontend src/data/awards.js). An unrecognized ceremony must be
@@ -20,8 +12,7 @@ const { MovieModalPage } = require('./pages/MovieModalPage');
 const CURATED = ['Oscar', 'Golden Globe', 'BAFTA', 'Cannes', 'Venice', 'Berlinale', 'Emmy', 'SAG', 'Saturn'];
 const PILL_RE = new RegExp(`^(${CURATED.join('|')})( \\(\\d+\\))?$`);
 
-async function openModalWithAwards(page) {
-  const catalog = await openLoggedInCatalog(page);
+async function openModalWithAwards(catalog, page) {
   const i = await catalog.firstCardIndexWithAwards();
   if (i === -1) return null;
   await catalog.openCard(i);
@@ -30,8 +21,8 @@ async function openModalWithAwards(page) {
   return modal;
 }
 
-test('award pills carry only curated English ceremony names (REQ A-1, A-3)', async ({ page }) => {
-  const modal = await openModalWithAwards(page);
+test('award pills carry only curated English ceremony names (REQ A-1, A-3)', async ({ catalog, page }) => {
+  const modal = await openModalWithAwards(catalog, page);
   test.skip(!modal, 'no movie with awards in the catalog right now');
   const n = await modal.awardPills().count();
   expect(n).toBeGreaterThan(0);
@@ -41,8 +32,8 @@ test('award pills carry only curated English ceremony names (REQ A-1, A-3)', asy
   }
 });
 
-test('tapping an award pill opens the popover adjacent to it — no overlap, no bottom-of-screen drift (REQ U-4, BUGS #2)', async ({ page }) => {
-  const modal = await openModalWithAwards(page);
+test('tapping an award pill opens the popover adjacent to it — no overlap, no bottom-of-screen drift (REQ U-4, BUGS #2)', async ({ catalog, page }) => {
+  const modal = await openModalWithAwards(catalog, page);
   test.skip(!modal, 'no movie with awards in the catalog right now');
   const pills = modal.tappableAwardPills();
   test.skip(await pills.count() === 0, 'no tappable pills on this movie');
@@ -68,8 +59,8 @@ test('tapping an award pill opens the popover adjacent to it — no overlap, no 
   expect(pop.y + pop.height).toBeLessThanOrEqual(viewport.height + 1);
 });
 
-test('an open popover dismisses on a tap anywhere outside it', async ({ page }) => {
-  const modal = await openModalWithAwards(page);
+test('an open popover dismisses on a tap anywhere outside it', async ({ catalog, page }) => {
+  const modal = await openModalWithAwards(catalog, page);
   test.skip(!modal, 'no movie with awards in the catalog right now');
   const pills = modal.tappableAwardPills();
   test.skip(await pills.count() === 0, 'no tappable pills on this movie');
@@ -80,8 +71,7 @@ test('an open popover dismisses on a tap anywhere outside it', async ({ page }) 
   await expect.poll(() => modal.popoverIsShown()).toBe(false);
 });
 
-test('the critic-score badge explains itself in an anchored popover, not a bottom toast (REQ U-4)', async ({ page }) => {
-  const catalog = await openLoggedInCatalog(page);
+test('the critic-score badge explains itself in an anchored popover, not a bottom toast (REQ U-4)', async ({ catalog, page }) => {
   // find any card whose modal has a critic badge
   const n = Math.min(await catalog.cardCount(), 8);
   const modal = new MovieModalPage(page);
