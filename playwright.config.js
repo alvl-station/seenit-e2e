@@ -25,13 +25,24 @@ module.exports = defineConfig({
   expect: { timeout: 10_000 },
   fullyParallel: true,
   retries: process.env.CI ? 1 : 0,
-  reporter: 'list',
+  // 'list' for the live CI log, Allure for the published report (roadmap:
+  // a separate Pages site with screenshots and short videos on failure).
+  reporter: [
+    ['list'],
+    ['allure-playwright', { resultsDir: 'allure-results', detail: false }],
+  ],
   use: {
     // Smoke suite runs against a live, already-deployed URL — no local dev
     // server; production by default so it's runnable by hand too.
     baseURL: process.env.BASE_URL || 'https://alvl-station.github.io/seenit/',
-    trace: 'retain-on-failure',
+    // Traces are OFF on purpose, and it costs us nothing: a trace records
+    // every action's arguments — including the password passed to fill() —
+    // and this repo is public, so traces were already banned from artifacts
+    // (REQUIREMENTS S-5). Screenshots and videos are safe to publish
+    // because the login fields are visually masked (support/fixtures.js).
+    trace: 'off',
     screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
   },
   projects: [
     {

@@ -21,6 +21,15 @@ const test = bddBase.extend({
     const login = new LoginPage(page);
     const catalog = new CatalogPage(page);
     await catalog.goto();
+    // Failure screenshots and videos are PUBLISHED (the Allure report is a
+    // public Pages site), and the most likely thing to fail is login
+    // itself — which would put the test account's username on screen in
+    // plain text. -webkit-text-security renders both fields as dots
+    // without touching the DOM value, so what's captured is safe while the
+    // login behaves exactly as it does for a real user (REQUIREMENTS S-4).
+    await page.addStyleTag({
+      content: '#loginUser, #loginPass { -webkit-text-security: disc; }',
+    }).catch(() => { /* page may already have navigated; masking is best-effort */ });
     if (await login.isShown()) {
       const username = process.env.SMOKE_TEST_USERNAME;
       const password = process.env.SMOKE_TEST_PASSWORD;

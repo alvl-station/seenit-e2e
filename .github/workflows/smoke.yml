@@ -33,6 +33,8 @@ on:
 jobs:
   smoke:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # pushes the generated report to the gh-pages branch
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -73,17 +75,52 @@ jobs:
           BASE_URL: ${{ github.event.client_payload.base_url || inputs.base_url || 'https://alvl-station.github.io/seenit/' }}
           TEST_USER: ${{ secrets.TEST_USER }}
 
-      - name: Upload redacted report
+      # ---- Allure report -> its own public Pages site (gh-pages branch) ----
+      # Videos exist only for failures; trimmed to the last 3s (the moment
+      # it broke) per the roadmap. Traces are off entirely — they record
+      # fill() arguments and this report is public (REQUIREMENTS S-4/S-5).
+      # Screenshots/videos are safe because the login fields are visually
+      # masked (support/fixtures.js).
+      - name: Trim failure videos to 3s
+        if: always()
+        run: node scripts/trim-videos.js allure-results 3
+
+      - name: Restore Allure history (keeps the trend chart across runs)
+        if: always()
+        continue-on-error: true
+        run: |
+          git fetch origin gh-pages --depth=1 || exit 0
+          git --work-tree=/tmp/ghp checkout origin/gh-pages -- . 2>/dev/null || exit 0
+          mkdir -p allure-results/history
+          cp -r /tmp/ghp/history/* allure-results/history/ 2>/dev/null || true
+
+      - name: Generate the Allure report
+        if: always()
+        run: npx allure generate allure-results --clean -o allure-report
+
+      - name: Publish the report to gh-pages
+        if: always()
+        run: |
+          set -euo pipefail
+          cd allure-report
+          git init -q -b gh-pages
+          git config user.name "seenit-e2e"
+          git config user.email "e2e@seenit.local"
+          git add -A
+          git commit -q -m "Allure report — run ${{ github.run_id }} (${{ github.event.client_payload.ref || 'manual' }})"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" gh-pages
+          echo "Report: https://alvl-station.github.io/seenit-e2e/" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload redacted log artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: smoke-report
-          # NEVER test-results/ — Playwright traces contain the password
-          # passed to fill(), and artifacts on a public repo are
-          # downloadable by anyone.
+          # NEVER test-results/ — it holds raw, untrimmed videos and (when
+          # enabled) traces. The published Allure report is the artifact
+          # that matters; this is just the redacted text log.
           path: |
             smoke-test-log.txt
-            playwright-report/
           retention-days: 14
           if-no-files-found: ignore
 
@@ -99,6 +136,7 @@ jobs:
             -f event_type="$EVENT" \
             -f 'client_payload[ref]=${{ github.event.client_payload.ref }}' \
             -f 'client_payload[deploy_run]=${{ github.event.client_payload.deploy_run }}' \
-            -f 'client_payload[e2e_run_url]=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
+            -f 'client_payload[e2e_run_url]=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}' \
+            -f 'client_payload[report_url]=https://alvl-station.github.io/seenit-e2e/'
         env:
           GH_TOKEN: ${{ secrets.UI_CALLBACK_PAT }}
