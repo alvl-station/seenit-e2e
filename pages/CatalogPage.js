@@ -18,11 +18,24 @@ class CatalogPage {
     await this.page.goto(path);
   }
 
-  // The catalog only ever has content once Firebase's initial 'value' read
-  // resolves (see moviesRef.on('value', ...) in src/app.js) — no fixed
-  // sleep, just wait for the first real card to show up.
+  /**
+   * Waits for the LIVE Firebase catalog, not the first paint.
+   *
+   * src/movies-data.js is a build-time snapshot rendered instantly so the
+   * page is never blank; it carries no awards and no critic scores at all.
+   * Waiting only for "a card is visible" therefore returns during that
+   * placeholder render — which silently skipped five scenarios once login
+   * got fast enough (a saved session) to beat the Firebase read. Enrichment
+   * fields only ever come from Firebase, so their appearance IS the signal
+   * that the real data landed.
+   */
   async waitForCatalogLoaded(timeout = 20000) {
     await this.cards.first().waitFor({ state: 'visible', timeout });
+    await this.page.waitForFunction(
+      () => !!document.querySelector('.badge--critic, .badges-full .badge, .badges-compact'),
+      null,
+      { timeout },
+    );
   }
 
   async cardCount() {
@@ -72,13 +85,26 @@ class CatalogPage {
   /** Full named award pills vs the compact trophy+count fallback (grid-s/list). */
   cardBadgesFull(index = 0) { return this.cards.nth(index).locator('.badges-full'); }
   cardBadgesCompact(index = 0) { return this.cards.nth(index).locator('.badges-compact'); }
-  /** Index of the first card that carries award badges, or -1. */
+  /**
+   * Index of the first card carrying award badges, or -1. Scans EVERY card
+   * in one page.evaluate rather than N locator round-trips — and scanning
+   * all of them matters: the saved UI settings restored with the session
+   * can change the sort order, so "the first 30" is not a stable window
+   * (three award scenarios silently skipped when it was).
+   */
   async firstCardIndexWithAwards() {
-    const n = await this.cards.count();
-    for (let i = 0; i < Math.min(n, 30); i++) {
-      if (await this.cards.nth(i).locator('.badges-full .badge, .badges-compact').count() > 0) return i;
-    }
-    return -1;
+    return this.page.evaluate(() => {
+      const cards = [...document.querySelectorAll('.card')];
+      return cards.findIndex(c => c.querySelector('.badges-full .badge, .badges-compact'));
+    });
+  }
+
+  /** Index of the first card showing a critic-score badge, or -1. */
+  async firstCardIndexWithCriticScore() {
+    return this.page.evaluate(() => {
+      const cards = [...document.querySelectorAll('.card')];
+      return cards.findIndex(c => c.querySelector('.badge--critic'));
+    });
   }
 
   /* ---- genre chips ---- */

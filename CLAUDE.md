@@ -38,12 +38,31 @@ pages/     ONLY page objects, one class per screen/overlay
 support/   fixtures.js — the extended `test` (from playwright-bdd) whose
            `catalog` fixture hands every scenario a logged-in catalog, and
            `ctx` carries state between the steps of one scenario
-scripts/   the log redactor + its node:test unit suite, co-located
+scripts/   the log redactor + its node:test unit suite, and trim-videos.js
+           (cuts failure videos to their last 3s for the report)
 .features-gen/  bddgen output (gitignored) — playwright.config's testDir
 ```
-Run: `npm run smoke` (= `bddgen && playwright test`). Device profiles are
-projects selected by scenario tags: untagged = desktop; `@phone-portrait`
-and `@phone-landscape` run in emulated touch viewports.
+Run: `npm run smoke` (= `bddgen && playwright test`), then `npm run report`
+to trim videos, build and open the Allure report locally. Device profiles
+are projects selected by scenario tags: untagged = desktop;
+`@phone-portrait` and `@phone-landscape` run in emulated touch viewports.
+
+## Allure report — published, therefore public
+Every CI run publishes an Allure report to the `gh-pages` branch, served at
+**https://alvl-station.github.io/seenit-e2e/**, with history carried over so
+the trend chart survives across runs. Rollback issues in seenit-frontend
+link straight to it.
+
+Because that report is world-readable, three rules hold:
+- **Traces are off** (`trace: 'off'`). A trace records every action's
+  arguments, including the password passed to `fill()` — they were already
+  banned from artifacts (REQ S-5), so publishing costs nothing to disable.
+- **Login fields are visually masked** by the `catalog` fixture
+  (`-webkit-text-security: disc`), so a failure screenshot or video of the
+  login screen shows dots, not the test account's username. The DOM value
+  is untouched — login behaves exactly as for a real user (verified).
+- **Videos are trimmed to the last 3 seconds** (`scripts/trim-videos.js`),
+  which is the moment of failure — smaller report, no dead footage.
 
 ## Test rules
 - Strict Page Object Model: `pages/*.js`, one class per screen/overlay
