@@ -44,7 +44,12 @@ Then('the add modal reports that nothing was found', async ({ ctx, page }) => {
 });
 
 /* ---- read-only confirm card ---- */
-When('I open the add modal and preview a fetched movie', async ({ ctx, page }) => {
+// Takes `catalog` even though it never touches it: playwright-bdd builds the
+// test's fixture list from the steps' signatures, so a scenario whose steps
+// all use only `page` never runs the fixture that logs in and NAVIGATES —
+// the run then times out on a blank about:blank. Depending on it explicitly
+// is what puts a loaded page under this step.
+When('I open the add modal and preview a fetched movie', async ({ catalog, ctx, page }) => {
   await addModalOf(ctx, page).open();
   // Render the confirm card directly with a fully-fetched movie: going
   // through the TMDb search would depend on a live third-party result, and
