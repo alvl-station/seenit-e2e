@@ -55,16 +55,12 @@ Given('a movie modal with awards is open', async ({ catalog, ctx, page }) => {
   await modalOf(ctx, page).waitUntilOpen();
 });
 Given('a movie modal with a critic score is open', async ({ catalog, ctx, page }) => {
-  const modal = modalOf(ctx, page);
-  const n = Math.min(await catalog.cardCount(), 8);
-  let found = false;
-  for (let i = 0; i < n; i++) {
-    await catalog.openCard(i);
-    await modal.waitUntilOpen();
-    if (await modal.criticBadge().count() > 0) { found = true; break; }
-    await modal.close();
-  }
-  test.skip(!found, 'no movie with a critic score in the first 8 cards');
+  // Find the card by its own critic badge instead of opening modals one by
+  // one until we hit a match — one DOM scan, no wasted navigation.
+  const i = await catalog.firstCardIndexWithCriticScore();
+  test.skip(i === -1, 'no movie with a critic score in the catalog right now');
+  await catalog.openCard(i);
+  await modalOf(ctx, page).waitUntilOpen();
 });
 
 /* ---- popover ---- */
