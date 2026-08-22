@@ -22,3 +22,7 @@ Feature: Award and critic badges and their anchored popover
     Given a movie modal with a critic score is open
     When I tap the critic badge
     Then the popover is visible next to the badge and contains "%"
+
+  Scenario: Award pill icons sit centred on the label, not above it
+    Given a movie modal with awards is open
+    Then every award pill icon is vertically centred within its pill

@@ -31,6 +31,23 @@ class MovieModalPage {
       return !!el && el.classList.contains('show');
     });
   }
+  /**
+   * For each award pill: how far its icon's vertical centre sits from the
+   * pill's own centre, in px. 0 means perfectly centred; a positive or
+   * negative number means the icon rides low or high. An inline <svg>
+   * defaults to sitting on the text baseline, which is what made icons
+   * look raised above their label (BUGS #13).
+   */
+  async awardPillIconOffsets() {
+    return this.page.$$eval('#modalOverlay .award-pill', els => els.map(el => {
+      const svg = el.querySelector('svg');
+      if (!svg) return null;
+      const p = el.getBoundingClientRect();
+      const s = svg.getBoundingClientRect();
+      return { label: el.textContent.trim(), offset: (s.top + s.height / 2) - (p.top + p.height / 2) };
+    }).filter(Boolean));
+  }
+
   /** Click a neutral spot (the title) — an open popover must dismiss. */
   async clickOutsidePopover() {
     await this.title.click();
