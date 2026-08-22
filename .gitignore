@@ -5,3 +5,4 @@ smoke-test-log.txt
 .features-gen/
 allure-results/
 allure-report/
+.auth/

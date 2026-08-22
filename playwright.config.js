@@ -11,6 +11,10 @@
 // the sticky-hover scenario exists to exercise).
 const { defineConfig, devices } = require('@playwright/test');
 const { defineBddConfig } = require('playwright-bdd');
+const path = require('path');
+
+// One sign-in per run, reused by every project (see support/auth.setup.js).
+const STATE_FILE = path.join(__dirname, '.auth', 'state.json');
 
 const testDir = defineBddConfig({
   features: 'features/**/*.feature',
@@ -45,20 +49,25 @@ module.exports = defineConfig({
     video: 'retain-on-failure',
   },
   projects: [
+    // Signs in once and saves the session; everything else depends on it.
+    { name: 'setup', testMatch: /auth\.setup\.js$/, testDir: '.' },
     {
       name: 'desktop',
+      dependencies: ['setup'],
       grepInvert: /@phone/,
-      use: { ...devices['Desktop Chrome'] },
+      use: { ...devices['Desktop Chrome'], storageState: STATE_FILE },
     },
     {
       name: 'phone-portrait',
+      dependencies: ['setup'],
       grep: /@phone-portrait/,
-      use: { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true },
+      use: { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, storageState: STATE_FILE },
     },
     {
       name: 'phone-landscape',
+      dependencies: ['setup'],
       grep: /@phone-landscape/,
-      use: { viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true },
+      use: { viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true, storageState: STATE_FILE },
     },
   ],
 });

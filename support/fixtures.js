@@ -18,30 +18,26 @@ const { CatalogPage } = require('../pages/CatalogPage');
 
 const test = bddBase.extend({
   catalog: async ({ page }, use) => {
-    const login = new LoginPage(page);
     const catalog = new CatalogPage(page);
+    // Already authenticated: the 'setup' project signed in once and saved
+    // the session (support/auth.setup.js), so this just opens the catalog.
     await catalog.goto();
     // Failure screenshots and videos are PUBLISHED (the Allure report is a
-    // public Pages site), and the most likely thing to fail is login
-    // itself — which would put the test account's username on screen in
-    // plain text. -webkit-text-security renders both fields as dots
-    // without touching the DOM value, so what's captured is safe while the
-    // login behaves exactly as it does for a real user (REQUIREMENTS S-4).
+    // public Pages site). Masking the login inputs costs nothing and covers
+    // the case where the saved session expired and the overlay reappears —
+    // -webkit-text-security renders them as dots without touching the DOM
+    // value, so login still behaves normally (REQUIREMENTS S-4).
     await page.addStyleTag({
       content: '#loginUser, #loginPass { -webkit-text-security: disc; }',
-    }).catch(() => { /* page may already have navigated; masking is best-effort */ });
+    }).catch(() => { /* best-effort */ });
+    const login = new LoginPage(page);
     if (await login.isShown()) {
-      const username = process.env.SMOKE_TEST_USERNAME;
-      const password = process.env.SMOKE_TEST_PASSWORD;
-      if (!username || !password) {
-        throw new Error('SMOKE_TEST_USERNAME/SMOKE_TEST_PASSWORD env vars are not set.');
-      }
-      await login.login(username, password);
-      await login.waitUntilHidden();
+      throw new Error('Not authenticated — the setup project should have signed in. Session expired or TEST_USER is wrong.');
     }
     await catalog.waitForCatalogLoaded();
     await use(catalog);
   },
+
   // Scratch object shared by the steps of ONE scenario (playwright-bdd
   // steps are separate functions, so anything one step finds for the next —
   // a modal instance, a remembered offset — travels through here).
