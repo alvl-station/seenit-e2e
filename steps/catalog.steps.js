@@ -180,3 +180,21 @@ Then('the {string} tab count matches the films it lists', async ({ catalog }, ta
 When('I isolate the catalog to watched films', async ({ catalog }) => {
   await catalog.tapWatchedToggle();
 });
+
+Then('the delete bar controls are inside the screen', async ({ catalog, page }) => {
+  // Not just "no page overflow": a control can sit past the right edge while
+  // the page itself stays put, which is invisible to an overflow check and
+  // untappable to a person.
+  const width = page.viewportSize().width;
+  for (const [name, locator] of [
+    ['count', catalog.deleteBarCount],
+    ['delete', catalog.deleteConfirmButton],
+    ['cancel', catalog.deleteCancelButton],
+  ]) {
+    const box = await locator.boundingBox();
+    expect(box, `${name} has no box — it is not rendered`).not.toBeNull();
+    expect(box.x, `${name} starts off-screen`).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width, `${name} extends past the ${width}px screen`)
+      .toBeLessThanOrEqual(width + 1);
+  }
+});

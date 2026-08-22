@@ -29,6 +29,21 @@ Feature: Phone behaviour — portrait and landscape
     And I close the modal
     Then background scroll is unlocked
 
+  @phone-portrait
+  Scenario: Delete mode fits a phone screen and keeps its controls reachable
+    # 360-430px portrait is the primary target (CONVENTIONS.md), and the
+    # delete bar is the newest thing in the header — the row most likely to
+    # push the page sideways or shove a control off-screen.
+    When I enter delete mode
+    Then the delete bar is visible
+    And the page has no sideways scroll
+    And the delete bar controls are inside the screen
+    When I select the first card for deletion
+    Then 1 card is selected for deletion
+    And the page has no sideways scroll
+    When I cancel delete mode
+    Then the delete bar is hidden
+
   @phone-landscape
   Scenario: Landscape renders without sideways scroll
     Then the catalog shows at least one movie
