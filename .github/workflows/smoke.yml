@@ -65,6 +65,7 @@ jobs:
           export SMOKE_TEST_PASSWORD="$(echo "$TEST_USER" | jq -r '.password')"
           echo "::add-mask::$SMOKE_TEST_USERNAME"
           echo "::add-mask::$SMOKE_TEST_PASSWORD"
+          npx bddgen
           npx playwright test --config playwright.config.js 2>&1 \
             | node scripts/redact-secrets.js SMOKE_TEST_USERNAME SMOKE_TEST_PASSWORD \
             | tee smoke-test-log.txt

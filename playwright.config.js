@@ -1,25 +1,53 @@
+// Playwright + playwright-bdd. Human-readable scenarios live in
+// features/*.feature; step definitions in steps/ are thin wrappers over the
+// page objects in pages/. `bddgen` compiles features into runnable specs
+// under .features-gen/ (gitignored) — that's what testDir points at, so
+// plain `playwright test` never runs without generation (npm run smoke does
+// both).
+//
+// Device profiles are Playwright PROJECTS selected by scenario tags:
+// untagged scenarios run on desktop Chrome; @phone-portrait / @phone-
+// landscape run in emulated touch viewports (hover:none — which is what
+// the sticky-hover scenario exists to exercise).
 const { defineConfig, devices } = require('@playwright/test');
+const { defineBddConfig } = require('playwright-bdd');
 
-// Smoke suite runs against a live, already-deployed URL (see
-// the seenit-frontend deploy chain) — there's no local dev server to
-// start, BASE_URL always points at a real deployment (production by
-// default, so this is runnable by hand too: BASE_URL=... npm run test:e2e).
+const testDir = defineBddConfig({
+  features: 'features/**/*.feature',
+  // support/fixtures.js must be in the steps glob — bddgen needs the file
+  // that exports the extended `test` to wire fixtures into generated specs.
+  steps: ['steps/**/*.js', 'support/fixtures.js'],
+});
+
 module.exports = defineConfig({
-  // tests/ holds ONLY Playwright specs; the node:test suite for the log
-  // redactor lives next to its script in scripts/ (run by `npm test`).
-  testDir: './tests',
-  testMatch: '**/*.spec.js',
+  testDir,
   timeout: 30_000,
   expect: { timeout: 10_000 },
   fullyParallel: true,
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? 'list' : 'list',
+  reporter: 'list',
   use: {
+    // Smoke suite runs against a live, already-deployed URL — no local dev
+    // server; production by default so it's runnable by hand too.
     baseURL: process.env.BASE_URL || 'https://alvl-station.github.io/seenit/',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    {
+      name: 'desktop',
+      grepInvert: /@phone/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'phone-portrait',
+      grep: /@phone-portrait/,
+      use: { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true },
+    },
+    {
+      name: 'phone-landscape',
+      grep: /@phone-landscape/,
+      use: { viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true },
+    },
   ],
 });
