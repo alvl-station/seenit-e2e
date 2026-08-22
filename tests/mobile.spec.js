@@ -55,10 +55,9 @@ test.describe('phone portrait', () => {
     expect(await catalog.bodyIsScrollLocked()).toBe(false);
   });
 
-  test('nested overlays: closing the movie modal after the popover keeps the lock count right (BUGS #8)', async ({ page }) => {
+  test('nested overlays: closing the movie modal after the popover keeps the lock count right (BUGS #8)', async ({ catalog, page }) => {
     // lockScroll() is reference-counted — a popover opening over a modal
     // then both closing must end fully unlocked, not stuck locked.
-    const catalog = await openLoggedInCatalog(page);
     await catalog.openCard(0);
     const modal = new MovieModalPage(page);
     await modal.waitUntilOpen();
