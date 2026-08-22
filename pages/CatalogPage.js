@@ -73,6 +73,22 @@ class CatalogPage {
     return chip.evaluate(el => getComputedStyle(el).borderColor);
   }
 
+  /* ---- page scroll state (the scroll-lock pattern, CONVENTIONS.md) ---- */
+  async scrollTo(y) {
+    await this.page.evaluate(v => window.scrollTo(0, v), y);
+  }
+  async scrollY() {
+    return this.page.evaluate(() => window.scrollY);
+  }
+  async bodyIsScrollLocked() {
+    return this.page.evaluate(() => document.body.classList.contains('scroll-locked'));
+  }
+  /** The page must never scroll sideways, whatever the viewport. */
+  async hasHorizontalOverflow() {
+    return this.page.evaluate(() =>
+      document.documentElement.scrollWidth > window.innerWidth + 1);
+  }
+
   /* ---- tabs ---- */
   recommendTab() { return this.page.locator('#tabs .tab[data-tab="liked"]'); }
   allTab() { return this.page.locator('#tabs .tab[data-tab="all"]'); }
