@@ -218,10 +218,15 @@ When('I toggle {string} on the first card', async ({ catalog, ctx }, which) => {
   // so "the first card" is a different film from here on and only the title
   // identifies it again.
   ctx.title = await catalog.cardTitleText(0);
+  // Recorded so the fixture teardown can undo it even if this scenario
+  // fails before reaching its own cleanup step.
+  ctx.marked.push({ title: ctx.title, which });
   if (which === 'переглянуто') await catalog.toggleWatchedOnCard(0);
   else await catalog.toggleLikedOnCard(0);
 });
 When('I toggle {string} on that film', async ({ catalog, ctx }, which) => {
+  // This IS the cleanup in a passing run, so drop it from the teardown list.
+  ctx.marked = (ctx.marked || []).filter(m => !(m.title === ctx.title && m.which === which));
   if (which === 'переглянуто') await catalog.toggleWatchedOnCardTitled(ctx.title);
   else await catalog.toggleLikedOnCardTitled(ctx.title);
 });

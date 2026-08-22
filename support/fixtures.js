@@ -6,9 +6,13 @@
 //
 // The `catalog` fixture hands each test an already-logged-in CatalogPage
 // with the catalog loaded, so specs contain zero credential plumbing and
-// zero login boilerplate. Read-only rule (seenit-frontend REQUIREMENTS
-// T-4) applies to everything built on top: the test account sees the REAL
-// shared catalog — look, search, open and close; never toggle or save.
+// zero login boilerplate.
+//
+// What may be changed, and what may not: kino/movies is one catalog shared
+// by every account, so adding, editing and deleting films stay forbidden
+// (seenit-frontend REQUIREMENTS T-4). Marks are per-account now, so
+// toggling "переглянуто"/"рекомендую" is allowed — CI writes into its own
+// uid's subtree and the database rules refuse anything else.
 // The base `test` comes from playwright-bdd (its bdd-enabled extension of
 // Playwright's), so createBdd() in steps/ accepts our extended version.
 const { test: bddBase } = require('playwright-bdd');
@@ -47,7 +51,33 @@ const test = bddBase.extend({
   // Scratch object shared by the steps of ONE scenario (playwright-bdd
   // steps are separate functions, so anything one step finds for the next —
   // a modal instance, a remembered offset — travels through here).
-  ctx: async ({}, use) => { await use({}); },
+  //
+  // The teardown is the important half. A scenario that marks a film and
+  // then FAILS never reaches its own cleanup step, so the mark stays on the
+  // test account for good. That is not just untidy: a marked film drops out
+  // of the default view, so residue slowly changes what "the first card"
+  // means and turns into flakiness nobody can trace back. Two such marks
+  // had already accumulated from one failing run.
+  //
+  // So anything a step marked is recorded here and undone whatever happens.
+  ctx: async ({ page }, use) => {
+    const ctx = { marked: [] };
+    await use(ctx);
+    for (const { title, which } of ctx.marked) {
+      try {
+        const catalog = new CatalogPage(page);
+        // The film may be hidden by the watched filter — isolate first, and
+        // only unmark if it is genuinely still marked.
+        if (await catalog.indexOfCardTitled(title) === -1) await catalog.tapWatchedToggle();
+        if (await catalog.indexOfCardTitled(title) === -1) continue;
+        if (which === 'переглянуто' && !(await catalog.cardTitledIsWatched(title))) continue;
+        if (which === 'переглянуто') await catalog.toggleWatchedOnCardTitled(title);
+        else await catalog.toggleLikedOnCardTitled(title);
+      } catch (err) {
+        // Best-effort: a teardown failure must not mask the real one.
+      }
+    }
+  },
 });
 
 module.exports = { test, expect };
