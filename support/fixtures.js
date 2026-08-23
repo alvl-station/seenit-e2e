@@ -45,6 +45,11 @@ const test = bddBase.extend({
       throw new Error('Not authenticated — the setup project should have signed in. Session expired, TEST_USER is wrong, or Firebase is throttling the account.');
     }
     await catalog.waitForCatalogLoaded();
+    // Marks arrive on their own listener, later than the catalog. Without
+    // this wait a scenario's first "remember the count" read races them —
+    // it remembers null against a chip that fills in a moment later.
+    await page.waitForFunction(() => (window.__marksLoadedCount || 0) >= 2, null, { timeout: 10000 })
+      .catch(() => { /* older bundle without the beacon: proceed as before */ });
     // The onboarding guide auto-opens once per account. For the test
     // account that "once" is whichever scenario happens to run first after
     // a deploy — and the overlay would sit on top of the grid and fail it.
