@@ -1,0 +1,37 @@
+# Throwaway diagnostic — see inspect.spec.js. Delete once answered.
+name: Inspect header
+
+on:
+  workflow_dispatch:
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+
+      - name: Parse the test account credentials
+        run: |
+          echo "SMOKE_TEST_USERNAME=$(echo "$TEST_USER" | jq -r .login)" >> "$GITHUB_ENV"
+          echo "::add-mask::$(echo "$TEST_USER" | jq -r .password)"
+          echo "SMOKE_TEST_PASSWORD=$(echo "$TEST_USER" | jq -r .password)" >> "$GITHUB_ENV"
+        env:
+          TEST_USER: ${{ secrets.TEST_USER }}
+
+      - name: Photograph the header at phone width
+        run: |
+          mkdir -p shots
+          npx playwright test inspect.spec.js --project=phone-portrait --reporter=list
+        env:
+          SMOKE_TEST_USERNAME: ${{ env.SMOKE_TEST_USERNAME }}
+          SMOKE_TEST_PASSWORD: ${{ env.SMOKE_TEST_PASSWORD }}
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: header-shots
+          path: shots/

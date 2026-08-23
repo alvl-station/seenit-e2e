@@ -60,7 +60,7 @@ module.exports = defineConfig({
     {
       name: 'phone-portrait',
       dependencies: ['setup'],
-      grep: /@phone-portrait/,
+      grep: /@phone-portrait|photograph the header/,
       use: { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, storageState: STATE_FILE },
     },
     {
