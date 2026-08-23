@@ -6,6 +6,7 @@ Feature: Core smoke — login, search, movie modal
     # Strengthened alongside the account feature: the header must expose the
     # account entry point, or everything behind it is unreachable.
     And the account panel entry point is visible
+    And the recommendations entry point is visible
 
   Scenario: Search narrows the catalog and clearing restores it
     When I search for "qzxjkvbqzxjkvbqzxjkvb"

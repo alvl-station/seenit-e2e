@@ -217,6 +217,23 @@ class CatalogPage {
     if (await this.guideIsOpen().catch(() => false)) await this.closeGuide();
   }
 
+  /* ---- the recommendations flow ("Добірки") ---- */
+  get recsButton() { return this.page.locator('#recsBtn'); }
+  get recsOverlay() { return this.page.locator('#recsOverlay'); }
+  async openRecs() { await this.recsButton.click(); }
+  async recsIsOpen() { return this.recsOverlay.evaluate(el => el.classList.contains('open')); }
+  async closeRecs() { await this.page.locator('#recsCloseBtn').click(); }
+  async recsSourceTabs() {
+    return this.page.locator('#recsBox [data-recs-src]').allInnerTexts();
+  }
+  async switchRecsSource(id) { await this.page.locator(`[data-recs-src="${id}"]`).click(); }
+  async recsBodyText() { return (await this.page.locator('#recsbody').innerText()).trim(); }
+  async recsListChips() { return this.page.locator('.recs-list-chip').allInnerTexts(); }
+  async openRecsList(title) {
+    await this.page.locator('.recs-list-chip', { hasText: title }).click();
+  }
+  async recsGridCount() { return this.page.locator('#recsbody .trend-item').count(); }
+
   /* ---- tab counts ---- */
   /** The N inside "Дивився (N)", or null when the chip shows no number. */
   async watchedTabCount() { return this._tabCount('#nWatched'); }

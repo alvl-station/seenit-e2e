@@ -324,3 +324,42 @@ Then('a fresh visitor sees the password form and the Google button', async ({ br
     await ctx.close();
   }
 });
+
+/* ---- the recommendations flow ---- */
+When('I open the recommendations flow', async ({ catalog }) => {
+  await catalog.openRecs();
+});
+When('I close the recommendations flow', async ({ catalog }) => {
+  await catalog.closeRecs();
+});
+Then('the recommendations flow is open', async ({ catalog }) => {
+  expect(await catalog.recsIsOpen()).toBe(true);
+});
+Then('the recommendations flow is closed', async ({ catalog }) => {
+  expect(await catalog.recsIsOpen()).toBe(false);
+});
+Then('the recommendation sources are {string}, {string} and {string}', async ({ catalog }, a, b, c) => {
+  expect(await catalog.recsSourceTabs()).toEqual([a, b, c]);
+});
+When('I switch the recommendations source to {string}', async ({ catalog }, id) => {
+  await catalog.switchRecsSource(id);
+});
+Then('the recommendations body mentions subscriptions being planned', async ({ catalog }) => {
+  expect(await catalog.recsBodyText()).toContain('підписками');
+});
+Then('at least {int} collection chips are shown', async ({ catalog, page }, n) => {
+  await page.locator('.recs-list-chip').first().waitFor({ timeout: 10000 });
+  expect((await catalog.recsListChips()).length).toBeGreaterThanOrEqual(n);
+});
+When('I open the collection {string}', async ({ catalog }, title) => {
+  await catalog.openRecsList(title);
+});
+Then('the collection grid shows between {int} and {int} films', async ({ catalog, page }, lo, hi) => {
+  await page.locator('#recsbody .trend-item').first().waitFor({ timeout: 10000 });
+  const n = await catalog.recsGridCount();
+  expect(n).toBeGreaterThanOrEqual(lo);
+  expect(n).toBeLessThanOrEqual(hi);
+});
+Then('the recommendations entry point is visible', async ({ catalog }) => {
+  await expect(catalog.recsButton).toBeVisible();
+});
