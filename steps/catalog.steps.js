@@ -302,3 +302,22 @@ When('I close the onboarding guide', async ({ catalog }) => {
 Then('the account panel entry point is visible', async ({ catalog }) => {
   await expect(catalog.accountButton).toBeVisible();
 });
+
+Then('the account panel offers a password change', async ({ page }) => {
+  await expect(page.locator('#accPassForm')).toBeVisible();
+});
+
+Then('a fresh visitor sees the password form and the Google button', async ({ browser }) => {
+  // A NEW context on purpose: the shared one carries the saved session, so
+  // it never sees the login screen at all.
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  try {
+    await page.goto(process.env.BASE_URL || 'https://alvl-station.github.io/seenit/');
+    await expect(page.locator('#loginForm')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#googleBtn')).toBeVisible();
+    await expect(page.locator('#registerToggle')).toBeVisible();
+  } finally {
+    await ctx.close();
+  }
+});
