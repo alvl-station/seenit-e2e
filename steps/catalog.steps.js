@@ -257,3 +257,48 @@ Then('that title is no longer in the default view', async ({ catalog, ctx }) => 
 Then('that title is listed', async ({ catalog, ctx }) => {
   await expect.poll(() => catalog.indexOfCardTitled(ctx.title)).toBeGreaterThanOrEqual(0);
 });
+
+/* ---- account panel & onboarding guide ---- */
+When('I open the account panel', async ({ catalog }) => {
+  await catalog.openAccountPanel();
+});
+When('I close the account panel', async ({ catalog }) => {
+  await catalog.closeAccountPanel();
+});
+Then('the account panel is open', async ({ catalog }) => {
+  expect(await catalog.accountPanelIsOpen()).toBe(true);
+});
+Then('the account panel is closed', async ({ catalog }) => {
+  expect(await catalog.accountPanelIsOpen()).toBe(false);
+});
+Then('the account panel shows the signed-in username', async ({ catalog }) => {
+  // The literal username is a secret (it is half of TEST_USER), so the
+  // assertion is shape, not value: non-empty and not the technical email.
+  const name = await catalog.accountUsername();
+  expect(name.length).toBeGreaterThan(0);
+  expect(name).not.toContain('@');
+});
+When('I open the guide from the account panel', async ({ catalog }) => {
+  await catalog.openGuideFromAccount();
+});
+Then('the onboarding guide is open', async ({ catalog }) => {
+  expect(await catalog.guideIsOpen()).toBe(true);
+});
+Then('the onboarding guide is closed', async ({ catalog }) => {
+  expect(await catalog.guideIsOpen()).toBe(false);
+});
+Then('the starter top-20 shows between 1 and 20 films', async ({ catalog, page }) => {
+  // The list is data-driven and rebuilt daily, so the exact films are not
+  // assertable — but an empty grid right after the update job has run
+  // means the pipe from kino/trending to the page is broken.
+  await page.locator('#trendGrid .trend-item').first().waitFor({ timeout: 10000 });
+  const n = await catalog.trendingCount();
+  expect(n).toBeGreaterThanOrEqual(1);
+  expect(n).toBeLessThanOrEqual(20);
+});
+When('I close the onboarding guide', async ({ catalog }) => {
+  await catalog.closeGuide();
+});
+Then('the account panel entry point is visible', async ({ catalog }) => {
+  await expect(catalog.accountButton).toBeVisible();
+});
