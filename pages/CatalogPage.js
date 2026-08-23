@@ -89,7 +89,9 @@ class CatalogPage {
   cardYearText(index = 0) { return this.cards.nth(index).locator('.card-meta-row .year'); }
   cardRatingBadge(index = 0) { return this.cards.nth(index).locator('.rating-badge'); }
   /** The poster trophy — the only award UI on a card (wins only, tappable). */
-  cardPosterTrophy(index = 0) { return this.cards.nth(index).locator('.poster-award-badge'); }
+  cardPosterTrophy(index = 0) { return this.cards.nth(index).locator('.poster-award-badge--corner'); }
+  cardInlineTrophy(index = 0) { return this.cards.nth(index).locator('.poster-award-badge--inline'); }
+  cardCriticBadge(index = 0) { return this.cards.nth(index).locator('.badge--critic'); }
   cardUnderTitleAwardRow(index = 0) { return this.cards.nth(index).locator('.badges, .badges-full, .badges-compact'); }
   get infoPopover() { return this.page.locator('#infoPopover'); }
   /**
@@ -102,7 +104,7 @@ class CatalogPage {
   async firstCardIndexWithAwards() {
     return this.page.evaluate(() => {
       const cards = [...document.querySelectorAll('.card')];
-      return cards.findIndex(c => c.querySelector('.poster-award-badge'));
+      return cards.findIndex(c => c.querySelector('.poster-award-badge--corner'));
     });
   }
 

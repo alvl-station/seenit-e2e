@@ -381,3 +381,25 @@ Then('the poster trophy does not intersect either toggle', async ({ catalog, ctx
     expect(overlaps(trophy, box), 'a clipped control is an unusable control').toBe(false);
   }
 });
+
+Given('the catalog has a movie with awards and a critic score', async ({ catalog, ctx, page }) => {
+  ctx.awardCardIndex = await page.evaluate(() => {
+    const cards = [...document.querySelectorAll('.card')];
+    return cards.findIndex(c => c.querySelector('.poster-award-badge--corner') && c.querySelector('.badge--critic'));
+  });
+  test.skip(ctx.awardCardIndex === -1, 'no movie with both awards and a critic score right now');
+});
+Then("that card's trophy is inline and follows the critic score", async ({ catalog, ctx }) => {
+  const trophy = await catalog.cardInlineTrophy(ctx.awardCardIndex).boundingBox();
+  const critic = await catalog.cardCriticBadge(ctx.awardCardIndex).boundingBox();
+  expect(trophy).not.toBeNull();
+  expect(critic).not.toBeNull();
+  // "After" in a wrapping row: either to the right on the same line, or on
+  // a later line — never before the critic score.
+  const sameLine = Math.abs(trophy.y - critic.y) < critic.height;
+  if (sameLine) expect(trophy.x).toBeGreaterThan(critic.x);
+  else expect(trophy.y).toBeGreaterThan(critic.y);
+});
+Then('that card shows no corner trophy', async ({ catalog, ctx }) => {
+  await expect(catalog.cardPosterTrophy(ctx.awardCardIndex)).toBeHidden();
+});

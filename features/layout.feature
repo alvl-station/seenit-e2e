@@ -29,6 +29,15 @@ Feature: Card layout across view modes
     Then the watch and like toggles are stacked vertically on that card
     And the poster trophy does not intersect either toggle
 
+  Scenario: In the list view the trophy sits inline, after the critic score
+    # Owner-reported: the absolutely-positioned corner trophy collided with
+    # the list row. There it renders inline instead — same pill, same
+    # popover — placed after the critic percentage.
+    Given the catalog has a movie with awards and a critic score
+    When I switch the view to "list"
+    Then that card's trophy is inline and follows the critic score
+    And that card shows no corner trophy
+
   @phone-portrait
   Scenario: The rating badge never overlaps the type/year line
     When I switch the view to "grid-s"
