@@ -45,6 +45,12 @@ const test = bddBase.extend({
       throw new Error('Not authenticated — the setup project should have signed in. Session expired, TEST_USER is wrong, or Firebase is throttling the account.');
     }
     await catalog.waitForCatalogLoaded();
+    // The onboarding guide auto-opens once per account. For the test
+    // account that "once" is whichever scenario happens to run first after
+    // a deploy — and the overlay would sit on top of the grid and fail it.
+    // Closing it here also writes the account's seen-flag, so it never
+    // reappears in later runs.
+    await catalog.dismissGuideIfShown();
     await use(catalog);
   },
 

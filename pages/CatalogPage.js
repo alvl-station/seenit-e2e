@@ -193,6 +193,29 @@ class CatalogPage {
     );
   }
 
+  /* ---- account panel & onboarding guide ---- */
+  get accountButton() { return this.page.locator('#accountBtn'); }
+  get accountOverlay() { return this.page.locator('#accountOverlay'); }
+  get onboardOverlay() { return this.page.locator('#onboardOverlay'); }
+  async openAccountPanel() { await this.accountButton.click(); }
+  async accountPanelIsOpen() {
+    return this.accountOverlay.evaluate(el => el.classList.contains('open'));
+  }
+  async accountUsername() {
+    return (await this.page.locator('#accountBox .acc-name').innerText()).trim();
+  }
+  async closeAccountPanel() { await this.page.locator('#accCloseBtn').click(); }
+  async openGuideFromAccount() { await this.page.locator('#accGuideBtn').click(); }
+  async guideIsOpen() {
+    return this.onboardOverlay.evaluate(el => el.classList.contains('open'));
+  }
+  async closeGuide() { await this.page.locator('#onbDoneBtn').click(); }
+  async trendingCount() { return this.page.locator('#trendGrid .trend-item').count(); }
+  /** Closes the guide if it auto-opened (a first visit on this account). */
+  async dismissGuideIfShown() {
+    if (await this.guideIsOpen().catch(() => false)) await this.closeGuide();
+  }
+
   /* ---- tab counts ---- */
   /** The N inside "Дивився (N)", or null when the chip shows no number. */
   async watchedTabCount() { return this._tabCount('#nWatched'); }

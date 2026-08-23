@@ -3,6 +3,9 @@ Feature: Core smoke — login, search, movie modal
 
   Scenario: Logging in loads the catalog
     Then the catalog shows at least one movie
+    # Strengthened alongside the account feature: the header must expose the
+    # account entry point, or everything behind it is unreachable.
+    And the account panel entry point is visible
 
   Scenario: Search narrows the catalog and clearing restores it
     When I search for "qzxjkvbqzxjkvbqzxjkvb"
