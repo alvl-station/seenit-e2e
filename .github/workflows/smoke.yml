@@ -91,14 +91,53 @@ jobs:
         if: always()
         run: node scripts/trim-videos.js allure-results 3
 
+      # Allure builds its trend chart from a history/ folder carried over
+      # from the PREVIOUS report. Without it every run renders a chart with
+      # one point on it.
+      #
+      # This step existed and never worked: it checked out gh-pages into
+      # /tmp/ghp without creating the directory first, so git refused with
+      # "this operation must be run in a work tree" — and the failure was
+      # swallowed three times over, by 2>/dev/null, by `|| exit 0`, and by
+      # continue-on-error. The chart showed one point for months and nothing
+      # anywhere said why. No work tree is needed at all: git archive can
+      # pull a single folder straight out of the fetched commit.
       - name: Restore Allure history (keeps the trend chart across runs)
         if: always()
-        continue-on-error: true
         run: |
-          git fetch origin gh-pages --depth=1 || exit 0
-          git --work-tree=/tmp/ghp checkout origin/gh-pages -- . 2>/dev/null || exit 0
-          mkdir -p allure-results/history
-          cp -r /tmp/ghp/history/* allure-results/history/ 2>/dev/null || true
+          set -uo pipefail
+          rm -rf /tmp/ghp && mkdir -p /tmp/ghp
+          if ! git fetch --depth=1 origin gh-pages; then
+            echo "::notice::No gh-pages branch yet — this run starts the history."
+            exit 0
+          fi
+          git archive FETCH_HEAD history 2>/dev/null | tar -x -C /tmp/ghp || true
+          if [ -d /tmp/ghp/history ] && [ -n "$(ls -A /tmp/ghp/history)" ]; then
+            mkdir -p allure-results/history
+            cp -r /tmp/ghp/history/. allure-results/history/
+            points=$(python3 -c "import json;print(len(json.load(open('/tmp/ghp/history/history-trend.json'))))" 2>/dev/null || echo '?')
+            echo "Restored history from the published report ($points trend point(s) so far)."
+          else
+            echo "::warning::gh-pages carries no history/ folder, so the trend chart restarts at one point. If this warning appears on every run, history is not being carried forward."
+          fi
+
+      # Without this the trend points have no build number and no link, so
+      # a regression can be seen but not traced back to the run that caused
+      # it — which is most of the value of keeping history at all.
+      - name: Label this run for the trend chart
+        if: always()
+        run: |
+          mkdir -p allure-results
+          cat > allure-results/executor.json <<JSON
+          {
+            "name": "GitHub Actions",
+            "type": "github",
+            "buildOrder": ${{ github.run_number }},
+            "buildName": "smoke #${{ github.run_number }}",
+            "buildUrl": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+            "reportUrl": "https://alvl-station.github.io/seenit-e2e/"
+          }
+          JSON
 
       - name: Generate the Allure report
         if: always()
