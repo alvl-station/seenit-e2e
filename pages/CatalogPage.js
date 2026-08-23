@@ -32,7 +32,7 @@ class CatalogPage {
   async waitForCatalogLoaded(timeout = 20000) {
     await this.cards.first().waitFor({ state: 'visible', timeout });
     await this.page.waitForFunction(
-      () => !!document.querySelector('.badge--critic, .badges-full .badge, .badges-compact'),
+      () => !!document.querySelector('.badge--critic, .poster-award-badge'),
       null,
       { timeout },
     );
@@ -88,9 +88,10 @@ class CatalogPage {
   cardTitle(index = 0) { return this.cards.nth(index).locator('h3'); }
   cardYearText(index = 0) { return this.cards.nth(index).locator('.card-meta-row .year'); }
   cardRatingBadge(index = 0) { return this.cards.nth(index).locator('.rating-badge'); }
-  /** Full named award pills vs the compact trophy+count fallback (grid-s/list). */
-  cardBadgesFull(index = 0) { return this.cards.nth(index).locator('.badges-full'); }
-  cardBadgesCompact(index = 0) { return this.cards.nth(index).locator('.badges-compact'); }
+  /** The poster trophy — the only award UI on a card (wins only, tappable). */
+  cardPosterTrophy(index = 0) { return this.cards.nth(index).locator('.poster-award-badge'); }
+  cardUnderTitleAwardRow(index = 0) { return this.cards.nth(index).locator('.badges, .badges-full, .badges-compact'); }
+  get infoPopover() { return this.page.locator('#infoPopover'); }
   /**
    * Index of the first card carrying award badges, or -1. Scans EVERY card
    * in one page.evaluate rather than N locator round-trips — and scanning
@@ -101,7 +102,7 @@ class CatalogPage {
   async firstCardIndexWithAwards() {
     return this.page.evaluate(() => {
       const cards = [...document.querySelectorAll('.card')];
-      return cards.findIndex(c => c.querySelector('.badges-full .badge, .badges-compact'));
+      return cards.findIndex(c => c.querySelector('.poster-award-badge'));
     });
   }
 

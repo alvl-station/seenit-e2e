@@ -43,14 +43,17 @@ Given('the catalog has a movie with awards', async ({ catalog, ctx }) => {
   ctx.awardCardIndex = await catalog.firstCardIndexWithAwards();
   test.skip(ctx.awardCardIndex === -1, 'no movie with awards in the catalog right now');
 });
-Then('that card shows the compact award badge and hides the full pills', async ({ catalog, ctx }) => {
-  await expect(catalog.cardBadgesCompact(ctx.awardCardIndex)).toBeVisible();
-  await expect(catalog.cardBadgesFull(ctx.awardCardIndex)).toBeHidden();
+Then('that card shows the poster trophy and no under-title award row', async ({ catalog, ctx }) => {
+  await expect(catalog.cardPosterTrophy(ctx.awardCardIndex)).toBeVisible();
+  expect(await catalog.cardUnderTitleAwardRow(ctx.awardCardIndex).count()).toBe(0);
 });
-Then('the badges stay within the card width', async ({ catalog, ctx }) => {
-  const card = await catalog.cards.nth(ctx.awardCardIndex).boundingBox();
-  const compact = await catalog.cardBadgesCompact(ctx.awardCardIndex).boundingBox();
-  expect(compact.x + compact.width).toBeLessThanOrEqual(card.x + card.width + 1);
+When("I tap that card's poster trophy", async ({ catalog, ctx }) => {
+  await catalog.cardPosterTrophy(ctx.awardCardIndex).click();
+});
+Then('the award breakdown popover is shown', async ({ catalog }) => {
+  await expect(catalog.infoPopover).toBeVisible();
+  const text = (await catalog.infoPopover.innerText()).trim();
+  expect(text.length).toBeGreaterThan(0);
 });
 Then('no rating badge intersects the type and year text', async ({ catalog }) => {
   const n = Math.min(await catalog.cardCount(), 8);
