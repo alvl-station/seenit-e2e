@@ -316,8 +316,24 @@ Then('a fresh visitor sees the password form and the Google button', async ({ br
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
   try {
-    await page.goto(process.env.BASE_URL || 'https://alvl-station.github.io/seenit/');
-    await expect(page.locator('#loginForm')).toBeVisible({ timeout: 15000 });
+    // Retried on purpose: this runs minutes after a deploy, in a context
+    // with no cache, and GitHub Pages' CDN can still be propagating — the
+    // edge briefly serves a 404 or the previous build. The shared context
+    // never sees that (its edge was warmed during setup), so only THIS
+    // scenario kept flaking on freshly deployed runs.
+    let lastErr;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        await page.goto(process.env.BASE_URL || 'https://alvl-station.github.io/seenit/', { waitUntil: 'domcontentloaded' });
+        await expect(page.locator('#loginForm')).toBeVisible({ timeout: 10000 });
+        lastErr = null;
+        break;
+      } catch (err) {
+        lastErr = err;
+        await page.waitForTimeout(8000);
+      }
+    }
+    if (lastErr) throw lastErr;
     await expect(page.locator('#googleBtn')).toBeVisible();
     await expect(page.locator('#registerToggle')).toBeVisible();
   } finally {
