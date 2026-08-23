@@ -247,14 +247,18 @@ class CatalogPage {
   }
 
   /* ---- genre chips ---- */
+  // There is no "all genres" chip — every chip here is a real genre. Neutral
+  // (no filter) is reached only by deselecting whichever one is active; see
+  // noChipHighlighted() below.
   genreChip(index = 0) { return this.page.locator('#genreChips .chip').nth(index); }
-  /** First chip that is NOT the "all genres" one (index 0 is always "Усі жанри"). */
-  firstRealGenreChip() { return this.page.locator('#genreChips .chip').nth(1); }
   async chipIsActive(chip) {
     return chip.evaluate(el => el.classList.contains('active'));
   }
   async chipBorderColor(chip) {
     return chip.evaluate(el => getComputedStyle(el).borderColor);
+  }
+  async noChipHighlighted() {
+    return (await this.page.locator('#genreChips .chip.active').count()) === 0;
   }
 
   /* ---- page scroll state (the scroll-lock pattern, CONVENTIONS.md) ---- */
@@ -274,10 +278,14 @@ class CatalogPage {
   }
 
   /* ---- tabs ---- */
+  // There is no "Усі" tab — it's the neutral state, reached only by
+  // deselecting whichever tab is active; see noTabHighlighted() below.
   recommendTab() { return this.page.locator('#tabs .tab[data-tab="liked"]'); }
-  allTab() { return this.page.locator('#tabs .tab[data-tab="all"]'); }
   async tabIsActive(tab) {
     return tab.evaluate(el => el.classList.contains('active'));
+  }
+  async noTabHighlighted() {
+    return (await this.page.locator('#tabs .tab[data-tab].active').count()) === 0;
   }
 }
 
