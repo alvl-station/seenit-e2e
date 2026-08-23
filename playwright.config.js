@@ -27,7 +27,13 @@ module.exports = defineConfig({
   testDir,
   timeout: 30_000,
   expect: { timeout: 10_000 },
-  fullyParallel: true,
+  // NOT fully parallel, deliberately. Scenarios inside one file run in
+  // order; separate files still parallelize across workers. The marks
+  // scenarios all mutate the SAME test account's lists, and running them
+  // concurrently made their counts race — one scenario's toggle landing
+  // between another's "remember" and "compare" reads. Cross-FILE
+  // parallelism keeps most of the speed; in-file order restores sanity.
+  fullyParallel: false,
   retries: process.env.CI ? 1 : 0,
   // 'list' for the live CI log, Allure for the published report (roadmap:
   // a separate Pages site with screenshots and short videos on failure).
