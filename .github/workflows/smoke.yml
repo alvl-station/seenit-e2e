@@ -121,21 +121,29 @@ jobs:
             echo "::warning::gh-pages carries no history/ folder, so the trend chart restarts at one point. If this warning appears on every run, history is not being carried forward."
           fi
 
-      # Without this the trend points have no build number and no link, so
-      # a regression can be seen but not traced back to the run that caused
-      # it — which is most of the value of keeping history at all.
+      # Without this a trend point carries no build number and no link, so a
+      # regression can be seen on the chart but not traced back to the run
+      # that caused it — most of the value of keeping history at all.
+      #
+      # reportName/reportUrl, not buildName/buildUrl: those are the two
+      # fields Allure copies onto a trend point. The first attempt set only
+      # buildName and the newest point came out unlabelled, pointing at the
+      # report itself. The URL is the RUN, because that is where someone
+      # goes after clicking a point that dropped.
       - name: Label this run for the trend chart
         if: always()
         run: |
           mkdir -p allure-results
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           cat > allure-results/executor.json <<JSON
           {
             "name": "GitHub Actions",
             "type": "github",
             "buildOrder": ${{ github.run_number }},
             "buildName": "smoke #${{ github.run_number }}",
-            "buildUrl": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-            "reportUrl": "https://alvl-station.github.io/seenit-e2e/"
+            "buildUrl": "$RUN_URL",
+            "reportName": "smoke #${{ github.run_number }}",
+            "reportUrl": "$RUN_URL"
           }
           JSON
 
