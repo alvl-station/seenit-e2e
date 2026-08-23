@@ -71,47 +71,50 @@ Then('no rating badge intersects the type and year text', async ({ catalog }) =>
 
 /* ---- genre chips ---- */
 Given('the catalog has more than one genre', async ({ catalog }) => {
-  test.skip(await catalog.firstRealGenreChip().count() === 0, 'catalog has fewer than two genres right now');
+  test.skip(await catalog.genreChip(0).count() === 0, 'catalog has fewer than two genres right now');
 });
 When('I tap the first genre chip', async ({ catalog }) => {
-  await catalog.firstRealGenreChip().click();
+  await catalog.genreChip(0).click();
 });
 Then('that chip is active', async ({ catalog }) => {
-  expect(await catalog.chipIsActive(catalog.firstRealGenreChip())).toBe(true);
-});
-Then('that chip is inactive', async ({ catalog }) => {
-  expect(await catalog.chipIsActive(catalog.firstRealGenreChip())).toBe(false);
-});
-Then('the "all genres" chip is active', async ({ catalog }) => {
   expect(await catalog.chipIsActive(catalog.genreChip(0))).toBe(true);
 });
+Then('that chip is inactive', async ({ catalog }) => {
+  expect(await catalog.chipIsActive(catalog.genreChip(0))).toBe(false);
+});
+Then('no genre chip is highlighted', async ({ catalog }) => {
+  expect(await catalog.noChipHighlighted()).toBe(true);
+});
 Given('I remember the border color of the first genre chip', async ({ catalog, ctx }) => {
-  ctx.restingBorder = await catalog.chipBorderColor(catalog.firstRealGenreChip());
+  ctx.restingBorder = await catalog.chipBorderColor(catalog.genreChip(0));
 });
 When('I touch-tap the first genre chip', async ({ catalog }) => {
-  await catalog.firstRealGenreChip().tap();
+  await catalog.genreChip(0).tap();
 });
 When('I touch-tap the first genre chip again', async ({ catalog }) => {
-  await catalog.firstRealGenreChip().tap();
+  await catalog.genreChip(0).tap();
 });
 Then('the chip is inactive and its border color matches the remembered one', async ({ catalog, ctx }) => {
-  const chip = catalog.firstRealGenreChip();
+  const chip = catalog.genreChip(0);
   expect(await catalog.chipIsActive(chip)).toBe(false);
   expect(await catalog.chipBorderColor(chip)).toBe(ctx.restingBorder);
 });
 
 /* ---- tabs ---- */
-When('I tap the {string} tab', async ({ catalog }, name) => {
-  const tab = name === 'Рекомендую' ? catalog.recommendTab() : catalog.allTab();
-  await tab.click();
+// "Рекомендую" is the only tab a scenario ever taps or asserts by name — "Усі"
+// has no button of its own; it's what you get by deselecting it (see
+// "no catalog tab is highlighted" below).
+When('I tap the {string} tab', async ({ catalog }, _name) => {
+  await catalog.recommendTab().click();
 });
-Then('the {string} tab is active', async ({ catalog }, name) => {
-  const tab = name === 'Рекомендую' ? catalog.recommendTab() : catalog.allTab();
-  expect(await catalog.tabIsActive(tab)).toBe(true);
+Then('the {string} tab is active', async ({ catalog }, _name) => {
+  expect(await catalog.tabIsActive(catalog.recommendTab())).toBe(true);
 });
-Then('the {string} tab is inactive', async ({ catalog }, name) => {
-  const tab = name === 'Рекомендую' ? catalog.recommendTab() : catalog.allTab();
-  expect(await catalog.tabIsActive(tab)).toBe(false);
+Then('the {string} tab is inactive', async ({ catalog }, _name) => {
+  expect(await catalog.tabIsActive(catalog.recommendTab())).toBe(false);
+});
+Then('no catalog tab is highlighted', async ({ catalog }) => {
+  expect(await catalog.noTabHighlighted()).toBe(true);
 });
 
 /* ---- page scroll state ---- */

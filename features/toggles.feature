@@ -8,14 +8,14 @@ Feature: Toggle-off on second tap and hover on touch
     Then that chip is active
     When I tap the first genre chip
     Then that chip is inactive
-    And the "all genres" chip is active
+    And no genre chip is highlighted
 
-  Scenario: The "Рекомендую" tab deselects back to "Усі" on a second tap
+  Scenario: The "Рекомендую" tab deselects to neutral on a second tap
     When I tap the "Рекомендую" tab
     Then the "Рекомендую" tab is active
     When I tap the "Рекомендую" tab
     Then the "Рекомендую" tab is inactive
-    And the "Усі" tab is active
+    And no catalog tab is highlighted
 
   @phone-portrait
   Scenario: A tapped-then-deselected chip keeps no sticky hover styling
