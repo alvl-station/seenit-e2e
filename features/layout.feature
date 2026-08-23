@@ -21,6 +21,15 @@ Feature: Card layout across view modes
     Then the award breakdown popover is shown
 
   @phone-portrait
+  Scenario: Poster controls never collide on a narrow card
+    # Owner-reported: on a three-column phone grid the eye+heart pair sat in
+    # a ROW and ran into the trophy at the opposite corner, clipping both.
+    # They stack vertically now, so each control keeps its own space.
+    Given the catalog has a movie with awards
+    Then the watch and like toggles are stacked vertically on that card
+    And the poster trophy does not intersect either toggle
+
+  @phone-portrait
   Scenario: The rating badge never overlaps the type/year line
     When I switch the view to "grid-s"
     Then no rating badge intersects the type and year text

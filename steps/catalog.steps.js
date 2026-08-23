@@ -363,3 +363,21 @@ Then('the collection grid shows between {int} and {int} films', async ({ catalog
 Then('the recommendations entry point is visible', async ({ catalog }) => {
   await expect(catalog.recsButton).toBeVisible();
 });
+
+Then('the watch and like toggles are stacked vertically on that card', async ({ catalog, ctx }) => {
+  const eye = await catalog.cardWatchedToggle(ctx.awardCardIndex).boundingBox();
+  const heart = await catalog.cardLikedToggle(ctx.awardCardIndex).boundingBox();
+  expect(eye).not.toBeNull();
+  expect(heart).not.toBeNull();
+  // Vertically stacked: the heart starts below the eye ends, and they share
+  // a column rather than a row.
+  expect(heart.y).toBeGreaterThanOrEqual(eye.y + eye.height - 1);
+  expect(Math.abs(heart.x - eye.x)).toBeLessThanOrEqual(4);
+});
+Then('the poster trophy does not intersect either toggle', async ({ catalog, ctx }) => {
+  const trophy = await catalog.cardPosterTrophy(ctx.awardCardIndex).boundingBox();
+  for (const locator of [catalog.cardWatchedToggle(ctx.awardCardIndex), catalog.cardLikedToggle(ctx.awardCardIndex)]) {
+    const box = await locator.boundingBox();
+    expect(overlaps(trophy, box), 'a clipped control is an unusable control').toBe(false);
+  }
+});
