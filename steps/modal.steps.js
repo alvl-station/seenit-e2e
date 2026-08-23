@@ -6,10 +6,33 @@ const { MovieModalPage } = require('../pages/MovieModalPage');
 const { AddModalPage } = require('../pages/AddModalPage');
 const { Given, When, Then } = createBdd(test);
 
-// The ONLY names a badge may carry — AWARD_INFO's curated English set
-// (seenit-frontend src/data/awards.js).
-const CURATED = ['Oscar', 'Golden Globe', 'BAFTA', 'Cannes', 'Venice', 'Berlinale', 'Emmy', 'SAG', 'Saturn'];
-const PILL_RE = new RegExp(`^(${CURATED.join('|')})( \\(\\d+\\))?$`);
+// The only names a badge may carry are the curated English ones, and the app
+// under test is the one that curates them: AWARD_INFO ships inside the page
+// (seenit-frontend src/data/awards.js, concatenated into the bundle).
+//
+// This used to be a hand-copied list of nine names. The frontend's set grew to
+// twenty-two, the copy did not, and "National Board of Review Award" — a name
+// the app is entirely right to show — failed the assertion on every run. That
+// stuck the live site on an old release, because the deploy pipeline treats a
+// red smoke suite as a reason to roll back.
+//
+// Reading the set from the page keeps the assertion honest without keeping a
+// duplicate in step with a list it does not own. A Ukrainian or raw upstream
+// name leaking into a pill still fails, which is what the test is actually for.
+async function curatedNames(page) {
+  const names = await page.evaluate(() => (typeof AWARD_INFO === 'undefined' ? null
+    : Object.values(AWARD_INFO).map(a => a && (a.name || a.label)).filter(Boolean)));
+  expect(names, 'AWARD_INFO is not reachable on the page — the bundle changed shape')
+    .toBeTruthy();
+  expect(names.length, 'AWARD_INFO came back empty').toBeGreaterThan(0);
+  return names;
+}
+// Longest first, so "National Board of Review Award" cannot be half-matched by a
+// shorter entry that happens to be its prefix.
+const pillPattern = names => new RegExp('^(' +
+  names.slice().sort((a, b) => b.length - a.length)
+       .map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') +
+  ')( \\(\\d+\\))?$');
 
 function modalOf(ctx, page) {
   if (!ctx.modal) ctx.modal = new MovieModalPage(page);
@@ -77,11 +100,14 @@ When('I tap outside the popover', async ({ ctx, page }) => {
 });
 Then('every award pill is labeled with a curated English name', async ({ ctx, page }) => {
   const modal = modalOf(ctx, page);
+  const re = pillPattern(await curatedNames(page));
   const n = await modal.awardPills().count();
   expect(n).toBeGreaterThan(0);
   for (let i = 0; i < n; i++) {
     const text = (await modal.awardPills().nth(i).innerText()).trim();
-    expect(text, `pill ${i} text "${text}" is not a curated English name`).toMatch(PILL_RE);
+    expect(text, `pill ${i} text "${text}" is not a curated English name`).toMatch(re);
+    expect(text, `pill ${i} text "${text}" contains Cyrillic — award names stay English`)
+      .not.toMatch(/[\u0400-\u04FF]/);
   }
 });
 Then('the popover is visible next to the pill and does not cover it', async ({ ctx, page }) => {
