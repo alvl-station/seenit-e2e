@@ -116,6 +116,27 @@ class CatalogPage {
     });
   }
 
+  /**
+   * Index of the first card whose film has providers on file, or -1.
+   *
+   * Providers are not drawn on the card — only inside the modal — so this
+   * reads MOVIES (the app's own loaded catalogue, reachable from the page the
+   * same way AWARD_INFO is) and matches back to a card by data-id, rather
+   * than opening modals one after another until one happens to have them.
+   *
+   * -1 is the ORDINARY answer until the provider backfill has run over the
+   * catalogue, so callers skip on it rather than fail.
+   */
+  async firstCardIndexWithProviders() {
+    return this.page.evaluate(() => {
+      if (typeof MOVIES === 'undefined') return -1;
+      const withProviders = new Set(
+        MOVIES.filter(m => m && Array.isArray(m.providers) && m.providers.length).map(m => m.id));
+      const cards = [...document.querySelectorAll('.card')];
+      return cards.findIndex(c => withProviders.has(c.dataset.id));
+    });
+  }
+
   /* ---- delete mode ----
    * READ-ONLY, deliberately. kino/movies is a single global catalog shared by
    * every login (there is no per-user data — see CLAUDE.md), so a confirmed

@@ -19,6 +19,30 @@ class MovieModalPage {
     await this.overlay.waitFor({ state: 'hidden' });
   }
 
+  /* ---- the poster/trailer slot ----
+   * A modal shows exactly one of these: the autoplaying muted embed when the
+   * film has a trailer_url on file, the static poster when it does not. */
+  trailerFrame() { return this.page.locator('#modalOverlay .modal-trailer iframe'); }
+  poster() { return this.page.locator('#modalOverlay .modal-poster'); }
+
+  /* ---- "Де подивитись" ----
+   * Absent entirely for a film with no providers on file, which is the normal
+   * state until the backfill has run over the catalogue. */
+  providersSection() { return this.page.locator('#modalOverlay .modal-providers'); }
+  providerRows() { return this.page.locator('#modalOverlay .modal-providers .prov'); }
+
+  /** Every row as plain data — one DOM read, no per-row waits. */
+  async providers() {
+    return this.page.$$eval('#modalOverlay .modal-providers .prov', els => els.map(el => ({
+      name: (el.querySelector('.prov-name') || {}).textContent?.trim() || '',
+      kind: (el.querySelector('.prov-kind') || {}).textContent?.trim() || '',
+      href: el.getAttribute('href'),
+      newTab: el.getAttribute('target') === '_blank',
+      rel: el.getAttribute('rel') || '',
+      hasLogo: !!el.querySelector('.prov-logo'),
+    })));
+  }
+
   /* ---- award pills + the anchored info popover ---- */
   awardPills() { return this.page.locator('#modalOverlay .award-pill'); }
   /** Only the tappable ones (a group with nothing to reveal gets no affordance). */
