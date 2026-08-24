@@ -22,3 +22,9 @@ Feature: The award breakdown and the critic popover
     When I tap the critic badge
     And I tap outside the popover
     Then the popover disappears
+
+  Scenario: The popover closes on a second tap on the same badge
+    Given a movie modal with a critic score is open
+    When I tap the critic badge
+    And I tap the critic badge
+    Then the popover disappears
