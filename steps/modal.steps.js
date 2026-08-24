@@ -173,3 +173,87 @@ Then('every award pill icon is vertically centred within its pill', async ({ ctx
       .toBeLessThanOrEqual(1);
   }
 });
+
+/* ---- "Де подивитись" ----
+ * Read-only, and deliberately never follows a provider link: part of what
+ * these assert is that the app cannot spend money, and a CI run clicking
+ * through to a storefront would be a poor way to make that argument. */
+
+// The offer kinds the app can render, cheapest-for-the-viewer first. Mirrors
+// PROVIDER_KIND_ORDER in src/logic.js; kept here rather than read off the page
+// because the ORDER is the assertion — reading it from the thing under test
+// would make the scenario agree with any order it happened to produce.
+const KIND_ORDER = ['Передплата', 'Безкоштовно', 'Безкоштовно з рекламою', 'Є в каталозі', 'Оренда', 'Купівля'];
+
+Given('a movie modal with providers is open', async ({ catalog, ctx, page }) => {
+  const i = await catalog.firstCardIndexWithProviders();
+  // Not a failure: no film has providers until the backfill has run, and a
+  // red smoke suite rolls the live site back a release.
+  test.skip(i === -1, 'no film in the catalog has providers on file yet');
+  await catalog.openCard(i);
+  await modalOf(ctx, page).waitUntilOpen();
+  ctx.providers = await modalOf(ctx, page).providers();
+  expect(ctx.providers.length, 'the film has providers on file but rendered no rows')
+    .toBeGreaterThan(0);
+});
+
+Then('every provider row names a service and what the offer is', async ({ ctx }) => {
+  for (const p of ctx.providers) {
+    expect(p.name, 'a provider row rendered with no name').toBeTruthy();
+    expect(KIND_ORDER, `"${p.name}" shows an offer label the app does not define: "${p.kind}"`)
+      .toContain(p.kind);
+  }
+});
+
+Then("every provider row carries the service's own logo", async ({ ctx }) => {
+  for (const p of ctx.providers) {
+    expect(p.hasLogo, `"${p.name}" rendered without a logo or its fallback initial`).toBe(true);
+  }
+});
+
+Then('providers are ordered from subscription to purchase', async ({ ctx }) => {
+  const ranks = ctx.providers.map(p => KIND_ORDER.indexOf(p.kind));
+  const sorted = [...ranks].sort((a, b) => a - b);
+  expect(ranks, `rows are out of cost order: ${ctx.providers.map(p => `${p.name}/${p.kind}`).join(', ')}`)
+    .toEqual(sorted);
+});
+
+Then('every provider link opens in a new tab with rel="noopener"', async ({ ctx }) => {
+  const links = ctx.providers.filter(p => p.href);
+  expect(links.length, 'not one provider row was a link').toBeGreaterThan(0);
+  for (const p of links) {
+    expect(p.newTab, `"${p.name}" would navigate away from the app`).toBe(true);
+    expect(p.rel, `"${p.name}" opens a new tab without rel="noopener"`).toContain('noopener');
+  }
+});
+
+Then('every provider link points at a film page, never a checkout', async ({ ctx }) => {
+  for (const p of ctx.providers.filter(x => x.href)) {
+    expect(p.href, `"${p.name}" links somewhere that could start a purchase`)
+      .not.toMatch(/checkout|\/buy\b|payment|purchase|subscribe/i);
+  }
+});
+
+Then('no Megogo row claims a subscription or a price', async ({ ctx }) => {
+  for (const p of ctx.providers.filter(x => x.name === 'Megogo')) {
+    // The sitemap proves the page exists and nothing about money.
+    expect(p.kind, 'a Megogo row claims an offer the sitemap cannot know')
+      .toBe('Є в каталозі');
+  }
+});
+
+/* ---- the poster/trailer slot ---- */
+Then('the modal shows either an autoplaying trailer or a poster', async ({ ctx, page }) => {
+  const modal = modalOf(ctx, page);
+  const frames = await modal.trailerFrame().count();
+  const posters = await modal.poster().count();
+  expect(frames + posters, 'the modal rendered neither a trailer nor a poster').toBeGreaterThan(0);
+  expect(frames && posters, 'the modal rendered BOTH — they share one slot').toBeFalsy();
+  if (frames) {
+    const src = await modal.trailerFrame().first().getAttribute('src');
+    // Muted autoplay is what makes an embed-on-open acceptable; a modal that
+    // starts making noise by itself is the regression worth catching.
+    expect(src, 'the trailer embed is not a YouTube embed URL').toContain('youtube.com/embed/');
+    expect(src, 'the trailer would autoplay with sound').toMatch(/mute=1/);
+  }
+});
