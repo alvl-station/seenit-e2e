@@ -30,11 +30,14 @@ When('I search for {string}', async ({ catalog }, query) => {
   await catalog.search(query);
 });
 Then('I see the empty state {string}', async ({ catalog }, text) => {
-  await expect(catalog.emptyMessage).toBeVisible();
-  await expect(catalog.emptyMessage).toContainText(text);
+  // Search runs in its own full-screen layer now, so its dead end lives
+  // there too — the grid's own empty panel is a different element.
+  await expect(catalog.searchEmptyMessage).toBeVisible();
+  await expect(catalog.searchEmptyMessage).toContainText(text);
 });
 When('I clear the search', async ({ catalog }) => {
-  await catalog.search('');
+  // Closing the layer IS the clear: the app wipes the query on the way out.
+  await catalog.closeSearchLayer();
   await catalog.waitForCatalogLoaded();
 });
 
@@ -323,7 +326,10 @@ When('I close the onboarding guide', async ({ catalog }) => {
   await catalog.closeGuide();
 });
 Then('the account panel entry point is visible', async ({ catalog }) => {
+  // The entry point moved into the menu sheet with the slimmed header.
+  await catalog.openMenu();
   await expect(catalog.accountButton).toBeVisible();
+  await catalog.closeMenu();
 });
 
 Then('the account panel offers a password change', async ({ page }) => {
@@ -397,7 +403,9 @@ Then('the collection grid shows between {int} and {int} films', async ({ catalog
   expect(n).toBeLessThanOrEqual(hi);
 });
 Then('the recommendations entry point is visible', async ({ catalog }) => {
+  await catalog.openMenu();
   await expect(catalog.recsButton).toBeVisible();
+  await catalog.closeMenu();
 });
 
 Then("both toggles sit below that card's poster", async ({ catalog, ctx }) => {

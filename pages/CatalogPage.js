@@ -70,7 +70,43 @@ class CatalogPage {
     return n ? (await this.emptyMessage.innerText()).trim() : null;
   }
 
+  /* ---- the slimmed header: the search layer and the two bottom sheets ---- */
+  get searchLayer() { return this.page.locator('#searchLayer'); }
+  get searchEmptyMessage() { return this.page.locator('#searchResults .empty-msg'); }
+  async searchLayerIsOpen() {
+    return this.searchLayer.evaluate(el => el.classList.contains('open'));
+  }
+  async openSearchLayer() {
+    if (await this.searchLayerIsOpen()) return;
+    await this.page.locator('#searchOpenBtn').click();
+    await this.page.locator('#searchLayer.open').waitFor();
+  }
+  /** Closing the layer CLEARS the query — the grid never stays silently
+   *  filtered by a closed layer. That is the app's contract, not ours. */
+  async closeSearchLayer() {
+    if (!(await this.searchLayerIsOpen())) return;
+    await this.page.locator('#searchBackBtn').click();
+    await this.page.locator('#searchLayer:not(.open)').waitFor();
+  }
+  async openMenu() {
+    await this.page.locator('#menuBtn').click();
+    await this.page.locator('#menuSheet.open').waitFor();
+  }
+  async closeMenu() {
+    await this.page.locator('#menuBackdrop').click({ position: { x: 10, y: 10 } });
+    await this.page.locator('#menuSheet:not(.open)').waitFor();
+  }
+  async openFilterDrawer() {
+    await this.page.locator('#filterBtn').click();
+    await this.page.locator('#filterSheet.open').waitFor();
+  }
+  async closeFilterDrawer() {
+    await this.page.locator('#filterBackdrop').click({ position: { x: 10, y: 10 } });
+    await this.page.locator('#filterSheet:not(.open)').waitFor();
+  }
+
   async search(query) {
+    await this.openSearchLayer();
     await this.searchInput.fill(query);
   }
 
@@ -97,9 +133,11 @@ class CatalogPage {
     return false;
   }
 
-  /* ---- view modes (list / grid-s / grid-m / grid-l) ---- */
+  /* ---- view modes (list / grid-s / grid-m) — options in the ФІЛЬТР drawer ---- */
   async switchView(v) {
+    await this.openFilterDrawer();
     await this.page.locator(`#viewToggle button[data-v="${v}"]`).click();
+    await this.closeFilterDrawer();
   }
   async currentView() {
     return this.page.evaluate(() => document.body.dataset.view);
@@ -168,17 +206,31 @@ class CatalogPage {
       const match = new Function(`return (${src})`)();
       if (typeof MOVIES === 'undefined') return null;
       const m = MOVIES.find(x => x && match(x));
-      return m ? m.canonical_title_uk : null;
+      return m ? { title: m.canonical_title_uk, group: m.genre_group || 'Інше' } : null;
     }, predicate.toString());
     if (!found) return -1;
 
-    await this.search(found);
-    await this.cards.first().waitFor({ state: 'visible', timeout: 10000 });
-    if (!drawnSelector) return 0;
-    return this.page.evaluate(sel => {
-      const cards = [...document.querySelectorAll('.card')];
-      return cards.findIndex(c => c.querySelector(sel));
-    }, drawnSelector);
+    // The search layer covers the grid instead of filtering it now, so the
+    // reveal goes the way a person would: narrow the grid to the film's
+    // genre group via the ribbon, then let batches draw until the card is
+    // on the page (or nothing is left to draw).
+    await this.page.locator(`#genreChips .chip[data-g="${found.group}"]`).click();
+    for (let i = 0; i < 80; i++) {
+      const idx = await this.page.evaluate(([sel, title]) => {
+        const cards = [...document.querySelectorAll('.card')];
+        if (sel) return cards.findIndex(c => c.querySelector(sel));
+        return cards.findIndex(c => {
+          const h = c.querySelector('h3');
+          return h && h.textContent.trim() === title;
+        });
+      }, [drawnSelector, found.title]);
+      if (idx !== -1) return idx;
+      const sentinel = this.page.locator('#renderSentinel');
+      if (!(await sentinel.count())) break;
+      await sentinel.scrollIntoViewIfNeeded();
+      await this.page.waitForTimeout(150);
+    }
+    return -1;
   }
 
   /**
@@ -212,9 +264,12 @@ class CatalogPage {
   get deleteConfirmButton() { return this.page.locator('#deleteConfirmBtn'); }
   get deleteCancelButton() { return this.page.locator('#deleteCancelBtn'); }
 
-  /** Arms the dialog to always answer "no", then enters delete mode. */
+  /** Arms the dialog to always answer "no", then enters delete mode —
+   *  which lives in the menu sheet now. The sheet closes itself after a
+   *  row is tapped. */
   async enterDeleteMode() {
     this.page.on('dialog', d => d.dismiss());
+    await this.openMenu();
     await this.deleteModeButton.click();
   }
   async leaveDeleteMode() { await this.deleteCancelButton.click(); }
@@ -305,7 +360,10 @@ class CatalogPage {
   /* ---- the recommendations flow ("Добірки") ---- */
   get recsButton() { return this.page.locator('#recsBtn'); }
   get recsOverlay() { return this.page.locator('#recsOverlay'); }
-  async openRecs() { await this.recsButton.click(); }
+  async openRecs() {
+    await this.openMenu();
+    await this.recsButton.click();
+  }
   async recsIsOpen() { return this.recsOverlay.evaluate(el => el.classList.contains('open')); }
   async closeRecs() { await this.page.locator('#recsCloseBtn').click(); }
   async recsSourceTabs() {
