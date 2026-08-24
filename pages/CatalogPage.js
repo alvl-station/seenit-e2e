@@ -42,6 +42,22 @@ class CatalogPage {
       null,
       { timeout },
     );
+    // ...and then wait for it to STOP arriving.
+    //
+    // The catalogue comes from D1 in pages of a thousand now, and every page
+    // re-sorts and re-groups the grid. The check above is satisfied by the
+    // FIRST page, so without this the suite starts work while thirteen more
+    // are still landing — and a card's position is not stable until they
+    // stop. Scenarios that find a card and then act on it by index were
+    // asserting against a different film by the time they got there:
+    //
+    //   waiting for locator('.card').nth(61).locator('.poster-award-badge--corner')
+    //
+    // Guarded like the marks wait in support/fixtures.js: a bundle deployed
+    // before the beacon existed simply proceeds as it did before, rather
+    // than failing every scenario at the fixture.
+    await this.page.waitForFunction(() => window.__catalogueLoaded === true, null, { timeout })
+      .catch(() => { /* older bundle without the beacon */ });
   }
 
   async cardCount() {

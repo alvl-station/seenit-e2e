@@ -7,6 +7,11 @@ Feature: Core smoke — login, search, movie modal
     # account entry point, or everything behind it is unreachable.
     And the account panel entry point is visible
     And the recommendations entry point is visible
+    # Strengthened after the move to D1: the catalogue arrives in pages and
+    # every page re-lays the grid, so a card's position is meaningless until
+    # loading stops. Scenarios that find a card and then act on it by index
+    # were asserting against a film that had moved out from under them.
+    And the catalogue has stopped arriving
 
   Scenario: Search narrows the catalog and clearing restores it
     When I search for "qzxjkvbqzxjkvbqzxjkvb"
