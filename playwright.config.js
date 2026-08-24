@@ -34,25 +34,22 @@ module.exports = defineConfig({
   // between another's "remember" and "compare" reads. Cross-FILE
   // parallelism keeps most of the speed; in-file order restores sanity.
   fullyParallel: false,
-  // Four, up from the two Playwright infers from the runner's cores. The
-  // suite is mostly waiting on a live URL, so some oversubscription pays.
+  // Two — which is also what Playwright infers from the runner's two cores,
+  // set explicitly so the number carries its reasoning.
   //
-  // Six did not, and the measurement is the argument. Per-scenario time went
-  // from 1.5-3s to 11-22s — the runner has two cores and six browsers fight
-  // over them — while the whole suite only improved 3.4min -> 2.2min. Every
-  // scenario ended up running at the edge of its 30s timeout, and the first
-  // one over was "a fresh visitor": it opens an ADDITIONAL context, a
-  // seventh browser, so it paid the contention twice. It failed as though
-  // the login screen were broken.
+  // Oversubscribing looked free (the suite mostly waits on a live URL) and
+  // was not. At six, per-scenario time went from 1.5-3s to 11-22s while the
+  // whole suite only improved 3.4min -> 2.2min: browsers competing for two
+  // cores, every scenario left running at the edge of its 30s timeout. The
+  // first one over was "a fresh visitor", which opens an ADDITIONAL context
+  // and so paid the contention twice — and it failed as though the login
+  // screen were broken.
   //
-  // That is the trade to keep in view: past the point where workers stop
+  // That is the trade worth remembering: past the point where workers stop
   // waiting and start competing, the suite buys wall-clock with headroom,
-  // and headroom is what stops a slow run from reading as a broken app.
-  //
-  // fullyParallel stays false above, and it is what keeps any of this safe:
-  // the marks scenarios mutate the shared account, and they stay in file
-  // order.
-  workers: 4,
+  // and headroom is what stops a slow run from reading as a broken app. A
+  // minute of wall-clock is not worth a false alarm on a deploy.
+  workers: 2,
   retries: process.env.CI ? 1 : 0,
   // 'list' for the live CI log, Allure for the published report (roadmap:
   // a separate Pages site with screenshots and short videos on failure).
