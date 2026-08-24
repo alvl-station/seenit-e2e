@@ -9,4 +9,4 @@ Feature: Auto-fetched facts are reference-only in the add form
     When I open the add modal and preview a fetched movie
     Then exactly the fetched facts are shown as read-only text
     And only the fields a person owns remain editable
-    And the form explains that fetched facts cannot be edited
+    And the source facts sit under the «З джерела» line
