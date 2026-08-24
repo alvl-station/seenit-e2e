@@ -13,6 +13,19 @@ function overlaps(a, b) {
 Then('the catalog shows at least one movie', async ({ catalog }) => {
   expect(await catalog.cardCount()).toBeGreaterThan(0);
 });
+Then('the catalogue has stopped arriving', async ({ page }) => {
+  // Every index-based scenario silently depends on this, so it is worth one
+  // scenario asserting it outright rather than only discovering it as a
+  // flake. The catalogue comes from D1 in pages, and each page re-sorts and
+  // re-groups the grid — a card's POSITION means nothing until it stops.
+  expect(await page.evaluate(() => window.__catalogueLoaded)).toBe(true);
+  // And the beacon is checked against the thing it claims: the film count
+  // must not move while nobody is doing anything.
+  const before = await page.evaluate(() => MOVIES.length);
+  await page.waitForTimeout(1500);
+  const after = await page.evaluate(() => MOVIES.length);
+  expect(after).toBe(before);
+});
 When('I search for {string}', async ({ catalog }, query) => {
   await catalog.search(query);
 });
