@@ -31,8 +31,14 @@ class CatalogPage {
    */
   async waitForCatalogLoaded(timeout = 20000) {
     await this.cards.first().waitFor({ state: 'visible', timeout });
+    // Read the DATA, not the rendered badges. Same signal — the snapshot has
+    // no enrichment, so its presence still proves Firebase answered — but it
+    // no longer assumes the whole catalogue is on screen. The catalogue is
+    // drawn in batches of 200 now, and a run failed here when none of the
+    // first 200 films happened to carry a badge.
     await this.page.waitForFunction(
-      () => !!document.querySelector('.badge--critic, .poster-award-badge'),
+      () => typeof MOVIES !== 'undefined'
+        && MOVIES.some(m => m && (m.critic_score != null || m.awards_won || m.awards_nominated)),
       null,
       { timeout },
     );
@@ -95,25 +101,65 @@ class CatalogPage {
   cardUnderTitleAwardRow(index = 0) { return this.cards.nth(index).locator('.badges, .badges-full, .badges-compact'); }
   get infoPopover() { return this.page.locator('#infoPopover'); }
   /**
-   * Index of the first card carrying award badges, or -1. Scans EVERY card
-   * in one page.evaluate rather than N locator round-trips — and scanning
-   * all of them matters: the saved UI settings restored with the session
-   * can change the sort order, so "the first 30" is not a stable window
-   * (three award scenarios silently skipped when it was).
+   * Index of a card carrying award badges, or -1 when the catalogue has none.
+   *
+   * awards_won is a list on older records and a per-ceremony registry on
+   * newer ones, so both shapes are counted — and an empty one of either shape
+   * is not an award.
    */
   async firstCardIndexWithAwards() {
-    return this.page.evaluate(() => {
-      const cards = [...document.querySelectorAll('.card')];
-      return cards.findIndex(c => c.querySelector('.poster-award-badge--corner'));
-    });
+    return this.revealCardWhere(m => {
+      const w = m.awards_won;
+      if (!w) return false;
+      return Array.isArray(w) ? w.length > 0 : Object.keys(w).length > 0;
+    }, '.poster-award-badge--corner');
   }
 
-  /** Index of the first card showing a critic-score badge, or -1. */
+  /** Index of a card showing a critic-score badge, or -1. */
   async firstCardIndexWithCriticScore() {
-    return this.page.evaluate(() => {
+    return this.revealCardWhere(m => m.critic_score != null, '.badge--critic');
+  }
+
+  /**
+   * Index of a card matching `predicate`, SEARCHING for one if none is drawn.
+   *
+   * The catalogue renders 200 cards at a time, so "scan what is on screen"
+   * silently stopped finding films that exist — an award scenario would skip
+   * itself rather than fail, and coverage would quietly drain away as the
+   * catalogue grew. This looks in MOVIES instead, and when the match is not
+   * currently drawn it types the title into the search box to bring it up.
+   *
+   * Returns -1 only when no film in the catalogue matches at all.
+   */
+  async revealCardWhere(predicate, drawnSelector) {
+    // Fast path: something already on screen matches, so nothing has to move.
+    // Skipped when the film carries no visible mark on its card (providers).
+    if (drawnSelector) {
+      const drawn = await this.page.evaluate(sel => {
+        const cards = [...document.querySelectorAll('.card')];
+        return cards.findIndex(c => c.querySelector(sel));
+      }, drawnSelector);
+      if (drawn !== -1) return drawn;
+    }
+
+    // The predicate is serialised and rebuilt inside the page: page.evaluate
+    // cannot carry a closure across the boundary.
+    const found = await this.page.evaluate(src => {
+      // eslint-disable-next-line no-new-func
+      const match = new Function(`return (${src})`)();
+      if (typeof MOVIES === 'undefined') return null;
+      const m = MOVIES.find(x => x && match(x));
+      return m ? m.canonical_title_uk : null;
+    }, predicate.toString());
+    if (!found) return -1;
+
+    await this.search(found);
+    await this.cards.first().waitFor({ state: 'visible', timeout: 10000 });
+    if (!drawnSelector) return 0;
+    return this.page.evaluate(sel => {
       const cards = [...document.querySelectorAll('.card')];
-      return cards.findIndex(c => c.querySelector('.badge--critic'));
-    });
+      return cards.findIndex(c => c.querySelector(sel));
+    }, drawnSelector);
   }
 
   /**
@@ -128,13 +174,10 @@ class CatalogPage {
    * catalogue, so callers skip on it rather than fail.
    */
   async firstCardIndexWithProviders() {
-    return this.page.evaluate(() => {
-      if (typeof MOVIES === 'undefined') return -1;
-      const withProviders = new Set(
-        MOVIES.filter(m => m && Array.isArray(m.providers) && m.providers.length).map(m => m.id));
-      const cards = [...document.querySelectorAll('.card')];
-      return cards.findIndex(c => withProviders.has(c.dataset.id));
-    });
+    // Providers are drawn only inside the modal, so there is no badge on a
+    // card to look for — the film is located in MOVIES and searched up.
+    return this.revealCardWhere(
+      m => Array.isArray(m.providers) && m.providers.length > 0, null);
   }
 
   /* ---- delete mode ----
