@@ -8,35 +8,34 @@ Feature: Card layout across view modes
     Then the card title sits to the right of the poster
     And the card is compact: height under half its width
 
-  Scenario: Awards live only on the poster trophy, in every grid view
-    # Owner's call: the under-title badge row showed a second trophy with a
-    # different tally (wins+nominations vs wins) and the pair read as a
-    # contradiction. One trophy on the poster now, wins only, tappable for
-    # the per-ceremony breakdown.
+  Scenario: The award row shows two sums, and the breakdown stays behind a tap
+    # Interface-book redesign: awards are data, so they moved off the poster
+    # into the data block — «НАГОРОДИ n» and «НОМІНАЦІЇ n», wins and
+    # nominations summed across ceremonies. Ceremony names never appear on
+    # the card (REQ A-5): they live in the popover the row opens.
     Given the catalog has a movie with awards
-    Then that card shows the poster trophy and no under-title award row
+    Then that card shows the award row with no ceremony names
     When I switch the view to "grid-s"
-    Then that card shows the poster trophy and no under-title award row
-    When I tap that card's poster trophy
+    Then that card shows the award row with no ceremony names
+    When I tap that card's award row
     Then the award breakdown popover is shown
 
   @phone-portrait
-  Scenario: Poster controls never collide on a narrow card
-    # Owner-reported: on a three-column phone grid the eye+heart pair sat in
-    # a ROW and ran into the trophy at the opposite corner, clipping both.
-    # They stack vertically now, so each control keeps its own space.
+  Scenario: The eye and the heart live in the data block, off the poster
+    # Interface-book redesign: the poster carries nothing any more. The
+    # toggles are data-block controls now — a 15px drawing in a 26px cell —
+    # so they must sit BELOW the poster, never overlap it.
     Given the catalog has a movie with awards
-    Then the watch and like toggles are stacked vertically on that card
-    And the poster trophy does not intersect either toggle
+    Then both toggles sit below that card's poster
 
-  Scenario: In the list view the trophy sits inline, after the critic score
-    # Owner-reported: the absolutely-positioned corner trophy collided with
-    # the list row. There it renders inline instead — same pill, same
-    # popover — placed after the critic percentage.
-    Given the catalog has a movie with awards and a critic score
+  Scenario: In the list view the award row keeps working
+    # The list row lays the same card pieces out horizontally; the award
+    # row must survive that relayout and still open its breakdown.
+    Given the catalog has a movie with awards
     When I switch the view to "list"
-    Then that card's trophy is inline and follows the critic score
-    And that card shows no corner trophy
+    Then that card shows the award row with no ceremony names
+    When I tap that card's award row
+    Then the award breakdown popover is shown
 
   @phone-portrait
   Scenario: The rating badge never overlaps the type/year line

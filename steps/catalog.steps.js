@@ -56,12 +56,16 @@ Given('the catalog has a movie with awards', async ({ catalog, ctx }) => {
   ctx.awardCardIndex = await catalog.firstCardIndexWithAwards();
   test.skip(ctx.awardCardIndex === -1, 'no movie with awards in the catalog right now');
 });
-Then('that card shows the poster trophy and no under-title award row', async ({ catalog, ctx }) => {
-  await expect(catalog.cardPosterTrophy(ctx.awardCardIndex)).toBeVisible();
-  expect(await catalog.cardUnderTitleAwardRow(ctx.awardCardIndex).count()).toBe(0);
+Then('that card shows the award row with no ceremony names', async ({ catalog, ctx }) => {
+  const row = catalog.cardAwardsRow(ctx.awardCardIndex);
+  await expect(row).toBeVisible();
+  const text = (await row.innerText()).trim();
+  // Two sums only — a ceremony name on the card would violate REQ A-5.
+  expect(text).toMatch(/НАГОРОДИ\s*\d+|НОМІНАЦІЇ\s*\d+/);
+  expect(text).not.toMatch(/Oscar|BAFTA|Golden Globe|Emmy|Cannes/i);
 });
-When("I tap that card's poster trophy", async ({ catalog, ctx }) => {
-  await catalog.cardPosterTrophy(ctx.awardCardIndex).click();
+When("I tap that card's award row", async ({ catalog, ctx }) => {
+  await catalog.cardAwardsRow(ctx.awardCardIndex).click();
 });
 Then('the award breakdown popover is shown', async ({ catalog }) => {
   await expect(catalog.infoPopover).toBeVisible();
@@ -396,42 +400,13 @@ Then('the recommendations entry point is visible', async ({ catalog }) => {
   await expect(catalog.recsButton).toBeVisible();
 });
 
-Then('the watch and like toggles are stacked vertically on that card', async ({ catalog, ctx }) => {
-  const eye = await catalog.cardWatchedToggle(ctx.awardCardIndex).boundingBox();
-  const heart = await catalog.cardLikedToggle(ctx.awardCardIndex).boundingBox();
-  expect(eye).not.toBeNull();
-  expect(heart).not.toBeNull();
-  // Vertically stacked: the heart starts below the eye ends, and they share
-  // a column rather than a row.
-  expect(heart.y).toBeGreaterThanOrEqual(eye.y + eye.height - 1);
-  expect(Math.abs(heart.x - eye.x)).toBeLessThanOrEqual(4);
-});
-Then('the poster trophy does not intersect either toggle', async ({ catalog, ctx }) => {
-  const trophy = await catalog.cardPosterTrophy(ctx.awardCardIndex).boundingBox();
+Then("both toggles sit below that card's poster", async ({ catalog, ctx }) => {
+  const poster = await catalog.cardPoster(ctx.awardCardIndex).boundingBox();
   for (const locator of [catalog.cardWatchedToggle(ctx.awardCardIndex), catalog.cardLikedToggle(ctx.awardCardIndex)]) {
     const box = await locator.boundingBox();
-    expect(overlaps(trophy, box), 'a clipped control is an unusable control').toBe(false);
+    expect(box).not.toBeNull();
+    // In the data block means BELOW the poster's bottom edge — the poster
+    // itself carries nothing in the redesign.
+    expect(box.y, 'a toggle must not sit on the poster').toBeGreaterThanOrEqual(poster.y + poster.height - 1);
   }
-});
-
-Given('the catalog has a movie with awards and a critic score', async ({ catalog, ctx, page }) => {
-  ctx.awardCardIndex = await page.evaluate(() => {
-    const cards = [...document.querySelectorAll('.card')];
-    return cards.findIndex(c => c.querySelector('.poster-award-badge--corner') && c.querySelector('.badge--critic'));
-  });
-  test.skip(ctx.awardCardIndex === -1, 'no movie with both awards and a critic score right now');
-});
-Then("that card's trophy is inline and follows the critic score", async ({ catalog, ctx }) => {
-  const trophy = await catalog.cardInlineTrophy(ctx.awardCardIndex).boundingBox();
-  const critic = await catalog.cardCriticBadge(ctx.awardCardIndex).boundingBox();
-  expect(trophy).not.toBeNull();
-  expect(critic).not.toBeNull();
-  // "After" in a wrapping row: either to the right on the same line, or on
-  // a later line — never before the critic score.
-  const sameLine = Math.abs(trophy.y - critic.y) < critic.height;
-  if (sameLine) expect(trophy.x).toBeGreaterThan(critic.x);
-  else expect(trophy.y).toBeGreaterThan(critic.y);
-});
-Then('that card shows no corner trophy', async ({ catalog, ctx }) => {
-  await expect(catalog.cardPosterTrophy(ctx.awardCardIndex)).toBeHidden();
 });

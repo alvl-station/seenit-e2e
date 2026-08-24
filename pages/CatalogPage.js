@@ -51,7 +51,7 @@ class CatalogPage {
     // stop. Scenarios that find a card and then act on it by index were
     // asserting against a different film by the time they got there:
     //
-    //   waiting for locator('.card').nth(61).locator('.poster-award-badge--corner')
+    //   waiting for locator('.card').nth(61).locator('.card-awards')
     //
     // Guarded like the marks wait in support/fixtures.js: a bundle deployed
     // before the beacon existed simply proceeds as it did before, rather
@@ -110,11 +110,16 @@ class CatalogPage {
   cardTitle(index = 0) { return this.cards.nth(index).locator('h3'); }
   cardYearText(index = 0) { return this.cards.nth(index).locator('.card-meta-row .year'); }
   cardRatingBadge(index = 0) { return this.cards.nth(index).locator('.rating-badge'); }
-  /** The poster trophy — the only award UI on a card (wins only, tappable). */
-  cardPosterTrophy(index = 0) { return this.cards.nth(index).locator('.poster-award-badge--corner'); }
-  cardInlineTrophy(index = 0) { return this.cards.nth(index).locator('.poster-award-badge--inline'); }
-  cardCriticBadge(index = 0) { return this.cards.nth(index).locator('.badge--critic'); }
-  cardUnderTitleAwardRow(index = 0) { return this.cards.nth(index).locator('.badges, .badges-full, .badges-compact'); }
+  /** The card's award row — two sums («НАГОРОДИ n» / «НОМІНАЦІЇ n»), tappable
+   *  for the per-ceremony breakdown. Replaced the poster trophy in the
+   *  interface-book redesign: awards are data, so they live in the data
+   *  block under the title, never on the poster. */
+  cardAwardsRow(index = 0) { return this.cards.nth(index).locator('.card-awards'); }
+  cardAwardsWonField(index = 0) { return this.cards.nth(index).locator('.aw--won'); }
+  cardAwardsNomField(index = 0) { return this.cards.nth(index).locator('.aw--nom'); }
+  /** The critic strip (track + fill + number) — same .critic-badge hook the
+   *  old colored badge carried, so the popover contract is unchanged. */
+  cardCriticBadge(index = 0) { return this.cards.nth(index).locator('.critic-badge'); }
   get infoPopover() { return this.page.locator('#infoPopover'); }
   /**
    * Index of a card carrying award badges, or -1 when the catalogue has none.
@@ -124,16 +129,14 @@ class CatalogPage {
    * is not an award.
    */
   async firstCardIndexWithAwards() {
-    return this.revealCardWhere(m => {
-      const w = m.awards_won;
-      if (!w) return false;
-      return Array.isArray(w) ? w.length > 0 : Object.keys(w).length > 0;
-    }, '.poster-award-badge--corner');
+    // The row renders for wins OR nominations now — either earns it.
+    const has = v => v && (Array.isArray(v) ? v.length > 0 : Object.keys(v).length > 0);
+    return this.revealCardWhere(m => has(m.awards_won) || has(m.awards_nominated), '.card-awards');
   }
 
-  /** Index of a card showing a critic-score badge, or -1. */
+  /** Index of a card showing the critic strip, or -1. */
   async firstCardIndexWithCriticScore() {
-    return this.revealCardWhere(m => m.critic_score != null, '.badge--critic');
+    return this.revealCardWhere(m => m.critic_score != null, '.critic-badge');
   }
 
   /**
