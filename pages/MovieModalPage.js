@@ -43,10 +43,20 @@ class MovieModalPage {
     })));
   }
 
-  /* ---- award pills + the anchored info popover ---- */
-  awardPills() { return this.page.locator('#modalOverlay .award-pill'); }
-  /** Only the tappable ones (a group with nothing to reveal gets no affordance). */
-  tappableAwardPills() { return this.page.locator('#modalOverlay .award-pill.award-badge'); }
+  /* ---- the award row + its inline per-ceremony breakdown ----
+   * The pill row is gone (interface-book redesign): the modal shows the
+   * same two sums the catalog card does, and a tap unfolds the schedule
+   * inline — ceremony names in English, categories in Ukrainian. */
+  awardsRow() { return this.page.locator('#modalOverlay .film-awards-row'); }
+  breakdown() { return this.page.locator('#modalOverlay .film-awards-breakdown'); }
+  ceremonyNames() { return this.page.locator('#modalOverlay .cer-name'); }
+  ceremonyCategories() { return this.page.locator('#modalOverlay .cer-cats li'); }
+  async openBreakdown() {
+    await this.awardsRow().click();
+    await this.breakdown().waitFor({ state: 'visible' });
+  }
+  /** The sound control on the title plate — present only with a trailer. */
+  soundButton() { return this.page.locator('#modalOverlay .film-sound'); }
   criticBadge() { return this.page.locator('#modalOverlay .critic-badge'); }
   popover() { return this.page.locator('#infoPopover'); }
   async popoverIsShown() {
@@ -55,23 +65,6 @@ class MovieModalPage {
       return !!el && el.classList.contains('show');
     });
   }
-  /**
-   * For each award pill: how far its icon's vertical centre sits from the
-   * pill's own centre, in px. 0 means perfectly centred; a positive or
-   * negative number means the icon rides low or high. An inline <svg>
-   * defaults to sitting on the text baseline, which is what made icons
-   * look raised above their label (BUGS #13).
-   */
-  async awardPillIconOffsets() {
-    return this.page.$$eval('#modalOverlay .award-pill', els => els.map(el => {
-      const svg = el.querySelector('svg');
-      if (!svg) return null;
-      const p = el.getBoundingClientRect();
-      const s = svg.getBoundingClientRect();
-      return { label: el.textContent.trim(), offset: (s.top + s.height / 2) - (p.top + p.height / 2) };
-    }).filter(Boolean));
-  }
-
   /** Click a neutral spot (the title) — an open popover must dismiss. */
   async clickOutsidePopover() {
     await this.title.click();
