@@ -34,6 +34,20 @@ module.exports = defineConfig({
   // between another's "remember" and "compare" reads. Cross-FILE
   // parallelism keeps most of the speed; in-file order restores sanity.
   fullyParallel: false,
+  // Six, up from the two Playwright inferred from the runner's cores. The
+  // suite is almost entirely waiting — on a live URL over the network — so
+  // the useful degree of parallelism is set by latency, not by CPU.
+  //
+  // What bounds it instead is the account: every worker signs in as the same
+  // test user, so six of them open the app six times over (fourteen
+  // catalogue pages each) against one per-caller budget. The Worker's own
+  // endpoints are metered clear of that burst on purpose — see RATE_LIMITS
+  // in seenit-backend — because a ceiling tuned down to it fails as a broken
+  // catalogue rather than as a hit limit.
+  //
+  // fullyParallel stays false above, and it is what keeps this safe: the
+  // marks scenarios mutate that shared account, and they stay in file order.
+  workers: 6,
   retries: process.env.CI ? 1 : 0,
   // 'list' for the live CI log, Allure for the published report (roadmap:
   // a separate Pages site with screenshots and short videos on failure).
