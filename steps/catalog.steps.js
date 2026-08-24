@@ -231,8 +231,10 @@ Then('the delete bar controls are inside the screen', async ({ catalog, page }) 
  * these puts the mark back, so a run leaves the account as it found it.
  */
 Given('I remember the {string} count', async ({ catalog, ctx }, tab) => {
-  ctx.tab = tab;
-  ctx.countBefore = tab === 'Дивився'
+  // Keyed by tab: the heart-turns-the-eye-on scenario remembers BOTH
+  // counts at once, so one shared slot would forget the first.
+  ctx.counts = ctx.counts || {};
+  ctx.counts[tab] = tab === 'Дивився'
     ? await catalog.watchedTabCount()
     : await catalog.likedTabCount();
 });
@@ -240,9 +242,9 @@ Given('I remember the title of the first card', async ({ catalog, ctx }) => {
   ctx.title = await catalog.cardTitleText(0);
 });
 When('I toggle {string} on the first card', async ({ catalog, ctx }, which) => {
-  // Remember which film it was: marking it hides it from the default view,
-  // so "the first card" is a different film from here on and only the title
-  // identifies it again.
+  // Remember which film it was: marking it sinks it to the end of its
+  // section, so "the first card" can be a different film from here on and
+  // only the title identifies it again.
   ctx.title = await catalog.cardTitleText(0);
   // Recorded so the fixture teardown can undo it even if this scenario
   // fails before reaching its own cleanup step.
@@ -272,13 +274,15 @@ Then('the {string} count is one higher than remembered', async ({ catalog, ctx }
   // looks like — so the step after the first mark expects 1, not null + 1.
   await expect
     .poll(() => countFor(catalog, tab))
-    .toBe((ctx.countBefore || 0) + 1);
+    .toBe(((ctx.counts || {})[tab] || 0) + 1);
+});
+Then('the {string} count is still one higher than remembered', async ({ catalog, ctx }, tab) => {
+  await expect
+    .poll(() => countFor(catalog, tab))
+    .toBe(((ctx.counts || {})[tab] || 0) + 1);
 });
 Then('the {string} count is back to what I remembered', async ({ catalog, ctx }, tab) => {
-  await expect.poll(() => countFor(catalog, tab)).toBe(ctx.countBefore);
-});
-Then('that title is no longer in the default view', async ({ catalog, ctx }) => {
-  await expect.poll(() => catalog.indexOfCardTitled(ctx.title)).toBe(-1);
+  await expect.poll(() => countFor(catalog, tab)).toBe((ctx.counts || {})[tab]);
 });
 Then('that title is listed', async ({ catalog, ctx }) => {
   await expect.poll(() => catalog.indexOfCardTitled(ctx.title)).toBeGreaterThanOrEqual(0);

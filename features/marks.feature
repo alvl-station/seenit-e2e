@@ -11,31 +11,40 @@ Feature: Marking a film watched or recommended
   stays forbidden here.
 
   Every scenario removes its own mark again, and does so BY TITLE. That is
-  not a stylistic choice: marking a film hides it from the default view, so
-  "the first card" is a different film immediately afterwards, and a cleanup
-  step working by position would unmark the wrong one and leave the original
-  marked for good.
+  not a stylistic choice: a watched film sinks to the end of its genre
+  section, so "the first card" can be a different film immediately
+  afterwards, and a cleanup step working by position would unmark the wrong
+  one and leave the original marked for good.
 
-  Scenario: Marking a film watched raises the count and hides it from the default view
+  Scenario: Marking a film watched raises the count and sinks it, it does not hide it
+    # Interface-book rule: the shelf shows what is done as done. Watched
+    # stays listed — dimmed and at the end of its section — never hidden.
     Given I remember the "Дивився" count
     When I toggle "переглянуто" on the first card
     Then the "Дивився" count is one higher than remembered
-    And that title is no longer in the default view
+    And that title is listed
+    And that film is shown as watched
     When I isolate the catalog to watched films
     Then that title is listed
-    And that film is shown as watched
     When I toggle "переглянуто" on that film
     Then the "Дивився" count is back to what I remembered
 
-  Scenario: Marking a film recommended raises its count and leaves it visible
-    # "Рекомендую" is an independent list — unlike "переглянуто" it does not
-    # filter the film out of the default view.
+  Scenario: The heart turns the eye on — recommending also marks watched
+    # Interface-book rule: «рекомендую, але не дивився» is not a state.
+    # One tap on the heart raises BOTH counts; taking the heart off leaves
+    # the eye on, so the cleanup unmarks watched separately.
     Given I remember the "Рекомендую" count
+    And I remember the "Дивився" count
     When I toggle "рекомендую" on the first card
     Then the "Рекомендую" count is one higher than remembered
+    And the "Дивився" count is one higher than remembered
+    And that film is shown as watched
     And that title is listed
     When I toggle "рекомендую" on that film
     Then the "Рекомендую" count is back to what I remembered
+    And the "Дивився" count is still one higher than remembered
+    When I toggle "переглянуто" on that film
+    Then the "Дивився" count is back to what I remembered
 
   Scenario: The watched tab lists exactly what its count claims
     # The production bug this suite could not catch before: the chip read
