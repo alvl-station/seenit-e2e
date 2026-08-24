@@ -34,20 +34,25 @@ module.exports = defineConfig({
   // between another's "remember" and "compare" reads. Cross-FILE
   // parallelism keeps most of the speed; in-file order restores sanity.
   fullyParallel: false,
-  // Six, up from the two Playwright inferred from the runner's cores. The
-  // suite is almost entirely waiting — on a live URL over the network — so
-  // the useful degree of parallelism is set by latency, not by CPU.
+  // Four, up from the two Playwright infers from the runner's cores. The
+  // suite is mostly waiting on a live URL, so some oversubscription pays.
   //
-  // What bounds it instead is the account: every worker signs in as the same
-  // test user, so six of them open the app six times over (fourteen
-  // catalogue pages each) against one per-caller budget. The Worker's own
-  // endpoints are metered clear of that burst on purpose — see RATE_LIMITS
-  // in seenit-backend — because a ceiling tuned down to it fails as a broken
-  // catalogue rather than as a hit limit.
+  // Six did not, and the measurement is the argument. Per-scenario time went
+  // from 1.5-3s to 11-22s — the runner has two cores and six browsers fight
+  // over them — while the whole suite only improved 3.4min -> 2.2min. Every
+  // scenario ended up running at the edge of its 30s timeout, and the first
+  // one over was "a fresh visitor": it opens an ADDITIONAL context, a
+  // seventh browser, so it paid the contention twice. It failed as though
+  // the login screen were broken.
   //
-  // fullyParallel stays false above, and it is what keeps this safe: the
-  // marks scenarios mutate that shared account, and they stay in file order.
-  workers: 6,
+  // That is the trade to keep in view: past the point where workers stop
+  // waiting and start competing, the suite buys wall-clock with headroom,
+  // and headroom is what stops a slow run from reading as a broken app.
+  //
+  // fullyParallel stays false above, and it is what keeps any of this safe:
+  // the marks scenarios mutate the shared account, and they stay in file
+  // order.
+  workers: 4,
   retries: process.env.CI ? 1 : 0,
   // 'list' for the live CI log, Allure for the published report (roadmap:
   // a separate Pages site with screenshots and short videos on failure).
