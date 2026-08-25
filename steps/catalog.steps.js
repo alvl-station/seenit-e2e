@@ -30,11 +30,34 @@ When('I search for {string}', async ({ catalog }, query) => {
   await catalog.search(query);
 });
 Then('I see the empty state {string}', async ({ catalog }, text) => {
+  // The query filters the PAGE, so a search that finds nothing lands in the
+  // grid's own empty panel — the layer that used to hold its own dead end
+  // is gone.
   await expect(catalog.emptyMessage).toBeVisible();
   await expect(catalog.emptyMessage).toContainText(text);
 });
+When('I open the search field', async ({ catalog }) => {
+  await catalog.openSearchField();
+});
+When('I close the search field', async ({ catalog }) => {
+  await catalog.closeSearchField();
+});
+Then('the search field is wider than its icon', async ({ catalog, page }) => {
+  const box = await catalog.searchBox.boundingBox();
+  const icon = await page.locator('#searchOpenBtn').boundingBox();
+  expect(box.width, 'an open field that stayed icon-width is an unusable search')
+    .toBeGreaterThan(icon.width * 1.5);
+});
+Then('the search field is closed', async ({ catalog }) => {
+  expect(await catalog.searchIsOpen()).toBe(false);
+});
+Then('no second list of results appears', async ({ page }) => {
+  // The layer and its own results list are gone; the page IS the result.
+  expect(await page.locator('#searchLayer, #searchResults').count()).toBe(0);
+});
 When('I clear the search', async ({ catalog }) => {
-  await catalog.search('');
+  // Closing the field IS the clear: the app wipes the query on the way out.
+  await catalog.closeSearchField();
   await catalog.waitForCatalogLoaded();
 });
 
@@ -56,12 +79,16 @@ Given('the catalog has a movie with awards', async ({ catalog, ctx }) => {
   ctx.awardCardIndex = await catalog.firstCardIndexWithAwards();
   test.skip(ctx.awardCardIndex === -1, 'no movie with awards in the catalog right now');
 });
-Then('that card shows the poster trophy and no under-title award row', async ({ catalog, ctx }) => {
-  await expect(catalog.cardPosterTrophy(ctx.awardCardIndex)).toBeVisible();
-  expect(await catalog.cardUnderTitleAwardRow(ctx.awardCardIndex).count()).toBe(0);
+Then('that card shows the award row with no ceremony names', async ({ catalog, ctx }) => {
+  const row = catalog.cardAwardsRow(ctx.awardCardIndex);
+  await expect(row).toBeVisible();
+  const text = (await row.innerText()).trim();
+  // Two sums only — a ceremony name on the card would violate REQ A-5.
+  expect(text).toMatch(/НАГОРОДИ\s*\d+|НОМІНАЦІЇ\s*\d+/);
+  expect(text).not.toMatch(/Oscar|BAFTA|Golden Globe|Emmy|Cannes/i);
 });
-When("I tap that card's poster trophy", async ({ catalog, ctx }) => {
-  await catalog.cardPosterTrophy(ctx.awardCardIndex).click();
+When("I tap that card's award row", async ({ catalog, ctx }) => {
+  await catalog.cardAwardsRow(ctx.awardCardIndex).click();
 });
 Then('the award breakdown popover is shown', async ({ catalog }) => {
   await expect(catalog.infoPopover).toBeVisible();
@@ -224,8 +251,10 @@ Then('the delete bar controls are inside the screen', async ({ catalog, page }) 
  * these puts the mark back, so a run leaves the account as it found it.
  */
 Given('I remember the {string} count', async ({ catalog, ctx }, tab) => {
-  ctx.tab = tab;
-  ctx.countBefore = tab === 'Дивився'
+  // Keyed by tab: the heart-turns-the-eye-on scenario remembers BOTH
+  // counts at once, so one shared slot would forget the first.
+  ctx.counts = ctx.counts || {};
+  ctx.counts[tab] = tab === 'Дивився'
     ? await catalog.watchedTabCount()
     : await catalog.likedTabCount();
 });
@@ -233,9 +262,9 @@ Given('I remember the title of the first card', async ({ catalog, ctx }) => {
   ctx.title = await catalog.cardTitleText(0);
 });
 When('I toggle {string} on the first card', async ({ catalog, ctx }, which) => {
-  // Remember which film it was: marking it hides it from the default view,
-  // so "the first card" is a different film from here on and only the title
-  // identifies it again.
+  // Remember which film it was: marking it sinks it to the end of its
+  // section, so "the first card" can be a different film from here on and
+  // only the title identifies it again.
   ctx.title = await catalog.cardTitleText(0);
   // Recorded so the fixture teardown can undo it even if this scenario
   // fails before reaching its own cleanup step.
@@ -265,16 +294,40 @@ Then('the {string} count is one higher than remembered', async ({ catalog, ctx }
   // looks like — so the step after the first mark expects 1, not null + 1.
   await expect
     .poll(() => countFor(catalog, tab))
-    .toBe((ctx.countBefore || 0) + 1);
+    .toBe(((ctx.counts || {})[tab] || 0) + 1);
+});
+Then('the {string} count is still one higher than remembered', async ({ catalog, ctx }, tab) => {
+  await expect
+    .poll(() => countFor(catalog, tab))
+    .toBe(((ctx.counts || {})[tab] || 0) + 1);
 });
 Then('the {string} count is back to what I remembered', async ({ catalog, ctx }, tab) => {
-  await expect.poll(() => countFor(catalog, tab)).toBe(ctx.countBefore);
-});
-Then('that title is no longer in the default view', async ({ catalog, ctx }) => {
-  await expect.poll(() => catalog.indexOfCardTitled(ctx.title)).toBe(-1);
+  await expect.poll(() => countFor(catalog, tab)).toBe((ctx.counts || {})[tab]);
 });
 Then('that title is listed', async ({ catalog, ctx }) => {
   await expect.poll(() => catalog.indexOfCardTitled(ctx.title)).toBeGreaterThanOrEqual(0);
+});
+
+Then('the delete menu row is inactive', async ({ catalog }) => {
+  await catalog.openMenu();
+  expect(await catalog.deleteModeButton.getAttribute('aria-disabled')).toBe('true');
+});
+When('I tap the inactive delete row', async ({ catalog }) => {
+  await catalog.openMenu();
+  // force, and the force IS the scenario. The row carries aria-disabled,
+  // which Playwright honours by refusing to click — but the app deliberately
+  // keeps listening, because a row that says nothing when tapped is exactly
+  // what the explanatory popover exists to prevent. Waiting for it to become
+  // "enabled" would wait for a state this row is never meant to reach.
+  // The menu sheet is taller than the viewport here, and force skips the
+  // actionability checks but not the geometry: the point still has to be on
+  // screen.
+  await catalog.deleteModeButton.scrollIntoViewIfNeeded();
+  await catalog.deleteModeButton.click({ force: true });
+});
+Then('the popover explains deletion lives in collections', async ({ catalog }) => {
+  await expect(catalog.infoPopover).toBeVisible();
+  await expect(catalog.infoPopover).toContainText('тільки з добірок');
 });
 
 /* ---- account panel & onboarding guide ---- */
@@ -319,10 +372,21 @@ When('I close the onboarding guide', async ({ catalog }) => {
   await catalog.closeGuide();
 });
 Then('the account panel entry point is visible', async ({ catalog }) => {
+  // The entry point moved into the menu sheet with the slimmed header.
+  await catalog.openMenu();
   await expect(catalog.accountButton).toBeVisible();
+  await catalog.closeMenu();
 });
 
 Then('the account panel offers a password change', async ({ page }) => {
+  // Folded shut now, on purpose: two fields, a policy line and a button
+  // standing open made the panel look like a form you had to fill in. So
+  // "offers" is the heading you can press — and pressing it must produce the
+  // real form, which is the half worth asserting.
+  const toggle = page.locator('#accPassToggle');
+  await expect(toggle).toBeVisible();
+  await expect(page.locator('#accPassForm')).toBeHidden();
+  await toggle.click();
   await expect(page.locator('#accPassForm')).toBeVisible();
 });
 
@@ -377,7 +441,12 @@ When('I switch the recommendations source to {string}', async ({ catalog }, id) 
   await catalog.switchRecsSource(id);
 });
 Then('the recommendations body mentions subscriptions being planned', async ({ catalog }) => {
-  expect(await catalog.recsBodyText()).toContain('підписками');
+  // The copy was rewritten with the collections screen: subscribing to a
+  // PERSON is what is still planned, while somebody else's single collection
+  // can already be put on the shelf. Both halves matter, so both are read.
+  const body = await catalog.recsBodyText();
+  expect(body).toMatch(/підпис/i);
+  expect(body).toContain('в планах');
 });
 Then('at least {int} collection chips are shown', async ({ catalog, page }, n) => {
   await page.locator('.recs-list-chip').first().waitFor({ timeout: 10000 });
@@ -386,52 +455,36 @@ Then('at least {int} collection chips are shown', async ({ catalog, page }, n) =
 When('I open the collection {string}', async ({ catalog }, title) => {
   await catalog.openRecsList(title);
 });
-Then('the collection grid shows between {int} and {int} films', async ({ catalog, page }, lo, hi) => {
-  await page.locator('#recsbody .trend-item').first().waitFor({ timeout: 10000 });
-  const n = await catalog.recsGridCount();
+Then('the state plate reads {string}', async ({ page }, name) => {
+  const plate = page.locator('#collectionPlate');
+  await expect(plate).toBeVisible();
+  await expect(plate).toContainText(name);
+});
+When('I close the state plate', async ({ page }) => {
+  await page.locator('#collectionPlateClose').click();
+});
+Then('the state plate is gone', async ({ page }) => {
+  await expect(page.locator('#collectionPlate')).toBeHidden();
+});
+Then('the catalog shows between {int} and {int} films', async ({ catalog, page }, lo, hi) => {
+  await page.locator('#main .card').first().waitFor({ timeout: 10000 });
+  const n = await catalog.cardCount();
   expect(n).toBeGreaterThanOrEqual(lo);
   expect(n).toBeLessThanOrEqual(hi);
 });
 Then('the recommendations entry point is visible', async ({ catalog }) => {
+  await catalog.openMenu();
   await expect(catalog.recsButton).toBeVisible();
+  await catalog.closeMenu();
 });
 
-Then('the watch and like toggles are stacked vertically on that card', async ({ catalog, ctx }) => {
-  const eye = await catalog.cardWatchedToggle(ctx.awardCardIndex).boundingBox();
-  const heart = await catalog.cardLikedToggle(ctx.awardCardIndex).boundingBox();
-  expect(eye).not.toBeNull();
-  expect(heart).not.toBeNull();
-  // Vertically stacked: the heart starts below the eye ends, and they share
-  // a column rather than a row.
-  expect(heart.y).toBeGreaterThanOrEqual(eye.y + eye.height - 1);
-  expect(Math.abs(heart.x - eye.x)).toBeLessThanOrEqual(4);
-});
-Then('the poster trophy does not intersect either toggle', async ({ catalog, ctx }) => {
-  const trophy = await catalog.cardPosterTrophy(ctx.awardCardIndex).boundingBox();
+Then("both toggles sit below that card's poster", async ({ catalog, ctx }) => {
+  const poster = await catalog.cardPoster(ctx.awardCardIndex).boundingBox();
   for (const locator of [catalog.cardWatchedToggle(ctx.awardCardIndex), catalog.cardLikedToggle(ctx.awardCardIndex)]) {
     const box = await locator.boundingBox();
-    expect(overlaps(trophy, box), 'a clipped control is an unusable control').toBe(false);
+    expect(box).not.toBeNull();
+    // In the data block means BELOW the poster's bottom edge — the poster
+    // itself carries nothing in the redesign.
+    expect(box.y, 'a toggle must not sit on the poster').toBeGreaterThanOrEqual(poster.y + poster.height - 1);
   }
-});
-
-Given('the catalog has a movie with awards and a critic score', async ({ catalog, ctx, page }) => {
-  ctx.awardCardIndex = await page.evaluate(() => {
-    const cards = [...document.querySelectorAll('.card')];
-    return cards.findIndex(c => c.querySelector('.poster-award-badge--corner') && c.querySelector('.badge--critic'));
-  });
-  test.skip(ctx.awardCardIndex === -1, 'no movie with both awards and a critic score right now');
-});
-Then("that card's trophy is inline and follows the critic score", async ({ catalog, ctx }) => {
-  const trophy = await catalog.cardInlineTrophy(ctx.awardCardIndex).boundingBox();
-  const critic = await catalog.cardCriticBadge(ctx.awardCardIndex).boundingBox();
-  expect(trophy).not.toBeNull();
-  expect(critic).not.toBeNull();
-  // "After" in a wrapping row: either to the right on the same line, or on
-  // a later line — never before the critic score.
-  const sameLine = Math.abs(trophy.y - critic.y) < critic.height;
-  if (sameLine) expect(trophy.x).toBeGreaterThan(critic.x);
-  else expect(trophy.y).toBeGreaterThan(critic.y);
-});
-Then('that card shows no corner trophy', async ({ catalog, ctx }) => {
-  await expect(catalog.cardPosterTrophy(ctx.awardCardIndex)).toBeHidden();
 });

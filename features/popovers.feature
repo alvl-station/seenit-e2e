@@ -1,28 +1,30 @@
-Feature: Award and critic badges and their anchored popover
-  Covers REQ A-1/A-3 (curated English ceremony names only), REQ U-4 (an
-  explanation appears next to the tapped element, never covering it) and
-  the popup-drift half of BUGS #2.
+Feature: The award breakdown and the critic popover
+  Covers REQ A-1/A-3 (curated English ceremony names only), REQ A-4/A-5
+  (categories in Ukrainian, revealed only by a tap) and REQ U-4 (an
+  explanation appears next to the tapped element, never covering it).
 
-  Scenario: Award pills carry only curated English ceremony names
+  Scenario: The award row shows sums and unfolds the per-ceremony schedule
     Given a movie modal with awards is open
-    Then every award pill is labeled with a curated English name
-
-  Scenario: The popover opens adjacent to the tapped pill
-    Given a movie modal with awards is open
-    When I tap the first tappable award pill
-    Then the popover is visible next to the pill and does not cover it
-
-  Scenario: The popover dismisses on a tap outside it
-    Given a movie modal with awards is open
-    When I tap the first tappable award pill
-    And I tap outside the popover
-    Then the popover disappears
+    Then the award row shows sums and no ceremony names
+    When I unfold the award breakdown
+    Then every ceremony header is a curated English name
+    And every category bullet reads in Ukrainian
+    When I tap the award row again
+    Then the breakdown folds back
 
   Scenario: The critic badge explains itself in an anchored popover
     Given a movie modal with a critic score is open
     When I tap the critic badge
     Then the popover is visible next to the badge and contains "%"
 
-  Scenario: Award pill icons sit centred on the label, not above it
-    Given a movie modal with awards is open
-    Then every award pill icon is vertically centred within its pill
+  Scenario: The popover dismisses on a tap outside it
+    Given a movie modal with a critic score is open
+    When I tap the critic badge
+    And I tap outside the popover
+    Then the popover disappears
+
+  Scenario: The popover closes on a second tap on the same badge
+    Given a movie modal with a critic score is open
+    When I tap the critic badge
+    And I tap the critic badge
+    Then the popover disappears

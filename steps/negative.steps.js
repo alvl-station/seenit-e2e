@@ -82,7 +82,17 @@ Then('only the fields a person owns remain editable', async ({ ctx, page }) => {
   // locked down by accident.
   expect(ids).toEqual(OWNED_FIELD_IDS);
 });
-Then('the form explains that fetched facts cannot be edited', async ({ page }) => {
-  await expect(page.locator('#addResults .add-hint').first())
-    .toContainText('лише для ознайомлення');
+Then('the source facts sit under the «З джерела» line', async ({ page }) => {
+  // The book's form (A-6): the labeled divider is the explanation now —
+  // everything under «З джерела · не редагується» is plain text, and every
+  // read-only fact renders below it.
+  const divider = page.locator('#addResults .src-divider');
+  await expect(divider).toBeVisible();
+  await expect(divider).toContainText('З джерела');
+  const above = await page.$$eval('#addResults .src-divider', els => {
+    const d = els[0];
+    return [...document.querySelectorAll('#addResults .cf-readonly')]
+      .filter(ro => !(d.compareDocumentPosition(ro) & 4)).length;
+  });
+  expect(above, 'a source fact rendered above the divider').toBe(0);
 });

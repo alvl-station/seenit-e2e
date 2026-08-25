@@ -83,7 +83,12 @@ const test = bddBase.extend({
         if (await catalog.indexOfCardTitled(title) === -1) continue;
         if (which === 'переглянуто' && !(await catalog.cardTitledIsWatched(title))) continue;
         if (which === 'переглянуто') await catalog.toggleWatchedOnCardTitled(title);
-        else await catalog.toggleLikedOnCardTitled(title);
+        else {
+          await catalog.toggleLikedOnCardTitled(title);
+          // The heart turned the eye on when this mark was made — taking
+          // the heart off leaves watched behind, so clear that too.
+          if (await catalog.cardTitledIsWatched(title)) await catalog.toggleWatchedOnCardTitled(title);
+        }
       } catch (err) {
         // Best-effort: a teardown failure must not mask the real one.
       }

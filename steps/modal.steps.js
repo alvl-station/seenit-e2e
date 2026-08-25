@@ -86,39 +86,52 @@ Given('a movie modal with a critic score is open', async ({ catalog, ctx, page }
   await modalOf(ctx, page).waitUntilOpen();
 });
 
-/* ---- popover ---- */
-When('I tap the first tappable award pill', async ({ ctx, page }) => {
+/* ---- the award breakdown + popover ---- */
+Then('the award row shows sums and no ceremony names', async ({ ctx, page }) => {
   const modal = modalOf(ctx, page);
-  test.skip(await modal.tappableAwardPills().count() === 0, 'no tappable pills on this movie');
-  await modal.tappableAwardPills().first().click();
+  const row = modal.awardsRow();
+  await expect(row).toBeVisible();
+  const text = (await row.innerText()).trim();
+  expect(text).toMatch(/НАГОРОДИ\s*\d+|НОМІНАЦІЇ\s*\d+/);
+  expect(text, 'ceremony names stay behind the tap (A-5)').not.toMatch(/[A-Za-z]{3,}/);
+  await expect(modal.breakdown()).toBeHidden();
+});
+When('I unfold the award breakdown', async ({ ctx, page }) => {
+  await modalOf(ctx, page).openBreakdown();
+});
+When('I tap the award row again', async ({ ctx, page }) => {
+  await modalOf(ctx, page).awardsRow().click();
+});
+Then('the breakdown folds back', async ({ ctx, page }) => {
+  await expect(modalOf(ctx, page).breakdown()).toBeHidden();
+});
+Then('every ceremony header is a curated English name', async ({ ctx, page }) => {
+  const modal = modalOf(ctx, page);
+  const re = pillPattern(await curatedNames(page));
+  const n = await modal.ceremonyNames().count();
+  expect(n).toBeGreaterThan(0);
+  for (let i = 0; i < n; i++) {
+    const text = (await modal.ceremonyNames().nth(i).innerText()).trim();
+    expect(text, `ceremony "${text}" is not a curated English name`).toMatch(re);
+    expect(text, `ceremony "${text}" contains Cyrillic — award names stay English (A-3)`)
+      .not.toMatch(/[\u0400-\u04FF]/);
+  }
+});
+Then('every category bullet reads in Ukrainian', async ({ ctx, page }) => {
+  const modal = modalOf(ctx, page);
+  const n = await modal.ceremonyCategories().count();
+  // Count-only award shapes legitimately have no bullets at all.
+  for (let i = 0; i < n; i++) {
+    const text = (await modal.ceremonyCategories().nth(i).innerText()).trim();
+    expect(text, `category "${text}" carries no Cyrillic — categories read in Ukrainian (A-4)`)
+      .toMatch(/[\u0400-\u04FF]/);
+  }
 });
 When('I tap the critic badge', async ({ ctx, page }) => {
   await modalOf(ctx, page).criticBadge().first().click();
 });
 When('I tap outside the popover', async ({ ctx, page }) => {
   await modalOf(ctx, page).clickOutsidePopover();
-});
-Then('every award pill is labeled with a curated English name', async ({ ctx, page }) => {
-  const modal = modalOf(ctx, page);
-  const re = pillPattern(await curatedNames(page));
-  const n = await modal.awardPills().count();
-  expect(n).toBeGreaterThan(0);
-  for (let i = 0; i < n; i++) {
-    const text = (await modal.awardPills().nth(i).innerText()).trim();
-    expect(text, `pill ${i} text "${text}" is not a curated English name`).toMatch(re);
-    expect(text, `pill ${i} text "${text}" contains Cyrillic — award names stay English`)
-      .not.toMatch(/[\u0400-\u04FF]/);
-  }
-});
-Then('the popover is visible next to the pill and does not cover it', async ({ ctx, page }) => {
-  const modal = modalOf(ctx, page);
-  await expect(modal.popover()).toBeVisible();
-  await assertAnchored(await modal.popover().boundingBox(),
-                       await modal.tappableAwardPills().first().boundingBox());
-  const viewport = page.viewportSize();
-  const pop = await modal.popover().boundingBox();
-  expect(pop.y).toBeGreaterThanOrEqual(0);
-  expect(pop.y + pop.height).toBeLessThanOrEqual(viewport.height + 1);
 });
 Then('the popover is visible next to the badge and contains {string}', async ({ ctx, page }, text) => {
   const modal = modalOf(ctx, page);
@@ -163,16 +176,6 @@ Then('the add modal is no wider than the screen', async ({ ctx, page }) => {
   expect(box.width).toBeLessThanOrEqual(page.viewportSize().width + 1);
 });
 
-Then('every award pill icon is vertically centred within its pill', async ({ ctx, page }) => {
-  const offsets = await modalOf(ctx, page).awardPillIconOffsets();
-  expect(offsets.length, 'no award pill icons found').toBeGreaterThan(0);
-  for (const { label, offset } of offsets) {
-    // 1px of slack for sub-pixel rounding; the baseline bug produced
-    // several px of lift, so this is nowhere near a flaky threshold.
-    expect(Math.abs(offset), `"${label}" icon is off-centre by ${offset.toFixed(2)}px`)
-      .toBeLessThanOrEqual(1);
-  }
-});
 
 /* ---- "Де подивитись" ----
  * Read-only, and deliberately never follows a provider link: part of what
