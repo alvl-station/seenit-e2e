@@ -250,8 +250,26 @@ class CatalogPage {
    */
   async firstCardIndexWithAwards() {
     // The row renders for wins OR nominations now — either earns it.
-    const has = v => v && (Array.isArray(v) ? v.length > 0 : Object.keys(v).length > 0);
-    return this.revealCardWhere(m => has(m.awards_won) || has(m.awards_nominated), '.card-awards');
+    //
+    // The helper lives INSIDE the predicate on purpose. revealCardWhere
+    // serialises this function and rebuilds it with `new Function` inside the
+    // page, so anything it closes over here simply does not exist there —
+    // a helper defined one line above became `ReferenceError: has is not
+    // defined` in the browser.
+    //
+    // It stayed invisible for as long as the suite only ever met a catalogue
+    // whose first screen already showed an award row: the fast path returns
+    // before the predicate is ever serialised. Against the live catalogue,
+    // where 200 of 13.5k films are drawn at a time and the first 200 may
+    // carry no award at all, the slow path runs — and every award scenario
+    // failed at once.
+    return this.revealCardWhere(
+      (m) => {
+        const has = v => v && (Array.isArray(v) ? v.length > 0 : Object.keys(v).length > 0);
+        return has(m.awards_won) || has(m.awards_nominated);
+      },
+      '.card-awards',
+    );
   }
 
   /** Index of a card showing the critic strip, or -1. */
