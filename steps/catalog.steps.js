@@ -288,6 +288,19 @@ Then('that title is listed', async ({ catalog, ctx }) => {
   await expect.poll(() => catalog.indexOfCardTitled(ctx.title)).toBeGreaterThanOrEqual(0);
 });
 
+Then('the delete menu row is inactive', async ({ catalog }) => {
+  await catalog.openMenu();
+  expect(await catalog.deleteModeButton.getAttribute('aria-disabled')).toBe('true');
+});
+When('I tap the inactive delete row', async ({ catalog }) => {
+  await catalog.openMenu();
+  await catalog.deleteModeButton.click();
+});
+Then('the popover explains deletion lives in collections', async ({ catalog }) => {
+  await expect(catalog.infoPopover).toBeVisible();
+  await expect(catalog.infoPopover).toContainText('тільки з добірок');
+});
+
 /* ---- account panel & onboarding guide ---- */
 When('I open the account panel', async ({ catalog }) => {
   await catalog.openAccountPanel();
