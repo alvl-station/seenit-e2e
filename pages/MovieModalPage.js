@@ -6,7 +6,11 @@ class MovieModalPage {
   constructor(page) {
     this.page = page;
     this.overlay = page.locator('#modalOverlay');
-    this.title = page.locator('.modal-body h2');
+    // The title moved OUT of .modal-body: it sits on the title plate over
+    // the poster/trailer now (.film-head > .film-title-plate), which is what
+    // "card anatomy" changed. A locator left pointing into the body finds
+    // nothing at all, so the modal reads as opening empty.
+    this.title = page.locator('#modalOverlay .film-title-text h2');
     this.closeButton = page.locator('.modal-close');
   }
 

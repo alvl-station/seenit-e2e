@@ -64,10 +64,22 @@ class CatalogPage {
     return this.cards.count();
   }
 
-  /** Text of the "nothing found" panel, or null when there are results. */
+  /**
+   * Text of the "nothing found" panel, or null when there are results.
+   *
+   * textContent, NOT innerText — and every text reader in this file follows
+   * the same rule now. The redesigned interface uppercases through CSS
+   * (text-transform is on some forty rules in src/style.css), and innerText
+   * returns what is DRAWN: "НІЧОГО НЕ ЗНАЙДЕНО" for markup that says
+   * "Нічого не знайдено". Assertions carry the words the app writes, so a
+   * reader has to hand back those words. The mismatch was not theoretical:
+   * cardTitleText() read innerText while indexOfCardTitled() compared
+   * textContent, so a title remembered in one step could never be found by
+   * the next, and three mark scenarios failed on a film that was there.
+   */
   async emptyMessageText() {
     const n = await this.emptyMessage.count();
-    return n ? (await this.emptyMessage.innerText()).trim() : null;
+    return n ? (await this.emptyMessage.textContent()).trim() : null;
   }
 
   /* ---- the slimmed header: the search field and the two bottom sheets ----
@@ -83,6 +95,31 @@ class CatalogPage {
     if (await this.searchIsOpen()) return;
     await this.page.locator('#searchOpenBtn').click();
     await this.page.locator('#topSearch.open').waitFor();
+    await this.settleSearchWidth();
+  }
+  /**
+   * Waits for the field to finish arriving before anyone measures it.
+   *
+   * The open class lands the instant the icon is tapped; the WIDTH arrives
+   * behind it over a .22s transition (and, in a browser that animates
+   * nothing, via the app's own 300ms fallback that drops the easing — REQ
+   * U-9). A boundingBox() read at the class therefore reads 44px — the
+   * icon's width — and reports an open field as an unusable one.
+   *
+   * Two identical samples rather than a fixed sleep: a field that genuinely
+   * never grows settles at 44 and the assertion still fails, which is the
+   * failure the scenario exists to catch.
+   */
+  async settleSearchWidth(timeout = 2000) {
+    await this.page.evaluate(() => { window.__seenitSearchW = -1; });
+    await this.page.waitForFunction(() => {
+      const el = document.getElementById('topSearch');
+      if (!el) return false;
+      const w = Math.round(el.getBoundingClientRect().width);
+      const settled = window.__seenitSearchW === w;
+      window.__seenitSearchW = w;
+      return settled;
+    }, null, { timeout, polling: 100 }).catch(() => { /* best-effort: the assertion judges the width */ });
   }
   /** The same control closes it, and closing CLEARS the query — the grid
    *  never stays silently filtered. That is the app's contract, not ours. */
@@ -96,10 +133,45 @@ class CatalogPage {
   async openMenu() {
     await this.page.locator('#menuBtn').click();
     await this.page.locator('#menuSheet.open').waitFor();
+    await this.settleSheet('#menuSheet');
+  }
+  /**
+   * Waits for a sheet to finish sliding in.
+   *
+   * Same shape as settleSearchWidth, and for the same reason: the open class
+   * lands first and the geometry follows. It matters most for the one row
+   * that is tapped with force — force skips the actionability checks but not
+   * the geometry, so a click aimed at a sheet still on its way up lands
+   * outside the viewport, intermittently.
+   */
+  async settleSheet(selector, timeout = 2000) {
+    await this.page.evaluate(() => { window.__seenitSheetY = -1; });
+    await this.page.waitForFunction((sel) => {
+      const el = document.querySelector(sel);
+      if (!el) return false;
+      const y = Math.round(el.getBoundingClientRect().top);
+      const settled = window.__seenitSheetY === y;
+      window.__seenitSheetY = y;
+      return settled;
+    }, selector, { timeout, polling: 100 }).catch(() => { /* best-effort */ });
   }
   async closeMenu() {
     await this.page.locator('#menuBackdrop').click({ position: { x: 10, y: 10 } });
     await this.page.locator('#menuSheet:not(.open)').waitFor();
+  }
+  async openSettingsDrawer() {
+    await this.openMenu();
+    await this.page.locator('#settingsBtn').click();
+    await this.page.locator('#settingsSheet.open').waitFor();
+  }
+  async closeSettingsDrawer() {
+    await this.page.locator('#settingsCloseBtn').click();
+    await this.page.locator('#settingsSheet:not(.open)').waitFor();
+    // The menu shut itself the moment the row was tapped — every enabled
+    // row does (src/app.js: the sheet closes unless the row is
+    // aria-disabled, which is how the delete row stays put to explain
+    // itself). So this closes it only if something left it open.
+    if (await this.page.locator('#menuSheet.open').count()) await this.closeMenu();
   }
   async openFilterDrawer() {
     await this.page.locator('#filterBtn').click();
@@ -138,11 +210,16 @@ class CatalogPage {
     return false;
   }
 
-  /* ---- view modes (list / grid-s / grid-m) — options in the ФІЛЬТР drawer ---- */
+  /* ---- view modes (list / grid-s / grid-m) ----
+   * They live in НАЛАШТУВАННЯ now, not in ФІЛЬТР, and the path through the
+   * UI has to respect the split that put them there: ФІЛЬТР answers "which
+   * films", НАЛАШТУВАННЯ answers "how they are drawn", and a view mode is
+   * the second question. Opening НАЛАШТУВАННЯ does not close the menu it
+   * was opened from, so both are shut again on the way out. */
   async switchView(v) {
-    await this.openFilterDrawer();
+    await this.openSettingsDrawer();
     await this.page.locator(`#viewToggle button[data-v="${v}"]`).click();
-    await this.closeFilterDrawer();
+    await this.closeSettingsDrawer();
   }
   async currentView() {
     return this.page.evaluate(() => document.body.dataset.view);
@@ -309,7 +386,7 @@ class CatalogPage {
     return this.cards.nth(index).evaluate(el => el.classList.contains('is-watched'));
   }
   async cardTitleText(index = 0) {
-    return (await this.cardTitle(index).innerText()).trim();
+    return (await this.cardTitle(index).textContent()).trim();
   }
   /**
    * Toggling BY TITLE, not by index — and that is the point, not a
@@ -343,7 +420,12 @@ class CatalogPage {
   get accountButton() { return this.page.locator('#accountBtn'); }
   get accountOverlay() { return this.page.locator('#accountOverlay'); }
   get onboardOverlay() { return this.page.locator('#onboardOverlay'); }
-  async openAccountPanel() { await this.accountButton.click(); }
+  /** "Акаунт" is a row in the menu sheet — the sheet has to be open before
+   *  the row is anything a click can reach. */
+  async openAccountPanel() {
+    await this.openMenu();
+    await this.accountButton.click();
+  }
   async accountPanelIsOpen() {
     return this.accountOverlay.evaluate(el => el.classList.contains('open'));
   }
@@ -372,11 +454,14 @@ class CatalogPage {
   async recsIsOpen() { return this.recsOverlay.evaluate(el => el.classList.contains('open')); }
   async closeRecs() { await this.page.locator('#recsCloseBtn').click(); }
   async recsSourceTabs() {
-    return this.page.locator('#recsBox [data-recs-src]').allInnerTexts();
+    return (await this.page.locator('#recsBox [data-recs-src]').allTextContents())
+      .map(t => t.trim());
   }
   async switchRecsSource(id) { await this.page.locator(`[data-recs-src="${id}"]`).click(); }
-  async recsBodyText() { return (await this.page.locator('#recsbody').innerText()).trim(); }
-  async recsListChips() { return this.page.locator('.recs-list-chip').allInnerTexts(); }
+  async recsBodyText() { return (await this.page.locator('#recsbody').textContent()).trim(); }
+  async recsListChips() {
+    return (await this.page.locator('.recs-list-chip').allTextContents()).map(t => t.trim());
+  }
   async openRecsList(title) {
     await this.page.locator('.recs-list-chip', { hasText: title }).click();
   }

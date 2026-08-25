@@ -314,7 +314,16 @@ Then('the delete menu row is inactive', async ({ catalog }) => {
 });
 When('I tap the inactive delete row', async ({ catalog }) => {
   await catalog.openMenu();
-  await catalog.deleteModeButton.click();
+  // force, and the force IS the scenario. The row carries aria-disabled,
+  // which Playwright honours by refusing to click — but the app deliberately
+  // keeps listening, because a row that says nothing when tapped is exactly
+  // what the explanatory popover exists to prevent. Waiting for it to become
+  // "enabled" would wait for a state this row is never meant to reach.
+  // The menu sheet is taller than the viewport here, and force skips the
+  // actionability checks but not the geometry: the point still has to be on
+  // screen.
+  await catalog.deleteModeButton.scrollIntoViewIfNeeded();
+  await catalog.deleteModeButton.click({ force: true });
 });
 Then('the popover explains deletion lives in collections', async ({ catalog }) => {
   await expect(catalog.infoPopover).toBeVisible();
@@ -370,6 +379,14 @@ Then('the account panel entry point is visible', async ({ catalog }) => {
 });
 
 Then('the account panel offers a password change', async ({ page }) => {
+  // Folded shut now, on purpose: two fields, a policy line and a button
+  // standing open made the panel look like a form you had to fill in. So
+  // "offers" is the heading you can press — and pressing it must produce the
+  // real form, which is the half worth asserting.
+  const toggle = page.locator('#accPassToggle');
+  await expect(toggle).toBeVisible();
+  await expect(page.locator('#accPassForm')).toBeHidden();
+  await toggle.click();
   await expect(page.locator('#accPassForm')).toBeVisible();
 });
 
@@ -424,7 +441,12 @@ When('I switch the recommendations source to {string}', async ({ catalog }, id) 
   await catalog.switchRecsSource(id);
 });
 Then('the recommendations body mentions subscriptions being planned', async ({ catalog }) => {
-  expect(await catalog.recsBodyText()).toContain('підписками');
+  // The copy was rewritten with the collections screen: subscribing to a
+  // PERSON is what is still planned, while somebody else's single collection
+  // can already be put on the shelf. Both halves matter, so both are read.
+  const body = await catalog.recsBodyText();
+  expect(body).toMatch(/підпис/i);
+  expect(body).toContain('в планах');
 });
 Then('at least {int} collection chips are shown', async ({ catalog, page }, n) => {
   await page.locator('.recs-list-chip').first().waitFor({ timeout: 10000 });
