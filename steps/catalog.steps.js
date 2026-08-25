@@ -440,13 +440,14 @@ Then('the recommendation sources are {string}, {string} and {string}', async ({ 
 When('I switch the recommendations source to {string}', async ({ catalog }, id) => {
   await catalog.switchRecsSource(id);
 });
-Then('the recommendations body mentions subscriptions being planned', async ({ catalog }) => {
-  // The copy was rewritten with the collections screen: subscribing to a
-  // PERSON is what is still planned, while somebody else's single collection
-  // can already be put on the shelf. Both halves matter, so both are read.
+Then('the recommendations body points at where a person is found', async ({ catalog }) => {
+  // Following a person EXISTS now, so the old «це в планах» is gone. The tab
+  // is a doorway: either the people already followed, or — with none yet —
+  // the search that finds one. Whichever it shows, it must name the way in.
   const body = await catalog.recsBodyText();
   expect(body).toMatch(/підпис/i);
-  expect(body).toContain('в планах');
+  expect(body).not.toMatch(/в планах|поки не можна/,
+    'the feature shipped — the placeholder must not outlive it');
 });
 Then('at least {int} collection chips are shown', async ({ catalog, page }, n) => {
   await page.locator('.recs-list-chip').first().waitFor({ timeout: 10000 });

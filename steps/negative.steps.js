@@ -7,11 +7,16 @@ const { test, expect } = require('../support/fixtures');
 const { AddModalPage } = require('../pages/AddModalPage');
 const { Given, When, Then } = createBdd(test);
 
-// The six facts fetched from TMDb / OMDb / Wikidata, in render order.
-const FETCHED_FACT_LABELS = ['Рік', 'Рейтинг', 'Відсоток критиків',
+// The facts fetched from TMDb / OMDb / Wikidata, in render order.
+//
+// Жанр joined them (owner's call): it decides which section of the catalogue
+// a film lands in, and a hand-picked one put the same film in different
+// places depending on who added it. It is shown, not offered — so it left
+// the owned list below and leads this one.
+const FETCHED_FACT_LABELS = ['Жанр', 'Рік', 'Рейтинг', 'Відсоток критиків',
   'Акторський склад', 'Нагороди — перемоги', 'Нагороди — номінації'];
 // Everything a person genuinely owns and must keep control of.
-const OWNED_FIELD_IDS = ['cfDesc', 'cfGroup', 'cfRecByNew', 'cfRecBySelect',
+const OWNED_FIELD_IDS = ['cfDesc', 'cfRecByNew', 'cfRecBySelect',
   'cfTitleEn', 'cfTitleUk', 'cfType'];
 
 function addModalOf(ctx, page) {

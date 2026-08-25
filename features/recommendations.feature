@@ -5,12 +5,16 @@ Feature: Recommendations flow — friends, mine, and the SeenIt collections
 
   Read-only: browsing only, nothing here adds or marks a film.
 
-  Scenario: The flow opens with all three sources and is honest about friends
+  # Subscriptions shipped, so the tab stopped apologising for them. What has
+  # to stay true is the other half of the old promise: with nobody followed
+  # yet it must still say where people are FOUND, instead of showing an empty
+  # panel that reads as broken.
+  Scenario: The flow opens with all three sources and points at where people are found
     When I open the recommendations flow
     Then the recommendations flow is open
     And the recommendation sources are "Від друзів", "Мої" and "SeenIt"
     When I switch the recommendations source to "friends"
-    Then the recommendations body mentions subscriptions being planned
+    Then the recommendations body points at where a person is found
     When I close the recommendations flow
     Then the recommendations flow is closed
 
