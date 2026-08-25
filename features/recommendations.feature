@@ -14,8 +14,15 @@ Feature: Recommendations flow — friends, mine, and the SeenIt collections
     When I close the recommendations flow
     Then the recommendations flow is closed
 
-  Scenario: The SeenIt collections offer genre top-100s with real content
+  Scenario: A collection opens AS the catalog, under the state plate
+    # «Відкрити як каталог» (interface-book redesign): a chip closes the
+    # overlay and narrows the MAIN screen to the collection's films, with
+    # the blood plate on top and its exit restoring the whole catalogue.
     When I open the recommendations flow
     Then at least 5 collection chips are shown
     When I open the collection "Топ-100 комедій"
-    Then the collection grid shows between 1 and 100 films
+    Then the state plate reads "Топ-100 комедій"
+    And the catalog shows between 1 and 100 films
+    When I close the state plate
+    Then the state plate is gone
+    And the catalog shows at least one movie

@@ -413,9 +413,20 @@ Then('at least {int} collection chips are shown', async ({ catalog, page }, n) =
 When('I open the collection {string}', async ({ catalog }, title) => {
   await catalog.openRecsList(title);
 });
-Then('the collection grid shows between {int} and {int} films', async ({ catalog, page }, lo, hi) => {
-  await page.locator('#recsbody .trend-item').first().waitFor({ timeout: 10000 });
-  const n = await catalog.recsGridCount();
+Then('the state plate reads {string}', async ({ page }, name) => {
+  const plate = page.locator('#collectionPlate');
+  await expect(plate).toBeVisible();
+  await expect(plate).toContainText(name);
+});
+When('I close the state plate', async ({ page }) => {
+  await page.locator('#collectionPlateClose').click();
+});
+Then('the state plate is gone', async ({ page }) => {
+  await expect(page.locator('#collectionPlate')).toBeHidden();
+});
+Then('the catalog shows between {int} and {int} films', async ({ catalog, page }, lo, hi) => {
+  await page.locator('#main .card').first().waitFor({ timeout: 10000 });
+  const n = await catalog.cardCount();
   expect(n).toBeGreaterThanOrEqual(lo);
   expect(n).toBeLessThanOrEqual(hi);
 });
