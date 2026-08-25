@@ -70,24 +70,29 @@ class CatalogPage {
     return n ? (await this.emptyMessage.innerText()).trim() : null;
   }
 
-  /* ---- the slimmed header: the search layer and the two bottom sheets ---- */
-  get searchLayer() { return this.page.locator('#searchLayer'); }
-  get searchEmptyMessage() { return this.page.locator('#searchResults .empty-msg'); }
-  async searchLayerIsOpen() {
-    return this.searchLayer.evaluate(el => el.classList.contains('open'));
+  /* ---- the slimmed header: the search field and the two bottom sheets ----
+   * Search is no longer a layer with a list of its own. The icon grows into
+   * a field and the QUERY FILTERS THE PAGE, so a dead end shows up in the
+   * grid's own empty panel — there is no second place to look. */
+  get searchBox() { return this.page.locator('#topSearch'); }
+  get searchEmptyMessage() { return this.emptyMessage; }
+  async searchIsOpen() {
+    return this.searchBox.evaluate(el => el.classList.contains('open'));
   }
-  async openSearchLayer() {
-    if (await this.searchLayerIsOpen()) return;
+  async openSearchField() {
+    if (await this.searchIsOpen()) return;
     await this.page.locator('#searchOpenBtn').click();
-    await this.page.locator('#searchLayer.open').waitFor();
+    await this.page.locator('#topSearch.open').waitFor();
   }
-  /** Closing the layer CLEARS the query — the grid never stays silently
-   *  filtered by a closed layer. That is the app's contract, not ours. */
-  async closeSearchLayer() {
-    if (!(await this.searchLayerIsOpen())) return;
-    await this.page.locator('#searchBackBtn').click();
-    await this.page.locator('#searchLayer:not(.open)').waitFor();
+  /** The same control closes it, and closing CLEARS the query — the grid
+   *  never stays silently filtered. That is the app's contract, not ours. */
+  async closeSearchField() {
+    if (!(await this.searchIsOpen())) return;
+    await this.page.locator('#searchOpenBtn').click();
+    await this.page.locator('#topSearch:not(.open)').waitFor();
   }
+  /** Only inside a collection, and only while the field is open. */
+  get searchScopeToggle() { return this.page.locator('#searchScope'); }
   async openMenu() {
     await this.page.locator('#menuBtn').click();
     await this.page.locator('#menuSheet.open').waitFor();
@@ -106,7 +111,7 @@ class CatalogPage {
   }
 
   async search(query) {
-    await this.openSearchLayer();
+    await this.openSearchField();
     await this.searchInput.fill(query);
   }
 

@@ -19,6 +19,18 @@ Feature: Core smoke — login, search, movie modal
     When I clear the search
     Then the catalog shows at least one movie
 
+  # Search stopped being a layer: the icon grows into a field and the query
+  # filters the page itself. The failure this guards against is the field
+  # opening but staying icon-width — the app then looks unsearchable, and no
+  # assertion about results would notice.
+  Scenario: The search field opens from its icon and closes on the same control
+    When I open the search field
+    Then the search field is wider than its icon
+    And no second list of results appears
+    When I close the search field
+    Then the search field is closed
+    And the catalog shows at least one movie
+
   Scenario: Opening and closing the movie modal
     When I open the first card
     Then the modal is open with a non-empty title

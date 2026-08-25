@@ -30,14 +30,34 @@ When('I search for {string}', async ({ catalog }, query) => {
   await catalog.search(query);
 });
 Then('I see the empty state {string}', async ({ catalog }, text) => {
-  // Search runs in its own full-screen layer now, so its dead end lives
-  // there too — the grid's own empty panel is a different element.
-  await expect(catalog.searchEmptyMessage).toBeVisible();
-  await expect(catalog.searchEmptyMessage).toContainText(text);
+  // The query filters the PAGE, so a search that finds nothing lands in the
+  // grid's own empty panel — the layer that used to hold its own dead end
+  // is gone.
+  await expect(catalog.emptyMessage).toBeVisible();
+  await expect(catalog.emptyMessage).toContainText(text);
+});
+When('I open the search field', async ({ catalog }) => {
+  await catalog.openSearchField();
+});
+When('I close the search field', async ({ catalog }) => {
+  await catalog.closeSearchField();
+});
+Then('the search field is wider than its icon', async ({ catalog, page }) => {
+  const box = await catalog.searchBox.boundingBox();
+  const icon = await page.locator('#searchOpenBtn').boundingBox();
+  expect(box.width, 'an open field that stayed icon-width is an unusable search')
+    .toBeGreaterThan(icon.width * 1.5);
+});
+Then('the search field is closed', async ({ catalog }) => {
+  expect(await catalog.searchIsOpen()).toBe(false);
+});
+Then('no second list of results appears', async ({ page }) => {
+  // The layer and its own results list are gone; the page IS the result.
+  expect(await page.locator('#searchLayer, #searchResults').count()).toBe(0);
 });
 When('I clear the search', async ({ catalog }) => {
-  // Closing the layer IS the clear: the app wipes the query on the way out.
-  await catalog.closeSearchLayer();
+  // Closing the field IS the clear: the app wipes the query on the way out.
+  await catalog.closeSearchField();
   await catalog.waitForCatalogLoaded();
 });
 
