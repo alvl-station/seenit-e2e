@@ -8,7 +8,7 @@ Feature: Recommendations flow — friends, mine, and the SeenIt collections
   Scenario: The flow opens with all three sources and is honest about friends
     When I open the recommendations flow
     Then the recommendations flow is open
-    And the recommendation sources are "Від друзів", "Мої" and "Добірки SeenIt"
+    And the recommendation sources are "Від друзів", "Мої" and "SeenIt"
     When I switch the recommendations source to "friends"
     Then the recommendations body mentions subscriptions being planned
     When I close the recommendations flow
