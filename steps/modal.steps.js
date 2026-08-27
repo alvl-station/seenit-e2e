@@ -237,6 +237,13 @@ Then('every provider link points at a film page, never a checkout', async ({ ctx
   }
 });
 
+Then('no provider row names {string}', async ({ ctx }, name) => {
+  // Display-side exclusion: the record may still carry the row (earlier
+  // passes wrote it), but the card must never show it.
+  expect(ctx.providers.map(p => p.name), `a card offers "${name}", which this region cannot use`)
+    .not.toContain(name);
+});
+
 Then('no Megogo row claims a subscription or a price', async ({ ctx }) => {
   for (const p of ctx.providers.filter(x => x.name === 'Megogo')) {
     // The sitemap proves the page exists and nothing about money.
