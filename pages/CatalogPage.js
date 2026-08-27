@@ -156,7 +156,17 @@ class CatalogPage {
     }, selector, { timeout, polling: 100 }).catch(() => { /* best-effort */ });
   }
   async closeMenu() {
-    await this.page.locator('#menuBackdrop').click({ position: { x: 10, y: 10 } });
+    // The redesign gave the menu its own close button — and stopped the
+    // backdrop covering the header, so the catalogue can scroll behind an
+    // open sheet. A backdrop click at the old top-left corner now lands
+    // under <header>, which intercepts it, and the click retries for the
+    // whole test timeout. The button is the way out; the backdrop stays as
+    // the fallback for a bundle that predates it.
+    if (await this.page.locator('#menuCloseBtn').count()) {
+      await this.page.locator('#menuCloseBtn').click();
+    } else {
+      await this.page.locator('#menuBackdrop').click({ position: { x: 10, y: 10 } });
+    }
     await this.page.locator('#menuSheet:not(.open)').waitFor();
   }
   async openSettingsDrawer() {
@@ -178,7 +188,13 @@ class CatalogPage {
     await this.page.locator('#filterSheet.open').waitFor();
   }
   async closeFilterDrawer() {
-    await this.page.locator('#filterBackdrop').click({ position: { x: 10, y: 10 } });
+    // Same story as closeMenu: the sheet grew its own cross when the
+    // backdrop stopped being a way out.
+    if (await this.page.locator('#filterCloseBtn').count()) {
+      await this.page.locator('#filterCloseBtn').click();
+    } else {
+      await this.page.locator('#filterBackdrop').click({ position: { x: 10, y: 10 } });
+    }
     await this.page.locator('#filterSheet:not(.open)').waitFor();
   }
 

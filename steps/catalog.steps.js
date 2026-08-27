@@ -308,26 +308,14 @@ Then('that title is listed', async ({ catalog, ctx }) => {
   await expect.poll(() => catalog.indexOfCardTitled(ctx.title)).toBeGreaterThanOrEqual(0);
 });
 
-Then('the delete menu row is inactive', async ({ catalog }) => {
+When('I open the menu', async ({ catalog }) => {
   await catalog.openMenu();
-  expect(await catalog.deleteModeButton.getAttribute('aria-disabled')).toBe('true');
 });
-When('I tap the inactive delete row', async ({ catalog }) => {
-  await catalog.openMenu();
-  // force, and the force IS the scenario. The row carries aria-disabled,
-  // which Playwright honours by refusing to click — but the app deliberately
-  // keeps listening, because a row that says nothing when tapped is exactly
-  // what the explanatory popover exists to prevent. Waiting for it to become
-  // "enabled" would wait for a state this row is never meant to reach.
-  // The menu sheet is taller than the viewport here, and force skips the
-  // actionability checks but not the geometry: the point still has to be on
-  // screen.
-  await catalog.deleteModeButton.scrollIntoViewIfNeeded();
-  await catalog.deleteModeButton.click({ force: true });
-});
-Then('the popover explains deletion lives in collections', async ({ catalog }) => {
-  await expect(catalog.infoPopover).toBeVisible();
-  await expect(catalog.infoPopover).toContainText('тільки з добірок');
+Then('the menu has no delete row', async ({ catalog }) => {
+  // The greyed-out row with its explanatory popover is GONE (owner's call):
+  // deletion lives under an owned collection's plate now. The previous
+  // scenarios waited 30s for a row that no longer exists.
+  expect(await catalog.deleteModeButton.count()).toBe(0);
 });
 
 /* ---- account panel & onboarding guide ---- */
@@ -391,6 +379,11 @@ Then('the account panel offers a password change', async ({ page }) => {
 });
 
 Then('a fresh visitor sees the password form and the Google button', async ({ browser }) => {
+  // The retry budget below (4 × ~18s of goto + wait + pause) never fit the
+  // default 30s test timeout: the first CDN miss burned the whole test and
+  // the retries this step exists for never ran. The budget gets a timeout
+  // to fit inside instead.
+  test.info().setTimeout(120_000);
   // A NEW context on purpose: the shared one carries the saved session, so
   // it never sees the login screen at all.
   const ctx = await browser.newContext();
