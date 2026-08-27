@@ -28,6 +28,13 @@ Feature: "Де подивитись" — where a film can be watched
     Then every provider link opens in a new tab with rel="noopener"
     And every provider link points at a film page, never a checkout
 
+  Scenario: No row names a service this region cannot use
+    # Rakuten TV does not operate in Ukraine (owner's call); rows for it
+    # survive in records written by earlier passes until the provider pass
+    # rewrites them, and the card must hide them without waiting for that.
+    Given a movie modal with providers is open
+    Then no provider row names "Rakuten TV"
+
   Scenario: A Megogo row claims catalogue presence, never a price
     # Megogo is resolved from its sitemap, which proves the page exists and
     # says nothing about money. Labelling it "Передплата" would be a guess

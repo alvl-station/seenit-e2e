@@ -510,6 +510,27 @@ class CatalogPage {
     return (await this.page.locator('#genreChips .chip.active').count()) === 0;
   }
 
+  /* ---- the filter sheet: years and providers ---- */
+  // Built from YEAR_BUCKETS in the app plus the explicit «Усі» first option;
+  // keys are data-years values ("all", "1990s", …), so a renamed label
+  // cannot silently detach these from what they filter.
+  yearOption(key) { return this.page.locator(`#yearOpts .opt[data-years="${key}"]`); }
+  async yearOptionActive(key) {
+    return this.yearOption(key).evaluate(el => el.classList.contains('active'));
+  }
+  /** Every visible card's year, read off the card meta rows. */
+  async visibleCardYears() {
+    return this.page.locator('.card .card-meta-row .year').evaluateAll(els =>
+      els.map(el => Number((/(\d{4})/.exec(el.textContent || '') || [])[1])).filter(Boolean));
+  }
+  // The provider filter is BUILT from the catalogue and absent until the
+  // provider pass has run — scenarios over it skip on absence, same as the
+  // modal provider ones.
+  async providerFilterOffered() {
+    return (await this.page.locator('#providerFilter .opt').count()) > 0;
+  }
+  providerOption(index = 0) { return this.page.locator('#providerFilter .opt').nth(index); }
+
   /* ---- page scroll state (the scroll-lock pattern, CONVENTIONS.md) ---- */
   async scrollTo(y) {
     await this.page.evaluate(v => window.scrollTo(0, v), y);
