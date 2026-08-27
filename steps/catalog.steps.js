@@ -388,6 +388,17 @@ Then('a fresh visitor sees the password form and the Google button', async ({ br
   // it never sees the login screen at all.
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
+  // Diagnostics, because this scenario fails ONLY on runners (locally the
+  // form shows in half a second) and its failure page is never captured —
+  // Playwright snapshots the fixture's page, not this private context. If
+  // the login screen stays hidden again, the error will at least say what
+  // the page itself saw: script errors, whether Firebase loaded, and what
+  // state the overlay was left in.
+  const pageProblems = [];
+  page.on('pageerror', err => pageProblems.push(`pageerror: ${err.message}`));
+  page.on('console', msg => {
+    if (msg.type() === 'error') pageProblems.push(`console.error: ${msg.text().slice(0, 200)}`);
+  });
   try {
     // Retried on purpose: this runs minutes after a deploy, in a context
     // with no cache, and GitHub Pages' CDN can still be propagating — the
@@ -406,7 +417,15 @@ Then('a fresh visitor sees the password form and the Google button', async ({ br
         await page.waitForTimeout(8000);
       }
     }
-    if (lastErr) throw lastErr;
+    if (lastErr) {
+      const state = await page.evaluate(() => ({
+        overlay: (document.getElementById('loginOverlay') || {}).className,
+        firebaseLoaded: typeof window.firebase !== 'undefined',
+        splashHidden: (document.getElementById('bootSplash') || {}).hidden,
+      })).catch(() => 'page unreachable');
+      throw new Error(`the login screen never showed. Page state: ${JSON.stringify(state)}; `
+        + `problems: ${pageProblems.slice(0, 5).join(' | ') || 'none reported'}\n${lastErr.message}`);
+    }
     await expect(page.locator('#googleBtn')).toBeVisible();
     await expect(page.locator('#registerToggle')).toBeVisible();
   } finally {

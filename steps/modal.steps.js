@@ -186,7 +186,11 @@ Then('the add modal is no wider than the screen', async ({ ctx, page }) => {
 // PROVIDER_KIND_ORDER in src/logic.js; kept here rather than read off the page
 // because the ORDER is the assertion — reading it from the thing under test
 // would make the scenario agree with any order it happened to produce.
-const KIND_ORDER = ['Передплата', 'Безкоштовно', 'Безкоштовно з рекламою', 'Є в каталозі', 'Оренда', 'Купівля'];
+// «Є в каталозі» is GONE from the app (owner's call): a Megogo/sweet.tv
+// row proves presence, not price, and now says nothing at all — so the
+// empty string IS a defined label, sitting exactly where `unknown` sits in
+// PROVIDER_KIND_ORDER.
+const KIND_ORDER = ['Передплата', 'Безкоштовно', 'Безкоштовно з рекламою', '', 'Оренда', 'Купівля'];
 
 Given('a movie modal with providers is open', async ({ catalog, ctx, page }) => {
   const i = await catalog.firstCardIndexWithProviders();
@@ -246,9 +250,11 @@ Then('no provider row names {string}', async ({ ctx }, name) => {
 
 Then('no Megogo row claims a subscription or a price', async ({ ctx }) => {
   for (const p of ctx.providers.filter(x => x.name === 'Megogo')) {
-    // The sitemap proves the page exists and nothing about money.
+    // The sitemap proves the page exists and nothing about money — and the
+    // app now says NOTHING on such rows («Є в каталозі» retired: Megogo
+    // sells the same catalogue three ways, so no single word is true).
     expect(p.kind, 'a Megogo row claims an offer the sitemap cannot know')
-      .toBe('Є в каталозі');
+      .toBe('');
   }
 });
 
