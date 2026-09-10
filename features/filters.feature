@@ -4,22 +4,30 @@ Feature: The filter sheet — years and providers
   catalogue. Re-tapping a chosen decade also clears it (REQ U-6), but that
   gesture is invisible — «Усі» is the way out a person can actually see.
 
-  Scenario: «Усі» is lit by default, and a decade narrows the shelf to its years
+  Scenario: «Усі» is lit by default, and a decade narrows the shelf on «Застосувати»
+    # The window hands its choices to the shelf only on the button (U-11):
+    # until then the shelf behind it must not move.
     Then the catalogue has stopped arriving
+    Given I remember how many cards the shelf shows
     When I open the filter sheet
     Then the year option "all" is active
     When I choose the year option "1990s"
     Then the year option "all" is inactive
-    And every visible card's year is between 1990 and 1999
+    And the shelf shows the remembered number of cards again
+    When I apply the filters
+    Then every visible card's year is between 1990 and 1999
 
   Scenario: «Усі» clears a chosen decade and the whole shelf returns
     Then the catalogue has stopped arriving
     Given I remember how many cards the shelf shows
     When I open the filter sheet
     And I choose the year option "2000s"
+    And I apply the filters
+    And I open the filter sheet
     And I choose the year option "all"
     Then the year option "all" is active
-    And the shelf shows the remembered number of cards again
+    When I apply the filters
+    Then the shelf shows the remembered number of cards again
 
   Scenario: The provider filter is built from the catalogue, or absent
     # An option for a service no film is on would filter to an empty
