@@ -12,6 +12,10 @@ When('I choose the year option {string}', async ({ catalog }, key) => {
   await catalog.yearOption(key).click();
 });
 
+When('I apply the filters', async ({ catalog }) => {
+  await catalog.applyFilters();
+});
+
 Then('the year option {string} is active', async ({ catalog }, key) => {
   expect(await catalog.yearOptionActive(key)).toBe(true);
 });
@@ -45,12 +49,16 @@ Then('the provider filter, when offered, narrows the shelf without emptying it',
   test.skip(!offered, 'no provider options yet — the provider pass has not populated the catalogue');
   const before = await catalog.cardCount();
   await catalog.providerOption(0).click();
+  await catalog.applyFilters();
   const after = await catalog.cardCount();
   // Options are built FROM the catalogue, so the narrowed shelf can never
   // be empty — an empty result would mean the option lied.
   expect(after).toBeGreaterThan(0);
   expect(after).toBeLessThanOrEqual(before);
-  // And a second tap clears it (REQ U-6), restoring the shelf.
+  // And a second tap clears it (REQ U-6), restoring the shelf. The window
+  // closed on «Застосувати», so it is opened again to take the choice off.
+  await catalog.openFilterDrawer();
   await catalog.providerOption(0).click();
+  await catalog.applyFilters();
   expect(await catalog.cardCount()).toBe(before);
 });

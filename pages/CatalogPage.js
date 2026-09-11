@@ -197,6 +197,14 @@ class CatalogPage {
     }
     await this.page.locator('#filterSheet:not(.open)').waitFor();
   }
+  // Choices in the filter window reach the shelf only on «Застосувати»
+  // (seenit-frontend REQUIREMENTS U-11), and the window closes on it. The
+  // button is pressed where a person presses it: the cell the drawer lends
+  // the bar — the original in the drawer is not drawn.
+  async applyFilters() {
+    await this.page.locator('.tabbar-window-row .tabbar-tab--window', { hasText: 'Застосувати' }).click();
+    await this.page.locator('#filterSheet:not(.open)').waitFor();
+  }
 
   async search(query) {
     await this.openSearchField();
