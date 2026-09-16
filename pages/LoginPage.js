@@ -12,7 +12,8 @@ class LoginPage {
   }
 
   async isShown() {
-    return this.overlay.isVisible();
+    // The form, not the overlay: the landing reuses the overlay's id.
+    return this.page.locator('#loginForm').isVisible();
   }
 
   async login(username, password) {

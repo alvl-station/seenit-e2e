@@ -20,7 +20,9 @@ const STATE_FILE = path.join(__dirname, '..', '.auth', 'state.json');
 setup('authenticate once', async ({ page, context }) => {
   const login = new LoginPage(page);
   const catalog = new CatalogPage(page);
-  await catalog.goto();
+  // The door, not the root: a browser with no session is sent from the
+  // root to the landing, which has no form.
+  await catalog.goto('login');
   if (await login.isShown()) {
     const username = process.env.SMOKE_TEST_USERNAME;
     const password = process.env.SMOKE_TEST_PASSWORD;
