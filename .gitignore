@@ -6,3 +6,4 @@ smoke-test-log.txt
 allure-results/
 allure-report/
 .auth/
+.env.local
