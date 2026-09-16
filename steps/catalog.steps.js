@@ -408,7 +408,8 @@ Then('a fresh visitor sees the password form and the Google button', async ({ br
     let lastErr;
     for (let attempt = 0; attempt < 4; attempt++) {
       try {
-        await page.goto(process.env.BASE_URL || 'https://alvl-station.github.io/seenit/', { waitUntil: 'domcontentloaded' });
+        // The root sends a fresh visitor to the landing; the form is at /login.
+        await page.goto((process.env.BASE_URL || 'https://seenit-app.pages.dev/') + 'login', { waitUntil: 'domcontentloaded' });
         await expect(page.locator('#loginForm')).toBeVisible({ timeout: 10000 });
         lastErr = null;
         break;

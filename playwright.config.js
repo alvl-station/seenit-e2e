@@ -60,7 +60,7 @@ module.exports = defineConfig({
   use: {
     // Smoke suite runs against a live, already-deployed URL — no local dev
     // server; production by default so it's runnable by hand too.
-    baseURL: process.env.BASE_URL || 'https://alvl-station.github.io/seenit/',
+    baseURL: process.env.BASE_URL || 'https://seenit-app.pages.dev/',
     // Traces are OFF on purpose, and it costs us nothing: a trace records
     // every action's arguments — including the password passed to fill() —
     // and this repo is public, so traces were already banned from artifacts
