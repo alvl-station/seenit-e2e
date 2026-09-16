@@ -581,6 +581,19 @@ class CatalogPage {
   async noTabHighlighted() {
     return (await this.page.locator('#tabs .tab[data-tab].active').count()) === 0;
   }
+
+  /* ---- addresses ---- */
+  /** The last path segment and the query, so the mount does not matter. */
+  async currentAddress() {
+    const u = new URL(this.page.url());
+    return '/' + u.pathname.split('/').pop() + u.search;
+  }
+  async waitForAppReady(timeout = 20000) {
+    await this.page.waitForFunction(() => window.__catalogueShowable === true, null, { timeout });
+  }
+  async diceSheetIsOpen() {
+    return this.page.locator('#diceSheet').evaluate(el => el.classList.contains('open'));
+  }
 }
 
 module.exports = { CatalogPage };
