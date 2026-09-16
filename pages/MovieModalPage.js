@@ -35,15 +35,15 @@ class MovieModalPage {
   providersSection() { return this.page.locator('#modalOverlay .modal-providers'); }
   providerRows() { return this.page.locator('#modalOverlay .modal-providers .prov'); }
 
-  /** Every row as plain data — one DOM read, no per-row waits. */
+  /** Every row as plain data. A row is a chip: the name is its text, the offer its data-kind. */
   async providers() {
     return this.page.$$eval('#modalOverlay .modal-providers .prov', els => els.map(el => ({
-      name: (el.querySelector('.prov-name') || {}).textContent?.trim() || '',
-      kind: (el.querySelector('.prov-kind') || {}).textContent?.trim() || '',
+      name: (el.textContent || '').trim(),
+      kind: el.getAttribute('data-kind') || '',
       href: el.getAttribute('href'),
       newTab: el.getAttribute('target') === '_blank',
       rel: el.getAttribute('rel') || '',
-      hasLogo: !!el.querySelector('.prov-logo'),
+      label: el.getAttribute('aria-label') || '',
     })));
   }
 

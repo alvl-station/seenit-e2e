@@ -1,6 +1,6 @@
 # SeenIt — E2E smoke suite
 
-Playwright smoke tests for [SeenIt](https://alvl-station.github.io/seenit/),
+Playwright smoke tests for [SeenIt](https://seenit-app.pages.dev/),
 stage 2 of the event-driven deploy chain (see `CLAUDE.md` for the full
 picture and the rules this repo lives by).
 
