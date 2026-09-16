@@ -35,7 +35,7 @@ Then("the die's page is open", async ({ catalog }) => {
 
 // A new context: the shared one carries the saved session.
 Then('a fresh visitor at the root sees the landing with a way to sign in', async ({ browser }) => {
-  const ctx = await browser.newContext();
+  const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
   const page = await ctx.newPage();
   try {
     await page.goto(BASE(), { waitUntil: 'domcontentloaded' });
@@ -49,7 +49,7 @@ Then('a fresh visitor at the root sees the landing with a way to sign in', async
   }
 });
 Then('a fresh visitor at {string} is sent to {string}', async ({ browser }, name, address) => {
-  const ctx = await browser.newContext();
+  const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
   const page = await ctx.newPage();
   try {
     await page.goto(BASE() + name, { waitUntil: 'domcontentloaded' });

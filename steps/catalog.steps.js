@@ -386,7 +386,7 @@ Then('a fresh visitor sees the password form and the Google button', async ({ br
   test.info().setTimeout(120_000);
   // A NEW context on purpose: the shared one carries the saved session, so
   // it never sees the login screen at all.
-  const ctx = await browser.newContext();
+  const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
   const page = await ctx.newPage();
   // Diagnostics, because this scenario fails ONLY on runners (locally the
   // form shows in half a second) and its failure page is never captured —
