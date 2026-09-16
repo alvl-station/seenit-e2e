@@ -99,6 +99,18 @@ Then('no rating badge intersects the type and year text', async ({ catalog }) =>
   test.skip(checked === 0, 'no card with a rating badge visible');
 });
 
+Then('the shelf drop is shown with three keys', async ({ catalog, page }) => {
+  await expect(catalog.shelfDrop).toBeVisible();
+  expect(await page.locator('#shelfDrop .shelf-drop-key').count()).toBe(3);
+  // Centred on the screen, which is what makes it read as the shelf's own.
+  const box = await catalog.shelfDrop.boundingBox();
+  const width = page.viewportSize().width;
+  expect(Math.abs((box.x + box.width / 2) - width / 2)).toBeLessThan(2);
+});
+Then('the shelf drop is gone', async ({ catalog }) => {
+  await expect(catalog.shelfDrop).toBeHidden();
+});
+
 /* ---- the genre options in the filter window ---- */
 Given('the catalog has more than one genre', async ({ catalog }) => {
   test.skip(await catalog.genreOptionCount() < 2, 'catalog has fewer than two genres right now');

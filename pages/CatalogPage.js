@@ -108,27 +108,20 @@ class CatalogPage {
     await this.searchInput.fill(query);
   }
 
-  /* ---- settings: a headless sheet whose switches come down into the strip ---- */
-  async openSettingsDrawer() {
-    await this.pressStripTab('settings');
-    await this.page.locator('#settingsSheet.open').waitFor({ state: 'attached' });
-    await this.page.locator('.tabbar-window-row .tabbar-tab--window').first().waitFor();
-  }
-  async closeSettingsDrawer() {
-    if (!(await this.page.locator('#settingsSheet.open').count())) return;
-    await this.pressStripTab('settings');
-    await this.page.locator('#settingsSheet:not(.open)').waitFor({ state: 'attached' });
-  }
-  /** Two grids now: grid-s and grid-m. The switch is pressed where it is drawn, in the strip. */
+  /* ---- the shelf's own switches, in the drop on the bar ---- */
+  get shelfDrop() { return this.page.locator('#shelfDrop'); }
+  async shelfDropIsShown() { return this.shelfDrop.isVisible(); }
+  /** Two grids now (the list went on 2026-09-15). */
   async switchView(v) {
-    const title = v === 'grid-s' ? 'Мала сітка' : 'Сітка';
-    await this.openSettingsDrawer();
-    await this.windowTabTitled(title).click();
+    await this.shelfDrop.locator(`[data-v="${v}"]`).click();
     await this.page.waitForFunction(view => document.body.dataset.view === view, v);
-    await this.closeSettingsDrawer();
   }
   async currentView() {
     return this.page.evaluate(() => document.body.dataset.view);
+  }
+  get scoresKey() { return this.page.locator('#scoresToggle'); }
+  async scoresAreShown() {
+    return this.scoresKey.evaluate(el => el.classList.contains('active'));
   }
 
   /* ---- the filter window ---- */

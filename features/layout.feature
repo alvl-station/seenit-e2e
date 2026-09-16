@@ -2,6 +2,15 @@ Feature: Card layout across view modes
   Two grids of posters (the list is gone, owner's ask 2026-09-15). Real
   browser only — jsdom does no layout.
 
+  Scenario: The shelf's switches ride in a drop on the bar
+    # They were a page — a tab and a window — until 2026-09-16. Now they
+    # stand on the bar wherever the library is, and nowhere else.
+    Then the shelf drop is shown with three keys
+    When I open the recommendations flow
+    Then the shelf drop is gone
+    When I close the recommendations flow
+    Then the shelf drop is shown with three keys
+
   Scenario: The small grid draws smaller posters than the medium grid
     When I switch the view to "grid-m"
     And I remember the width of the first poster
