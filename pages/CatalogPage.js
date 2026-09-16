@@ -1,5 +1,7 @@
-// Page object for the main catalog view (#search, #main .grid .card — see
-// src/app.js's render()/cardHtml()).
+// Page object for the main screen: the two bars (header words on top, the
+// tab strip at the bottom), the shelf of cards, and the pages the bars open.
+// The header's own icons are hidden (src/style.css: the doors went to the
+// strip), so every page is opened by its tab.
 class CatalogPage {
   constructor(page) {
     this.page = page;
@@ -9,53 +11,20 @@ class CatalogPage {
     this.emptyMessage = page.locator('.empty-msg');
   }
 
-  // '' (not '/') on purpose: baseURL is a project Pages URL with a path
-  // segment (https://host/kino-tracker/) — a leading '/' resolves per
-  // WHATWG URL rules against the ORIGIN, dropping that segment entirely
-  // and 404ing (confirmed against Deploy App run #1: it landed on
-  // https://alvl-station.github.io/, GitHub's "no Pages site here" 404).
+  // '' rather than '/': baseURL may carry a path segment.
   async goto(path = '') {
     await this.page.goto(path);
   }
 
-  /**
-   * Waits for the LIVE Firebase catalog, not the first paint.
-   *
-   * src/movies-data.js is a build-time snapshot rendered instantly so the
-   * page is never blank; it carries no awards and no critic scores at all.
-   * Waiting only for "a card is visible" therefore returns during that
-   * placeholder render — which silently skipped five scenarios once login
-   * got fast enough (a saved session) to beat the Firebase read. Enrichment
-   * fields only ever come from Firebase, so their appearance IS the signal
-   * that the real data landed.
-   */
+  /** Waits for the live catalogue, then for it to stop arriving. */
   async waitForCatalogLoaded(timeout = 20000) {
-    await this.cards.first().waitFor({ state: 'visible', timeout });
-    // Read the DATA, not the rendered badges. Same signal — the snapshot has
-    // no enrichment, so its presence still proves Firebase answered — but it
-    // no longer assumes the whole catalogue is on screen. The catalogue is
-    // drawn in batches of 200 now, and a run failed here when none of the
-    // first 200 films happened to carry a badge.
+    await this.cards.first().waitFor({ state: 'attached', timeout });
     await this.page.waitForFunction(
       () => typeof MOVIES !== 'undefined'
         && MOVIES.some(m => m && (m.critic_score != null || m.awards_won || m.awards_nominated)),
       null,
       { timeout },
     );
-    // ...and then wait for it to STOP arriving.
-    //
-    // The catalogue comes from D1 in pages of a thousand now, and every page
-    // re-sorts and re-groups the grid. The check above is satisfied by the
-    // FIRST page, so without this the suite starts work while thirteen more
-    // are still landing — and a card's position is not stable until they
-    // stop. Scenarios that find a card and then act on it by index were
-    // asserting against a different film by the time they got there:
-    //
-    //   waiting for locator('.card').nth(61).locator('.card-awards')
-    //
-    // Guarded like the marks wait in support/fixtures.js: a bundle deployed
-    // before the beacon existed simply proceeds as it did before, rather
-    // than failing every scenario at the fixture.
     await this.page.waitForFunction(() => window.__catalogueLoaded === true, null, { timeout })
       .catch(() => { /* older bundle without the beacon */ });
   }
@@ -63,87 +32,34 @@ class CatalogPage {
   async cardCount() {
     return this.cards.count();
   }
+  /** How many films the shelf lists; only the first batches are drawn. */
+  async listedCount() {
+    return this.page.evaluate(() => visibleMovies().length);
+  }
 
-  /**
-   * Text of the "nothing found" panel, or null when there are results.
-   *
-   * textContent, NOT innerText — and every text reader in this file follows
-   * the same rule now. The redesigned interface uppercases through CSS
-   * (text-transform is on some forty rules in src/style.css), and innerText
-   * returns what is DRAWN: "НІЧОГО НЕ ЗНАЙДЕНО" for markup that says
-   * "Нічого не знайдено". Assertions carry the words the app writes, so a
-   * reader has to hand back those words. The mismatch was not theoretical:
-   * cardTitleText() read innerText while indexOfCardTitled() compared
-   * textContent, so a title remembered in one step could never be found by
-   * the next, and three mark scenarios failed on a film that was there.
-   */
+  // textContent, not innerText: the interface uppercases through CSS.
   async emptyMessageText() {
     const n = await this.emptyMessage.count();
     return n ? (await this.emptyMessage.textContent()).trim() : null;
   }
 
-  /* ---- the slimmed header: the search field and the two bottom sheets ----
-   * Search is no longer a layer with a list of its own. The icon grows into
-   * a field and the QUERY FILTERS THE PAGE, so a dead end shows up in the
-   * grid's own empty panel — there is no second place to look. */
-  get searchBox() { return this.page.locator('#topSearch'); }
-  get searchEmptyMessage() { return this.emptyMessage; }
-  async searchIsOpen() {
-    return this.searchBox.evaluate(el => el.classList.contains('open'));
+  /* ---- the two bars ---- */
+  stripTab(id) { return this.page.locator(`#tabbarScroll .tabbar-tab[data-tab="${id}"]`); }
+  headerTab(id) { return this.page.locator(`#topbarTabs .topbar-tab[data-tab="${id}"]`); }
+  /** The row a page lends the strip while it is open (marks, switches, Apply). */
+  windowTab(text) {
+    return this.page.locator('.tabbar-window-row .tabbar-tab--window', { hasText: text });
   }
-  async openSearchField() {
-    if (await this.searchIsOpen()) return;
-    await this.page.locator('#searchOpenBtn').click();
-    await this.page.locator('#topSearch.open').waitFor();
-    await this.settleSearchWidth();
+  windowTabTitled(title) {
+    return this.page.locator(`.tabbar-window-row .tabbar-tab--window[title="${title}"]`);
   }
-  /**
-   * Waits for the field to finish arriving before anyone measures it.
-   *
-   * The open class lands the instant the icon is tapped; the WIDTH arrives
-   * behind it over a .22s transition (and, in a browser that animates
-   * nothing, via the app's own 300ms fallback that drops the easing — REQ
-   * U-9). A boundingBox() read at the class therefore reads 44px — the
-   * icon's width — and reports an open field as an unusable one.
-   *
-   * Two identical samples rather than a fixed sleep: a field that genuinely
-   * never grows settles at 44 and the assertion still fails, which is the
-   * failure the scenario exists to catch.
-   */
-  async settleSearchWidth(timeout = 2000) {
-    await this.page.evaluate(() => { window.__seenitSearchW = -1; });
-    await this.page.waitForFunction(() => {
-      const el = document.getElementById('topSearch');
-      if (!el) return false;
-      const w = Math.round(el.getBoundingClientRect().width);
-      const settled = window.__seenitSearchW === w;
-      window.__seenitSearchW = w;
-      return settled;
-    }, null, { timeout, polling: 100 }).catch(() => { /* best-effort: the assertion judges the width */ });
+  async stripTabLit(id) {
+    return this.stripTab(id).evaluate(el => el.classList.contains('active'));
   }
-  /** The same control closes it, and closing CLEARS the query — the grid
-   *  never stays silently filtered. That is the app's contract, not ours. */
-  async closeSearchField() {
-    if (!(await this.searchIsOpen())) return;
-    await this.page.locator('#searchOpenBtn').click();
-    await this.page.locator('#topSearch:not(.open)').waitFor();
-  }
-  /** Only inside a collection, and only while the field is open. */
-  get searchScopeToggle() { return this.page.locator('#searchScope'); }
-  async openMenu() {
-    await this.page.locator('#menuBtn').click();
-    await this.page.locator('#menuSheet.open').waitFor();
-    await this.settleSheet('#menuSheet');
-  }
-  /**
-   * Waits for a sheet to finish sliding in.
-   *
-   * Same shape as settleSearchWidth, and for the same reason: the open class
-   * lands first and the geometry follows. It matters most for the one row
-   * that is tapped with force — force skips the actionability checks but not
-   * the geometry, so a click aimed at a sheet still on its way up lands
-   * outside the viewport, intermittently.
-   */
+  async pressStripTab(id) { await this.stripTab(id).click(); }
+  async pressHeaderTab(id) { await this.headerTab(id).click(); }
+
+  /** Waits for a sheet to finish sliding in before anything measures it. */
   async settleSheet(selector, timeout = 2000) {
     await this.page.evaluate(() => { window.__seenitSheetY = -1; });
     await this.page.waitForFunction((sel) => {
@@ -155,138 +71,157 @@ class CatalogPage {
       return settled;
     }, selector, { timeout, polling: 100 }).catch(() => { /* best-effort */ });
   }
-  async closeMenu() {
-    // The redesign gave the menu its own close button — and stopped the
-    // backdrop covering the header, so the catalogue can scroll behind an
-    // open sheet. A backdrop click at the old top-left corner now lands
-    // under <header>, which intercepts it, and the click retries for the
-    // whole test timeout. The button is the way out; the backdrop stays as
-    // the fallback for a bundle that predates it.
-    if (await this.page.locator('#menuCloseBtn').count()) {
-      await this.page.locator('#menuCloseBtn').click();
-    } else {
-      await this.page.locator('#menuBackdrop').click({ position: { x: 10, y: 10 } });
-    }
-    await this.page.locator('#menuSheet:not(.open)').waitFor();
-  }
-  async openSettingsDrawer() {
-    await this.openMenu();
-    await this.page.locator('#settingsBtn').click();
-    await this.page.locator('#settingsSheet.open').waitFor();
-  }
-  async closeSettingsDrawer() {
-    await this.page.locator('#settingsCloseBtn').click();
-    await this.page.locator('#settingsSheet:not(.open)').waitFor();
-    // The menu shut itself the moment the row was tapped — every enabled
-    // row does (src/app.js: the sheet closes unless the row is
-    // aria-disabled, which is how the delete row stays put to explain
-    // itself). So this closes it only if something left it open.
-    if (await this.page.locator('#menuSheet.open').count()) await this.closeMenu();
-  }
-  async openFilterDrawer() {
-    await this.page.locator('#filterBtn').click();
-    await this.page.locator('#filterSheet.open').waitFor();
-  }
-  async closeFilterDrawer() {
-    // Same story as closeMenu: the sheet grew its own cross when the
-    // backdrop stopped being a way out.
-    if (await this.page.locator('#filterCloseBtn').count()) {
-      await this.page.locator('#filterCloseBtn').click();
-    } else {
-      await this.page.locator('#filterBackdrop').click({ position: { x: 10, y: 10 } });
-    }
-    await this.page.locator('#filterSheet:not(.open)').waitFor();
-  }
-  // Choices in the filter window reach the shelf only on «Застосувати»
-  // (seenit-frontend REQUIREMENTS U-11), and the window closes on it. The
-  // button is pressed where a person presses it: the cell the drawer lends
-  // the bar — the original in the drawer is not drawn.
-  async applyFilters() {
-    await this.page.locator('.tabbar-window-row .tabbar-tab--window', { hasText: 'Застосувати' }).click();
-    await this.page.locator('#filterSheet:not(.open)').waitFor();
-  }
 
+  /* ---- search: a field that grows out of its icon ---- */
+  get searchBox() { return this.page.locator('#topSearch'); }
+  get searchEmptyMessage() { return this.emptyMessage; }
+  async searchIsOpen() {
+    return this.searchBox.evaluate(el => el.classList.contains('open'));
+  }
+  async openSearchField() {
+    if (await this.searchIsOpen()) return;
+    await this.pressStripTab('search');
+    await this.page.locator('#topSearch.open').waitFor();
+    await this.settleSearchWidth();
+  }
+  /** Two identical width samples: the field arrives over a transition. */
+  async settleSearchWidth(timeout = 2000) {
+    await this.page.evaluate(() => { window.__seenitSearchW = -1; });
+    await this.page.waitForFunction(() => {
+      const el = document.getElementById('topSearch');
+      if (!el) return false;
+      const w = Math.round(el.getBoundingClientRect().width);
+      const settled = window.__seenitSearchW === w;
+      window.__seenitSearchW = w;
+      return settled;
+    }, null, { timeout, polling: 100 }).catch(() => { /* the assertion judges the width */ });
+  }
+  /** The icon is shown while the field is open, and closing clears the query. */
+  async closeSearchField() {
+    if (!(await this.searchIsOpen())) return;
+    await this.page.locator('#searchOpenBtn').click();
+    await this.page.locator('#topSearch:not(.open)').waitFor();
+  }
+  get searchScopeToggle() { return this.page.locator('#searchScope'); }
   async search(query) {
     await this.openSearchField();
     await this.searchInput.fill(query);
   }
 
-  async openCard(index = 0) {
-    await this.cards.nth(index).click();
+  /* ---- settings: a headless sheet whose switches come down into the strip ---- */
+  async openSettingsDrawer() {
+    await this.pressStripTab('settings');
+    await this.page.locator('#settingsSheet.open').waitFor({ state: 'attached' });
+    await this.page.locator('.tabbar-window-row .tabbar-tab--window').first().waitFor();
   }
-
-  /**
-   * Opens the first card already fully inside the CURRENT viewport, without
-   * letting Playwright auto-scroll to reach one — for tests that assert the
-   * scroll position survives an open/close cycle, where an implicit scroll
-   * before the click would silently move the goalposts.
-   */
-  async openVisibleCard() {
-    const n = await this.cards.count();
-    const vh = this.page.viewportSize().height;
-    for (let i = 0; i < n; i++) {
-      const box = await this.cards.nth(i).boundingBox();
-      if (box && box.y >= 0 && box.y + box.height <= vh) {
-        await this.cards.nth(i).click({ position: { x: 10, y: 10 } });
-        return true;
-      }
-    }
-    return false;
+  async closeSettingsDrawer() {
+    if (!(await this.page.locator('#settingsSheet.open').count())) return;
+    await this.pressStripTab('settings');
+    await this.page.locator('#settingsSheet:not(.open)').waitFor({ state: 'attached' });
   }
-
-  /* ---- view modes (list / grid-s / grid-m) ----
-   * They live in НАЛАШТУВАННЯ now, not in ФІЛЬТР, and the path through the
-   * UI has to respect the split that put them there: ФІЛЬТР answers "which
-   * films", НАЛАШТУВАННЯ answers "how they are drawn", and a view mode is
-   * the second question. Opening НАЛАШТУВАННЯ does not close the menu it
-   * was opened from, so both are shut again on the way out. */
+  /** Two grids now: grid-s and grid-m. The switch is pressed where it is drawn, in the strip. */
   async switchView(v) {
+    const title = v === 'grid-s' ? 'Мала сітка' : 'Сітка';
     await this.openSettingsDrawer();
-    await this.page.locator(`#viewToggle button[data-v="${v}"]`).click();
+    await this.windowTabTitled(title).click();
+    await this.page.waitForFunction(view => document.body.dataset.view === view, v);
     await this.closeSettingsDrawer();
   }
   async currentView() {
     return this.page.evaluate(() => document.body.dataset.view);
   }
 
-  /* ---- per-card geometry, for layout assertions ---- */
+  /* ---- the filter window ---- */
+  async openFilterDrawer() {
+    if (await this.page.locator('#filterSheet.open').count()) return;
+    await this.pressStripTab('filter');
+    await this.page.locator('#filterSheet.open').waitFor();
+    await this.settleSheet('#filterSheet');
+  }
+  async closeFilterDrawer() {
+    if (!(await this.page.locator('#filterSheet.open').count())) return;
+    await this.pressStripTab('filter');
+    await this.page.locator('#filterSheet:not(.open)').waitFor({ state: 'attached' });
+  }
+  // Choices reach the shelf only on «Застосувати», pressed in the strip.
+  async applyFilters() {
+    await this.windowTab('Застосувати').click();
+    await this.page.locator('#filterSheet:not(.open)').waitFor({ state: 'attached' });
+  }
+  /* The genre is an option in the filter window; the options are in the
+   * document whether the window is open or not. */
+  genreOption(index = 0) {
+    return this.page.locator('#genreOpts .opt[data-g]:not([data-g="all"])').nth(index);
+  }
+  async genreOptionCount() {
+    return this.page.locator('#genreOpts .opt[data-g]:not([data-g="all"])').count();
+  }
+  async optionIsActive(opt) {
+    return opt.evaluate(el => el.classList.contains('active'));
+  }
+  async optionBorderColor(opt) {
+    let last = null;
+    for (let i = 0; i < 20; i++) {
+      const now = await opt.evaluate(el => getComputedStyle(el).borderColor);
+      if (now === last) return now;
+      last = now;
+      await this.page.waitForTimeout(120);
+    }
+    return last;
+  }
+  async noGenreChosen() {
+    return (await this.page.locator('#genreOpts .opt.active[data-g]:not([data-g="all"])').count()) === 0;
+  }
+  /** Narrows the shelf to one genre group through the window and «Застосувати». */
+  async chooseGenreGroup(group) {
+    await this.openFilterDrawer();
+    await this.page.locator(`#genreOpts .opt[data-g="${group}"]`).click();
+    await this.applyFilters();
+  }
+  yearOption(key) { return this.page.locator(`#yearOpts .opt[data-years="${key}"]`); }
+  async yearOptionActive(key) {
+    return this.yearOption(key).evaluate(el => el.classList.contains('active'));
+  }
+  async visibleCardYears() {
+    return this.page.locator('.card .card-meta-row .year').evaluateAll(els =>
+      els.map(el => Number((/(\d{4})/.exec(el.textContent || '') || [])[1])).filter(Boolean));
+  }
+  async providerFilterOffered() {
+    return (await this.page.locator('#providerFilter .opt').count()) > 0;
+  }
+  providerOption(index = 0) { return this.page.locator('#providerFilter .opt').nth(index); }
+
+  /* ---- cards ---- */
+  async openCard(index = 0) {
+    await this.cards.nth(index).click();
+  }
+  /** Opens the first card fully inside the viewport, without auto-scrolling. */
+  async openVisibleCard() {
+    const n = await this.cards.count();
+    const vh = this.page.viewportSize().height;
+    const header = await this.page.locator('header').boundingBox();
+    const strip = await this.page.locator('#tabbar').boundingBox();
+    const top = header ? header.y + header.height : 0;
+    const bottom = strip ? strip.y : vh;
+    for (let i = 0; i < n; i++) {
+      const box = await this.cards.nth(i).boundingBox();
+      if (box && box.y >= top && box.y + box.height <= bottom) {
+        await this.cards.nth(i).click();
+        return true;
+      }
+    }
+    return false;
+  }
   cardPoster(index = 0) { return this.cards.nth(index).locator('.poster'); }
   cardTitle(index = 0) { return this.cards.nth(index).locator('h3'); }
-  cardYearText(index = 0) { return this.cards.nth(index).locator('.card-meta-row .year'); }
+  cardYearText(index = 0) { return this.cards.nth(index).locator('.card-meta-row .year').first(); }
   cardRatingBadge(index = 0) { return this.cards.nth(index).locator('.rating-badge'); }
-  /** The card's award row — two sums («НАГОРОДИ n» / «НОМІНАЦІЇ n»), tappable
-   *  for the per-ceremony breakdown. Replaced the poster trophy in the
-   *  interface-book redesign: awards are data, so they live in the data
-   *  block under the title, never on the poster. */
   cardAwardsRow(index = 0) { return this.cards.nth(index).locator('.card-awards'); }
-  cardAwardsWonField(index = 0) { return this.cards.nth(index).locator('.aw--won'); }
-  cardAwardsNomField(index = 0) { return this.cards.nth(index).locator('.aw--nom'); }
-  /** The critic strip (track + fill + number) — same .critic-badge hook the
-   *  old colored badge carried, so the popover contract is unchanged. */
   cardCriticBadge(index = 0) { return this.cards.nth(index).locator('.critic-badge'); }
   get infoPopover() { return this.page.locator('#infoPopover'); }
-  /**
-   * Index of a card carrying award badges, or -1 when the catalogue has none.
-   *
-   * awards_won is a list on older records and a per-ceremony registry on
-   * newer ones, so both shapes are counted — and an empty one of either shape
-   * is not an award.
-   */
+
   async firstCardIndexWithAwards() {
-    // The row renders for wins OR nominations now — either earns it.
-    //
-    // The helper lives INSIDE the predicate on purpose. revealCardWhere
-    // serialises this function and rebuilds it with `new Function` inside the
-    // page, so anything it closes over here simply does not exist there —
-    // a helper defined one line above became `ReferenceError: has is not
-    // defined` in the browser.
-    //
-    // It stayed invisible for as long as the suite only ever met a catalogue
-    // whose first screen already showed an award row: the fast path returns
-    // before the predicate is ever serialised. Against the live catalogue,
-    // where 200 of 13.5k films are drawn at a time and the first 200 may
-    // carry no award at all, the slow path runs — and every award scenario
-    // failed at once.
+    // The helper lives inside the predicate: it is serialised into the page.
     return this.revealCardWhere(
       (m) => {
         const has = v => v && (Array.isArray(v) ? v.length > 0 : Object.keys(v).length > 0);
@@ -295,26 +230,18 @@ class CatalogPage {
       '.card-awards',
     );
   }
-
-  /** Index of a card showing the critic strip, or -1. */
   async firstCardIndexWithCriticScore() {
     return this.revealCardWhere(m => m.critic_score != null, '.critic-badge');
   }
-
+  async firstCardIndexWithProviders() {
+    return this.revealCardWhere(m => Array.isArray(m.providers) && m.providers.length > 0, null);
+  }
   /**
-   * Index of a card matching `predicate`, SEARCHING for one if none is drawn.
-   *
-   * The catalogue renders 200 cards at a time, so "scan what is on screen"
-   * silently stopped finding films that exist — an award scenario would skip
-   * itself rather than fail, and coverage would quietly drain away as the
-   * catalogue grew. This looks in MOVIES instead, and when the match is not
-   * currently drawn it types the title into the search box to bring it up.
-   *
-   * Returns -1 only when no film in the catalogue matches at all.
+   * Index of a card matching `predicate`; when none is drawn, narrows the
+   * shelf to the film's genre group and lets batches draw until it appears.
+   * -1 when no film in the catalogue matches at all.
    */
   async revealCardWhere(predicate, drawnSelector) {
-    // Fast path: something already on screen matches, so nothing has to move.
-    // Skipped when the film carries no visible mark on its card (providers).
     if (drawnSelector) {
       const drawn = await this.page.evaluate(sel => {
         const cards = [...document.querySelectorAll('.card')];
@@ -322,9 +249,6 @@ class CatalogPage {
       }, drawnSelector);
       if (drawn !== -1) return drawn;
     }
-
-    // The predicate is serialised and rebuilt inside the page: page.evaluate
-    // cannot carry a closure across the boundary.
     const found = await this.page.evaluate(src => {
       // eslint-disable-next-line no-new-func
       const match = new Function(`return (${src})`)();
@@ -333,12 +257,7 @@ class CatalogPage {
       return m ? { title: m.canonical_title_uk, group: m.genre_group || 'Інше' } : null;
     }, predicate.toString());
     if (!found) return -1;
-
-    // The search layer covers the grid instead of filtering it now, so the
-    // reveal goes the way a person would: narrow the grid to the film's
-    // genre group via the ribbon, then let batches draw until the card is
-    // on the page (or nothing is left to draw).
-    await this.page.locator(`#genreChips .chip[data-g="${found.group}"]`).click();
+    await this.chooseGenreGroup(found.group);
     for (let i = 0; i < 80; i++) {
       const idx = await this.page.evaluate(([sel, title]) => {
         const cards = [...document.querySelectorAll('.card')];
@@ -357,69 +276,42 @@ class CatalogPage {
     return -1;
   }
 
-  /**
-   * Index of the first card whose film has providers on file, or -1.
-   *
-   * Providers are not drawn on the card — only inside the modal — so this
-   * reads MOVIES (the app's own loaded catalogue, reachable from the page the
-   * same way AWARD_INFO is) and matches back to a card by data-id, rather
-   * than opening modals one after another until one happens to have them.
-   *
-   * -1 is the ORDINARY answer until the provider backfill has run over the
-   * catalogue, so callers skip on it rather than fail.
-   */
-  async firstCardIndexWithProviders() {
-    // Providers are drawn only inside the modal, so there is no badge on a
-    // card to look for — the film is located in MOVIES and searched up.
-    return this.revealCardWhere(
-      m => Array.isArray(m.providers) && m.providers.length > 0, null);
-  }
-
-  /* ---- delete mode ----
-   * READ-ONLY, deliberately. kino/movies is a single global catalog shared by
-   * every login (there is no per-user data — see CLAUDE.md), so a confirmed
-   * delete from CI would destroy the owner's real films. These helpers can
-   * enter the mode, select and cancel; nothing here confirms, and the
-   * confirm dialog is auto-dismissed as a second line of defence.
-   */
-  get deleteModeButton() { return this.page.locator('#deleteModeBtn'); }
+  /* ---- the bin bar (nothing here ever confirms) ---- */
   get deleteBar() { return this.page.locator('#deleteBar'); }
   get deleteBarCount() { return this.page.locator('#deleteCount'); }
   get deleteConfirmButton() { return this.page.locator('#deleteConfirmBtn'); }
   get deleteCancelButton() { return this.page.locator('#deleteCancelBtn'); }
-
-  /** Arms the dialog to always answer "no", then enters delete mode —
-   *  which lives in the menu sheet now. The sheet closes itself after a
-   *  row is tapped. */
-  async enterDeleteMode() {
-    this.page.on('dialog', d => d.dismiss());
-    await this.openMenu();
-    await this.deleteModeButton.click();
-  }
-  async leaveDeleteMode() { await this.deleteCancelButton.click(); }
-  async deleteModeIsOn() {
-    return (await this.deleteModeButton.getAttribute('aria-pressed')) === 'true';
-  }
   async deleteBarIsVisible() { return this.deleteBar.isVisible(); }
-  async selectForDelete(index = 0) { await this.cards.nth(index).click(); }
   async selectedCount() { return this.page.locator('.card.is-selected').count(); }
-  async deleteConfirmIsEnabled() { return this.deleteConfirmButton.isEnabled(); }
-  async deleteBarText() { return (await this.deleteBarCount.innerText()).trim(); }
   async modalIsOpen() {
     return this.page.locator('#modalOverlay.open').isVisible().catch(() => false);
   }
 
-  get watchedToggle() { return this.page.locator('#watchedToggle'); }
-  async tapWatchedToggle() { await this.watchedToggle.click(); }
+  /* ---- the archive and its three words ---- */
+  async archiveIsOpen() {
+    return this.page.locator('#watchedToggle').evaluate(el => el.classList.contains('active'));
+  }
+  /** «Архів» in the strip: a toggle, so it opens or closes the archive. */
+  async tapWatchedToggle() {
+    const before = await this.archiveIsOpen();
+    await this.pressStripTab('seen');
+    await this.page.waitForFunction(was => document.getElementById('watchedToggle').classList.contains('active') !== was, before);
+  }
+  async openArchive() { if (!(await this.archiveIsOpen())) await this.tapWatchedToggle(); }
+  /** One of «Усі», «Рекомендую», «Обовʼязково»: the row the archive lends the strip. */
+  markWord(mark) {
+    const text = { all: 'Усі', liked: 'Рекомендую', must: 'Обовʼязково' }[mark];
+    return this.windowTab(text);
+  }
+  async tapMarkWord(mark) {
+    await this.openArchive();
+    await this.markWord(mark).click();
+  }
+  async markWordActive(mark) {
+    return this.page.locator(`.mark-word[data-mark="${mark}"]`).evaluate(el => el.classList.contains('active'));
+  }
 
-  /* ---- per-card watched/liked toggles ----
-   * Safe to USE now, and that is new. These lists used to be global nodes
-   * shared by every login, so a test that toggled one changed the owner's
-   * real data — which is why the whole suite was read-only. Marks now hang
-   * off the signed-in uid, so CI toggles its own account's list and nobody
-   * else's. kino/movies is still shared, so adding and deleting films stays
-   * forbidden here.
-   */
+  /* ---- per-card marks ---- */
   cardWatchedToggle(index = 0) { return this.cards.nth(index).locator('[data-act="watch"]'); }
   cardLikedToggle(index = 0) { return this.cards.nth(index).locator('[data-act="like"]'); }
   async toggleWatchedOnCard(index = 0) { await this.cardWatchedToggle(index).click(); }
@@ -430,13 +322,7 @@ class CatalogPage {
   async cardTitleText(index = 0) {
     return (await this.cardTitle(index).textContent()).trim();
   }
-  /**
-   * Toggling BY TITLE, not by index — and that is the point, not a
-   * nicety. The default view hides watched titles, so the moment a film is
-   * marked it leaves the grid and every later index points at a different
-   * film. A cleanup step working by index would unmark the wrong one and
-   * leave the original marked, quietly accumulating state in the account.
-   */
+  // By title, not index: a marked film leaves the default view at once.
   cardTitled(title) {
     return this.cards.filter({ has: this.page.locator('h3', { hasText: title }) }).first();
   }
@@ -449,24 +335,37 @@ class CatalogPage {
   async cardTitledIsWatched(title) {
     return this.cardTitled(title).evaluate(el => el.classList.contains('is-watched'));
   }
-
-  /** Index of the visible card with this title, or -1. */
   async indexOfCardTitled(title) {
     return this.page.evaluate(
       t => [...document.querySelectorAll('.card')].findIndex(c => c.querySelector('h3').textContent.trim() === t),
       title,
     );
   }
+  /** The counts live on the account screen now; read the way the app counts them. */
+  async markCount(which) {
+    const n = await this.page.evaluate(w =>
+      countExistingMarks({ watched, liked, must }[w], catalogSource()), which);
+    return n ? n : null;
+  }
+  async watchedTabCount() { return this.markCount('watched'); }
+  async likedTabCount() { return this.markCount('liked'); }
+  /** How many films the archive should list on this shelf, for a mark. */
+  async archiveExpected(which) {
+    return this.page.evaluate(w => {
+      const onShelf = catalogSource().filter(m => matchesShelfType(m, state.type) && isMarked(watched, m));
+      // «Рекомендую» leaves out what is also «Обовʼязково» (filterCatalog).
+      return w === 'watched' ? onShelf.length
+        : onShelf.filter(m => isMarked(liked, m) && !isMarked(must, m)).length;
+    }, which);
+  }
 
-  /* ---- account panel & onboarding guide ---- */
-  get accountButton() { return this.page.locator('#accountBtn'); }
+  /* ---- account and the guide ---- */
   get accountOverlay() { return this.page.locator('#accountOverlay'); }
   get onboardOverlay() { return this.page.locator('#onboardOverlay'); }
-  /** "Акаунт" is a row in the menu sheet — the sheet has to be open before
-   *  the row is anything a click can reach. */
+  get accountEntryPoint() { return this.stripTab('account'); }
   async openAccountPanel() {
-    await this.openMenu();
-    await this.accountButton.click();
+    await this.pressStripTab('account');
+    await this.page.locator('#accountOverlay.open').waitFor();
   }
   async accountPanelIsOpen() {
     return this.accountOverlay.evaluate(el => el.classList.contains('open'));
@@ -474,88 +373,53 @@ class CatalogPage {
   async accountUsername() {
     return (await this.page.locator('#accountBox .acc-name').innerText()).trim();
   }
-  async closeAccountPanel() { await this.page.locator('#accCloseBtn').click(); }
+  /** The lit tab closes its page. */
+  async closeAccountPanel() {
+    await this.pressStripTab('account');
+    await this.page.locator('#accountOverlay:not(.open)').waitFor({ state: 'attached' });
+  }
   async openGuideFromAccount() { await this.page.locator('#accGuideBtn').click(); }
   async guideIsOpen() {
     return this.onboardOverlay.evaluate(el => el.classList.contains('open'));
   }
   async closeGuide() { await this.page.locator('#onbDoneBtn').click(); }
   async trendingCount() { return this.page.locator('#trendGrid .trend-item').count(); }
-  /** Closes the guide if it auto-opened (a first visit on this account). */
   async dismissGuideIfShown() {
     if (await this.guideIsOpen().catch(() => false)) await this.closeGuide();
   }
 
-  /* ---- the recommendations flow ("Добірки") ---- */
-  get recsButton() { return this.page.locator('#recsBtn'); }
+  /* ---- the collections page (a header word) ---- */
   get recsOverlay() { return this.page.locator('#recsOverlay'); }
+  get recsEntryPoint() { return this.headerTab('recs'); }
   async openRecs() {
-    await this.openMenu();
-    await this.recsButton.click();
+    await this.pressHeaderTab('recs');
+    await this.page.locator('#recsOverlay.open').waitFor();
   }
   async recsIsOpen() { return this.recsOverlay.evaluate(el => el.classList.contains('open')); }
-  async closeRecs() { await this.page.locator('#recsCloseBtn').click(); }
+  async closeRecs() {
+    await this.pressHeaderTab('recs');
+    await this.page.locator('#recsOverlay:not(.open)').waitFor({ state: 'attached' });
+  }
   async recsSourceTabs() {
-    return (await this.page.locator('#recsBox [data-recs-src]').allTextContents())
-      .map(t => t.trim());
+    return (await this.page.locator('#recsBox [data-recs-src]').allTextContents()).map(t => t.trim());
   }
-  async switchRecsSource(id) { await this.page.locator(`[data-recs-src="${id}"]`).click(); }
+  async switchRecsSource(id) {
+    const label = { top: 'Топ', friends: 'Від друзів', mine: 'Мої', seenit: 'SeenIt' }[id];
+    await this.windowTab(label).click();
+    await this.page.waitForFunction(src => {
+      const el = document.querySelector(`[data-recs-src="${src}"]`);
+      return !!el && el.classList.contains('active');
+    }, id);
+  }
   async recsBodyText() { return (await this.page.locator('#recsbody').textContent()).trim(); }
-  async recsListChips() {
-    return (await this.page.locator('.recs-list-chip').allTextContents()).map(t => t.trim());
+  async recsCollectionNames() {
+    return (await this.page.locator('#recsbody .col-block-name').allTextContents()).map(t => t.trim());
   }
-  async openRecsList(title) {
-    await this.page.locator('.recs-list-chip', { hasText: title }).click();
-  }
-  async recsGridCount() { return this.page.locator('#recsbody .trend-item').count(); }
-
-  /* ---- tab counts ---- */
-  /** The N inside "Дивився (N)", or null when the chip shows no number. */
-  async watchedTabCount() { return this._tabCount('#nWatched'); }
-  async likedTabCount() { return this._tabCount('#nLiked'); }
-  async _tabCount(sel) {
-    const text = (await this.page.locator(sel).innerText()).trim();
-    const m = /\((\d+)\)/.exec(text);
-    return m ? Number(m[1]) : null;
+  async openRecsCollection(title) {
+    await this.page.locator('#recsbody .col-block-open[data-key]', { hasText: title }).first().click();
   }
 
-  /* ---- genre chips ---- */
-  // There is no "all genres" chip — every chip here is a real genre. Neutral
-  // (no filter) is reached only by deselecting whichever one is active; see
-  // noChipHighlighted() below.
-  genreChip(index = 0) { return this.page.locator('#genreChips .chip').nth(index); }
-  async chipIsActive(chip) {
-    return chip.evaluate(el => el.classList.contains('active'));
-  }
-  async chipBorderColor(chip) {
-    return chip.evaluate(el => getComputedStyle(el).borderColor);
-  }
-  async noChipHighlighted() {
-    return (await this.page.locator('#genreChips .chip.active').count()) === 0;
-  }
-
-  /* ---- the filter sheet: years and providers ---- */
-  // Built from YEAR_BUCKETS in the app plus the explicit «Усі» first option;
-  // keys are data-years values ("all", "1990s", …), so a renamed label
-  // cannot silently detach these from what they filter.
-  yearOption(key) { return this.page.locator(`#yearOpts .opt[data-years="${key}"]`); }
-  async yearOptionActive(key) {
-    return this.yearOption(key).evaluate(el => el.classList.contains('active'));
-  }
-  /** Every visible card's year, read off the card meta rows. */
-  async visibleCardYears() {
-    return this.page.locator('.card .card-meta-row .year').evaluateAll(els =>
-      els.map(el => Number((/(\d{4})/.exec(el.textContent || '') || [])[1])).filter(Boolean));
-  }
-  // The provider filter is BUILT from the catalogue and absent until the
-  // provider pass has run — scenarios over it skip on absence, same as the
-  // modal provider ones.
-  async providerFilterOffered() {
-    return (await this.page.locator('#providerFilter .opt').count()) > 0;
-  }
-  providerOption(index = 0) { return this.page.locator('#providerFilter .opt').nth(index); }
-
-  /* ---- page scroll state (the scroll-lock pattern, CONVENTIONS.md) ---- */
+  /* ---- page scroll state ---- */
   async scrollTo(y) {
     await this.page.evaluate(v => window.scrollTo(0, v), y);
   }
@@ -565,25 +429,12 @@ class CatalogPage {
   async bodyIsScrollLocked() {
     return this.page.evaluate(() => document.body.classList.contains('scroll-locked'));
   }
-  /** The page must never scroll sideways, whatever the viewport. */
   async hasHorizontalOverflow() {
     return this.page.evaluate(() =>
       document.documentElement.scrollWidth > window.innerWidth + 1);
   }
 
-  /* ---- tabs ---- */
-  // There is no "Усі" tab — it's the neutral state, reached only by
-  // deselecting whichever tab is active; see noTabHighlighted() below.
-  recommendTab() { return this.page.locator('#tabs .tab[data-tab="liked"]'); }
-  async tabIsActive(tab) {
-    return tab.evaluate(el => el.classList.contains('active'));
-  }
-  async noTabHighlighted() {
-    return (await this.page.locator('#tabs .tab[data-tab].active').count()) === 0;
-  }
-
   /* ---- addresses ---- */
-  /** The last path segment and the query, so the mount does not matter. */
   async currentAddress() {
     const u = new URL(this.page.url());
     return '/' + u.pathname.split('/').pop() + u.search;

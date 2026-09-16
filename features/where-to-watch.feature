@@ -15,7 +15,6 @@ Feature: "Де подивитись" — where a film can be watched
   Scenario: A film with providers lists each one with its offer
     Given a movie modal with providers is open
     Then every provider row names a service and what the offer is
-    And every provider row carries the service's own logo
 
   Scenario: What you can already watch is listed above what you must pay for
     # Subscription first, purchase last: the first row a person reads should

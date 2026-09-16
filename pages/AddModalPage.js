@@ -1,31 +1,27 @@
-// Page object for the add-movie modal (#addMovieOverlay — see
-// openAddModal()/closeAddModal() in seenit-frontend src/app.js). E2E only
-// ever OPENS and CLOSES it (that's pure UI, no writes) — actually saving a
-// movie from a test is forbidden by the read-only rule (REQUIREMENTS T-4).
+// Page object for the add screen (#addMovieOverlay), a page of the strip.
+// Only ever opened and closed here: saving a film is forbidden (REQ T-4).
 class AddModalPage {
   constructor(page) {
     this.page = page;
-    this.openButton = page.locator('#addMovieBtn');
+    this.tab = page.locator('#tabbarScroll .tabbar-tab[data-tab="add"]');
     this.overlay = page.locator('#addMovieOverlay');
-    this.box = page.locator('#addMovieOverlay .modal, #addMovieOverlay > div').first();
-    this.closeButton = page.locator('#addModalClose');
+    this.box = page.locator('#addMovieBox');
   }
 
   async open() {
-    await this.openButton.click();
+    await this.tab.click();
     await this.overlay.waitFor({ state: 'visible' });
   }
 
-  /** Values rendered as reference-only text in the confirm card (REQ A-6). */
   readOnlyValues() { return this.page.locator('#addResults .cf-readonly'); }
-  /** Anything still typeable/selectable in the confirm card. */
   editableFields() { return this.page.locator('#addResults input, #addResults textarea, #addResults select'); }
   searchInput() { return this.page.locator('#addTitle'); }
   searchButton() { return this.page.locator('#addSearchBtn'); }
   results() { return this.page.locator('#addResults'); }
 
+  /** The lit tab closes its page. */
   async close() {
-    await this.closeButton.click();
+    await this.tab.click();
     await this.overlay.waitFor({ state: 'hidden' });
   }
 }

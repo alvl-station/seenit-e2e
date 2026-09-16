@@ -1,28 +1,15 @@
 Feature: Marking a film watched or recommended
-  The first scenarios in this suite that CHANGE anything.
+  These scenarios write, into the test account's own lists only; the
+  catalogue stays shared, so adding or deleting a film stays forbidden.
+  Every scenario removes its own mark again, by title: a watched film
+  leaves the default shelf at once, so "the first card" is another film
+  right after.
 
-  Until now every test here was read-only, because "переглянуто" and
-  "рекомендую" were single nodes shared by every login: a test that marked a
-  film changed the owner's real list. Marks now hang off the signed-in uid,
-  so CI writes into its own account's subtree and nobody else's — and the
-  database rules refuse anything else.
-
-  kino/movies is still one shared catalog, so adding or deleting a film
-  stays forbidden here.
-
-  Every scenario removes its own mark again, and does so BY TITLE. That is
-  not a stylistic choice: a watched film sinks to the end of its genre
-  section, so "the first card" can be a different film immediately
-  afterwards, and a cleanup step working by position would unmark the wrong
-  one and leave the original marked for good.
+  The counts are read the way the account screen counts them; the archive
+  («Архів» in the strip) is where a marked film is listed, and its three
+  words («Усі», «Рекомендую», «Обовʼязково») narrow it.
 
   Scenario: Marking a film watched raises the count and keeps it reachable
-    # Interface-book rule: the shelf shows what is done as done — a watched
-    # film sinks to the end of its genre section, it is never dropped from
-    # the catalogue. The grid draws in BATCHES behind a scroll sentinel,
-    # so "visible right now" stopped being the honest test of that: the
-    # sunk card may simply not be drawn yet. Reachability is asserted where
-    # the whole answer is drawn — the «Дивився» isolation.
     Given I remember the "Дивився" count
     When I toggle "переглянуто" on the first card
     Then the "Дивився" count is one higher than remembered
@@ -33,32 +20,23 @@ Feature: Marking a film watched or recommended
     Then the "Дивився" count is back to what I remembered
 
   Scenario: The heart turns the eye on — recommending also marks watched
-    # Interface-book rule: «рекомендую, але не дивився» is not a state.
-    # One tap on the heart raises BOTH counts; taking the heart off leaves
-    # the eye on, so the cleanup unmarks watched separately. Assertions on
-    # the card itself happen inside the «Рекомендую» isolation — same
-    # batched-grid reasoning as the scenario above.
     Given I remember the "Рекомендую" count
     And I remember the "Дивився" count
     When I toggle "рекомендую" on the first card
     Then the "Рекомендую" count is one higher than remembered
     And the "Дивився" count is one higher than remembered
-    When I tap the "Рекомендую" tab
+    When I isolate the catalog to watched films
+    And I narrow the archive to "Рекомендую"
     Then that title is listed
     And that film is shown as watched
     When I toggle "рекомендую" on that film
     Then the "Рекомендую" count is back to what I remembered
     And the "Дивився" count is still one higher than remembered
-    # The tab isolation outranks the watched isolation in filterCatalog, so
-    # the second tap clears the tab (U-6) before switching views.
-    When I tap the "Рекомендую" tab
-    And I isolate the catalog to watched films
+    When I narrow the archive to "Усі"
     And I toggle "переглянуто" on that film
     Then the "Дивився" count is back to what I remembered
 
-  Scenario: The watched tab lists exactly what its count claims
-    # The production bug this suite could not catch before: the chip read
-    # "Дивився (4)" over a list of three films.
+  Scenario: The archive lists exactly what the watched count claims
     Given I remember the "Дивився" count
     When I toggle "переглянуто" on the first card
     And I isolate the catalog to watched films
@@ -67,8 +45,6 @@ Feature: Marking a film watched or recommended
     Then the "Дивився" count is back to what I remembered
 
   Scenario: A mark survives a page reload
-    # Proves the mark reached the database rather than only the local copy —
-    # the write goes to this account's own subtree, so it must persist.
     Given I remember the "Дивився" count
     When I toggle "переглянуто" on the first card
     And I reload the catalog

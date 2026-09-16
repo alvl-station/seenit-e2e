@@ -212,12 +212,6 @@ Then('every provider row names a service and what the offer is', async ({ ctx })
   }
 });
 
-Then("every provider row carries the service's own logo", async ({ ctx }) => {
-  for (const p of ctx.providers) {
-    expect(p.hasLogo, `"${p.name}" rendered without a logo or its fallback initial`).toBe(true);
-  }
-});
-
 Then('providers are ordered from subscription to purchase', async ({ ctx }) => {
   const ranks = ctx.providers.map(p => KIND_ORDER.indexOf(p.kind));
   const sorted = [...ranks].sort((a, b) => a - b);

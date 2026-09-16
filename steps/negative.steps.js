@@ -16,7 +16,7 @@ const { Given, When, Then } = createBdd(test);
 const FETCHED_FACT_LABELS = ['Жанр', 'Рік', 'Рейтинг', 'Відсоток критиків',
   'Акторський склад', 'Нагороди — перемоги', 'Нагороди — номінації'];
 // Everything a person genuinely owns and must keep control of.
-const OWNED_FIELD_IDS = ['cfDesc', 'cfRecByNew', 'cfRecBySelect',
+const OWNED_FIELD_IDS = ['cfDesc', 'cfNewColName', 'cfRecByNew', 'cfRecBySelect',
   'cfTitleEn', 'cfTitleUk', 'cfType'];
 
 function addModalOf(ctx, page) {

@@ -8,7 +8,7 @@ movie/TV tracker). This repo is stage 2 of the event-driven deploy chain:
 seenit-frontend deploy.yml ──run-smoke──▶ smoke.yml (here) ──smoke-passed/failed──▶ seenit-frontend verdict.yml
 ```
 
-- Live site under test: https://alvl-station.github.io/seenit/ (artifact repo: **seenit**)
+- Live site under test: https://seenit-app.pages.dev/ (Cloudflare Pages; the old GitHub Pages address forwards there)
 - Sources & pipeline: **seenit-frontend** (private) — its `REQUIREMENTS.md` / `CONVENTIONS.md` are the canonical rules for the whole product; this file only covers what's specific to this repo.
 - Predecessor: github.com/alvl-station/kino-tracker
 
@@ -69,10 +69,16 @@ Because that report is world-readable, three rules hold:
   (`LoginPage`, `CatalogPage`, `MovieModalPage`, `AddModalPage`). Steps never
   touch selectors directly — a new assertion means a page-object method
   first, then a step, then the Gherkin line.
-- **Read-only against real data.** The app has no per-user data yet
-  (`kino/watched`/`kino/liked` are global Firebase refs) — every login
-  mutates the same real catalog. Log in, look, search, open/close modals.
-  Never toggle "переглянуто"/"рекомендую", never add/delete a movie.
+- **The catalogue is shared, the marks are not.** Marks and collections
+  belong to the signed-in account, so a scenario may mark and unmark its
+  own films (and must put them back). Never add or delete a film.
+- **The app's doors are the two bars.** The header's icons are hidden; a
+  page is opened by its strip tab (`#tabbarScroll [data-tab]`) or header
+  word (`#topbarTabs [data-tab]`), and a lit tab closes its page. A page's
+  own row (marks, switches, sources, Apply) is mirrored into the strip
+  (`.tabbar-window-row`) and pressed there.
+- **Running by hand:** put `SMOKE_TEST_USERNAME`/`SMOKE_TEST_PASSWORD` in
+  `.env.local` (gitignored), then `source .env.local` and `npm run smoke`.
 - Test queries must never accidentally match real catalog entries — use pure
   gibberish (no real words, no digits).
 - **Grow the suite**: a user-facing feature PR in seenit-frontend should be
