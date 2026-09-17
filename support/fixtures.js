@@ -50,12 +50,6 @@ const test = bddBase.extend({
     // it remembers null against a chip that fills in a moment later.
     await page.waitForFunction(() => (window.__marksLoadedCount || 0) >= 2, null, { timeout: 10000 })
       .catch(() => { /* older bundle without the beacon: proceed as before */ });
-    // The onboarding guide auto-opens once per account. For the test
-    // account that "once" is whichever scenario happens to run first after
-    // a deploy — and the overlay would sit on top of the grid and fail it.
-    // Closing it here also writes the account's seen-flag, so it never
-    // reappears in later runs.
-    await catalog.dismissGuideIfShown();
     await use(catalog);
   },
 

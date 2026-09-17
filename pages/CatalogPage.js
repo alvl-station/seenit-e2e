@@ -387,9 +387,8 @@ class CatalogPage {
     }, which);
   }
 
-  /* ---- account and the guide ---- */
+  /* ---- account ---- */
   get accountOverlay() { return this.page.locator('#accountOverlay'); }
-  get onboardOverlay() { return this.page.locator('#onboardOverlay'); }
   get accountEntryPoint() { return this.stripTab('account'); }
   async openAccountPanel() {
     await this.pressStripTab('account');
@@ -405,15 +404,6 @@ class CatalogPage {
   async closeAccountPanel() {
     await this.pressStripTab('account');
     await this.page.locator('#accountOverlay:not(.open)').waitFor({ state: 'attached' });
-  }
-  async openGuideFromAccount() { await this.page.locator('#accGuideBtn').click(); }
-  async guideIsOpen() {
-    return this.onboardOverlay.evaluate(el => el.classList.contains('open'));
-  }
-  async closeGuide() { await this.page.locator('#onbDoneBtn').click(); }
-  async trendingCount() { return this.page.locator('#trendGrid .trend-item').count(); }
-  async dismissGuideIfShown() {
-    if (await this.guideIsOpen().catch(() => false)) await this.closeGuide();
   }
 
   /* ---- the collections page (a header word) ---- */

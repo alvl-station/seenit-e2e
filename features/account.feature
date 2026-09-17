@@ -1,11 +1,8 @@
-Feature: Account panel and the onboarding guide
-  The account panel shows who is signed in and reopens the onboarding
-  guide, whose bottom half is the daily top-20 — what film fans watch
-  right now, rebuilt every day from TMDb trending and the iTunes top list.
+Feature: Account panel
+  The account panel shows who is signed in.
 
   Read-only by construction: nothing here registers an account, changes a
-  password or saves a film. Opening and closing the guide writes only the
-  test account's own seen-flag, which its database rules scope to itself.
+  password or saves a film.
 
   Scenario: The account panel knows who I am
     When I open the account panel
@@ -24,11 +21,3 @@ Feature: Account panel and the onboarding guide
     # cannot be automated — Google's page is out of reach — but the entry
     # point going missing is exactly the regression worth catching.
     Then a fresh visitor sees the password form and the Google button
-
-  Scenario: The guide opens from the account panel with the daily top-20
-    When I open the account panel
-    And I open the guide from the account panel
-    Then the onboarding guide is open
-    And the starter top-20 shows between 1 and 20 films
-    When I close the onboarding guide
-    Then the onboarding guide is closed
