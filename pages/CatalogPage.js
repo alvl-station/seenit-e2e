@@ -58,6 +58,21 @@ class CatalogPage {
   }
   async pressStripTab(id) { await this.stripTab(id).click(); }
   async pressHeaderTab(id) { await this.headerTab(id).click(); }
+  /** How many tabs the strip is drawing right now (its own or a page's). */
+  async stripTabCount() {
+    return this.page.locator('#tabbarScroll .tabbar-tab').count();
+  }
+  /** The sheet the strip used to be arranged in; retired on 2026-09-16. */
+  async arrangeSheetCount() {
+    return this.page.locator('#tabbarSheet').count();
+  }
+  /** «Фільми» or «Серіали» in the header: the shelf shows one kind at a time. */
+  async showShelf(id) {
+    const type = { films: 'фільм', series: 'серіал' }[id];
+    await this.pressHeaderTab(id);
+    await this.page.waitForFunction(t => state.type === t, type);
+    await this.cards.first().waitFor({ state: 'attached' });
+  }
 
   /** Waits for a sheet to finish sliding in before anything measures it. */
   async settleSheet(selector, timeout = 2000) {

@@ -24,3 +24,14 @@ Feature: The collections page — top, friends, mine and the SeenIt lists
     And the recommendations flow is open
     When I close the recommendations flow
     Then the catalog shows at least one movie
+
+  Scenario: «Створити» opens the new collection window over the page, not behind it
+    # Regressed 2026-09-17: the window sat at a sheet's z-index under the
+    # collections page, so only its last buttons showed below the page.
+    # Opened and closed only — no collection is ever created here.
+    When I open the recommendations flow
+    And I press «Створити» on the collections page
+    Then the new collection name field is visible and nothing covers it
+    When I close the new collection window
+    Then the new collection window is closed
+    And the recommendations flow is open

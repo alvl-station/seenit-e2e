@@ -267,3 +267,54 @@ Then('the modal shows either an autoplaying trailer or a poster', async ({ ctx, 
     expect(src, 'the trailer would autoplay with sound').toMatch(/mute=1/);
   }
 });
+
+/* ---- the facts under the title ---- */
+Then('the card shows the year, type and genre on one line', async ({ ctx, page }) => {
+  const modal = modalOf(ctx, page);
+  await expect(modal.facts()).toBeVisible();
+  await expect(modal.factsLine()).toHaveCount(1);
+  await expect(modal.factsLine()).toContainText('·');
+});
+Then('the country, when the film has one, stands on a line of its own', async ({ ctx, page }) => {
+  const modal = modalOf(ctx, page);
+  const country = await modal.openFilmCountry();
+  if (!country) {
+    await expect(modal.countryLine()).toHaveCount(0);
+    return;
+  }
+  await expect(modal.countryLine()).toHaveCount(1);
+  await expect(modal.countryLine()).toHaveText(country);
+  await expect(modal.factsLine(), 'the country is back on the shared line').not.toContainText(country);
+});
+
+/* ---- a series' seasons (read-only: nothing is marked) ---- */
+Given('a series card with seasons is open', async ({ catalog, ctx, page }) => {
+  const modal = modalOf(ctx, page);
+  // Not every series has season data on file; try the first few.
+  const tries = Math.min(await catalog.cardCount(), 5);
+  for (let i = 0; i < tries; i++) {
+    await catalog.openCard(i);
+    await modal.waitUntilOpen();
+    if (await modal.waitForSeasons()) return;
+    await modal.close();
+  }
+  test.skip(true, `none of the first ${tries} series has season data on file`);
+});
+Then('the season dropdown reads {string}', async ({ ctx, page }, text) => {
+  await expect(modalOf(ctx, page).seasonDrop()).toHaveText(text);
+});
+Then("the season's episodes are shown without pressing anything", async ({ ctx, page }) => {
+  await expect(modalOf(ctx, page).seasonEpisodes()).toBeVisible();
+});
+When('I choose another season, if there is one', async ({ ctx, page }) => {
+  const modal = modalOf(ctx, page);
+  ctx.seasonHead = (await modal.seasonNowHead().textContent()).trim();
+  await modal.openSeasonList();
+  ctx.seasonCount = await modal.seasonCount();
+  if (ctx.seasonCount > 1) await modal.chooseAnotherSeason();
+});
+Then('the season heading changes when another season was chosen', async ({ ctx, page }) => {
+  // A single season has nothing else to choose; the list itself was checked.
+  if (ctx.seasonCount < 2) return;
+  await expect(modalOf(ctx, page).seasonNowHead()).not.toHaveText(ctx.seasonHead);
+});

@@ -3,6 +3,7 @@
 // collections page. Thin wrappers; every selector lives in pages/.
 const { createBdd } = require('playwright-bdd');
 const { test, expect } = require('../support/fixtures');
+const { NewCollectionPage } = require('../pages/NewCollectionPage');
 const { Given, When, Then } = createBdd(test);
 
 function overlaps(a, b) {
@@ -386,4 +387,38 @@ Then('the catalog shows between {int} and {int} films', async ({ catalog, page }
 });
 Then('the recommendations entry point is visible', async ({ catalog }) => {
   await expect(catalog.recsEntryPoint).toBeVisible();
+});
+
+/* ---- the strip is not arranged any more ---- */
+Then('the strip offers no arrange tab', async ({ catalog }) => {
+  // Only meaningful once the strip is drawn at all.
+  await expect.poll(() => catalog.stripTabCount()).toBeGreaterThan(0);
+  expect(await catalog.stripTab('arrange').count(), 'the «Меню» tab came back').toBe(0);
+});
+Then('the arrange sheet does not exist', async ({ catalog }) => {
+  expect(await catalog.arrangeSheetCount()).toBe(0);
+});
+
+/* ---- «Нова добірка» (opened and closed only — never created) ---- */
+When('I press «Створити» on the collections page', async ({ ctx, page }) => {
+  ctx.newCollection = new NewCollectionPage(page);
+  await ctx.newCollection.open();
+});
+Then('the new collection name field is visible and nothing covers it', async ({ ctx }) => {
+  await expect(ctx.newCollection.nameField).toBeVisible();
+  // Polled: the window slides in, and its centre moves until it lands.
+  await expect.poll(() => ctx.newCollection.nameFieldIsOnTop(), {
+    message: 'a tap on the name field lands on something drawn over it — the window opened behind the page',
+  }).toBe(true);
+});
+When('I close the new collection window', async ({ ctx }) => {
+  await ctx.newCollection.close();
+});
+Then('the new collection window is closed', async ({ ctx }) => {
+  expect(await ctx.newCollection.isOpen()).toBe(false);
+});
+
+/* ---- the two shelves ---- */
+When('I switch the shelf to {string}', async ({ catalog }, id) => {
+  await catalog.showShelf(id);
 });
