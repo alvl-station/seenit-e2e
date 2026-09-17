@@ -199,6 +199,7 @@ Given('a movie modal with providers is open', async ({ catalog, ctx, page }) => 
   test.skip(i === -1, 'no film in the catalog has providers on file yet');
   await catalog.openCard(i);
   await modalOf(ctx, page).waitUntilOpen();
+  await modalOf(ctx, page).providerRows().first().waitFor({ timeout: 5000 }).catch(() => {});
   ctx.providers = await modalOf(ctx, page).providers();
   expect(ctx.providers.length, 'the film has providers on file but rendered no rows')
     .toBeGreaterThan(0);

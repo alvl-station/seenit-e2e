@@ -242,7 +242,12 @@ class CatalogPage {
     return this.revealCardWhere(m => m.critic_score != null, '.critic-badge');
   }
   async firstCardIndexWithProviders() {
-    return this.revealCardWhere(m => Array.isArray(m.providers) && m.providers.length > 0, null);
+    // The rows the card will actually SHOW: the app hides url-less rows and
+    // ruled-out services (visibleProviders), so a film whose only rows are
+    // those opens with no provider section at all.
+    return this.revealCardWhere(m => (typeof visibleProviders === 'function'
+      ? visibleProviders(m.providers)
+      : (m.providers || []).filter(p => p && p.url)).length > 0, null);
   }
   /**
    * Index of a card matching `predicate`; when none is drawn, narrows the
