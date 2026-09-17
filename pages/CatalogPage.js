@@ -242,7 +242,12 @@ class CatalogPage {
     return this.revealCardWhere(m => m.critic_score != null, '.critic-badge');
   }
   async firstCardIndexWithProviders() {
-    return this.revealCardWhere(m => Array.isArray(m.providers) && m.providers.length > 0, null);
+    // The rows the card will actually SHOW: the app hides url-less rows and
+    // ruled-out services (visibleProviders), so a film whose only rows are
+    // those opens with no provider section at all.
+    return this.revealCardWhere(m => (typeof visibleProviders === 'function'
+      ? visibleProviders(m.providers)
+      : (m.providers || []).filter(p => p && p.url)).length > 0, null);
   }
   /**
    * Index of a card matching `predicate`; when none is drawn, narrows the
@@ -257,24 +262,39 @@ class CatalogPage {
       }, drawnSelector);
       if (drawn !== -1) return drawn;
     }
+    // Every matching film, by the id its card carries (data-id), not the
+    // first one's title: the first match can sit hundreds of cards deep in
+    // its genre, and scrolling batch after batch to reach it ran the
+    // "Де подивитись" scenarios past the 30 s test timeout. Any matching
+    // card already drawn wins; otherwise the group with the most matches is
+    // narrowed to and the first matching card to be drawn wins.
     const found = await this.page.evaluate(src => {
       // eslint-disable-next-line no-new-func
       const match = new Function(`return (${src})`)();
       if (typeof MOVIES === 'undefined') return null;
-      const m = MOVIES.find(x => x && match(x));
-      return m ? { title: m.canonical_title_uk, group: m.genre_group || 'Інше' } : null;
+      const ids = [], groups = {};
+      for (const m of MOVIES) {
+        if (!m || !match(m)) continue;
+        ids.push(String(m.id));
+        const g = m.genre_group || 'Інше';
+        groups[g] = (groups[g] || 0) + 1;
+      }
+      if (!ids.length) return null;
+      const group = Object.keys(groups).sort((a, b) => groups[b] - groups[a])[0];
+      return { ids, group };
     }, predicate.toString());
     if (!found) return -1;
+    const drawnMatch = () => this.page.evaluate(([sel, ids]) => {
+      const want = new Set(ids);
+      const cards = [...document.querySelectorAll('.card')];
+      if (sel) return cards.findIndex(c => c.querySelector(sel));
+      return cards.findIndex(c => want.has(c.getAttribute('data-id')));
+    }, [drawnSelector, found.ids]);
+    const already = await drawnMatch();
+    if (already !== -1) return already;
     await this.chooseGenreGroup(found.group);
     for (let i = 0; i < 80; i++) {
-      const idx = await this.page.evaluate(([sel, title]) => {
-        const cards = [...document.querySelectorAll('.card')];
-        if (sel) return cards.findIndex(c => c.querySelector(sel));
-        return cards.findIndex(c => {
-          const h = c.querySelector('h3');
-          return h && h.textContent.trim() === title;
-        });
-      }, [drawnSelector, found.title]);
+      const idx = await drawnMatch();
       if (idx !== -1) return idx;
       const sentinel = this.page.locator('#renderSentinel');
       if (!(await sentinel.count())) break;
