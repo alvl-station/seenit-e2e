@@ -38,3 +38,9 @@ Feature: Card layout across view modes
   Scenario: The rating badge never overlaps the type/year line
     When I switch the view to "grid-s"
     Then no rating badge intersects the type and year text
+
+  Scenario: The strip is no longer arranged — no «Меню» tab, no arrange sheet
+    # The arrangement (order and hidden tabs) retired on 2026-09-16: the
+    # strip's last tab and the sheet it opened went with it.
+    Then the strip offers no arrange tab
+    And the arrange sheet does not exist

@@ -73,6 +73,40 @@ class MovieModalPage {
   async clickOutsidePopover() {
     await this.title.click();
   }
+
+  /* ---- the facts under the title ----
+   * «year · type · genre» on one line and the country on a line of its own
+   * (2026-09-16): a co-production's countries broke the shared line. */
+  facts() { return this.page.locator('#modalOverlay .film-facts'); }
+  factsLine() { return this.page.locator('#modalOverlay .film-facts .film-facts-line:not(.film-country)'); }
+  countryLine() { return this.page.locator('#modalOverlay .film-facts .film-country'); }
+  /** The country on the record the open card was drawn from ('' when none). */
+  async openFilmCountry() {
+    return this.page.evaluate(() => String((_modalMovie && _modalMovie.country) || ''));
+  }
+
+  /* ---- a series' seasons ----
+   * Filled by a request after the card opens, and left hidden when the
+   * series has no season data on file. Read-only here: nothing is marked. */
+  seasonsBlock() { return this.page.locator('#modalOverlay #filmSeasons'); }
+  seasonDrop() { return this.seasonsBlock().locator('.season-drop'); }
+  seasonEpisodes() { return this.seasonsBlock().locator('.season-eps'); }
+  seasonNowHead() { return this.seasonsBlock().locator('.season-now-head'); }
+  seasonOptions() { return this.seasonsBlock().locator('.pick-drop-opt[data-kind="season"]'); }
+  /** True once the block is shown; false when it stays hidden past `timeout`. */
+  async waitForSeasons(timeout = 8000) {
+    return this.seasonsBlock().waitFor({ state: 'visible', timeout }).then(() => true, () => false);
+  }
+  async openSeasonList() {
+    await this.seasonDrop().click();
+    await this.seasonOptions().first().waitFor();
+  }
+  async seasonCount() { return this.seasonOptions().count(); }
+  /** Picks the first season that is not the one shown; the list folds away. */
+  async chooseAnotherSeason() {
+    await this.seasonsBlock().locator('.pick-drop-opt[data-kind="season"]:not(.active)').first().click();
+    await this.seasonsBlock().locator('.pick-drop-list').waitFor({ state: 'detached' });
+  }
 }
 
 module.exports = { MovieModalPage };
