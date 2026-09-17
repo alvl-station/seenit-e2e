@@ -245,7 +245,7 @@ Then('that title is listed', async ({ catalog, ctx }) => {
   await expect.poll(() => catalog.indexOfCardTitled(ctx.title)).toBeGreaterThanOrEqual(0);
 });
 
-/* ---- account and the guide ---- */
+/* ---- account ---- */
 When('I open the account panel', async ({ catalog }) => {
   await catalog.openAccountPanel();
 });
@@ -262,24 +262,6 @@ Then('the account panel shows the signed-in username', async ({ catalog }) => {
   const name = await catalog.accountUsername();
   expect(name.length).toBeGreaterThan(0);
   expect(name).not.toContain('@');
-});
-When('I open the guide from the account panel', async ({ catalog }) => {
-  await catalog.openGuideFromAccount();
-});
-Then('the onboarding guide is open', async ({ catalog }) => {
-  expect(await catalog.guideIsOpen()).toBe(true);
-});
-Then('the onboarding guide is closed', async ({ catalog }) => {
-  expect(await catalog.guideIsOpen()).toBe(false);
-});
-Then('the starter top-20 shows between 1 and 20 films', async ({ catalog, page }) => {
-  await page.locator('#trendGrid .trend-item').first().waitFor({ timeout: 10000 });
-  const n = await catalog.trendingCount();
-  expect(n).toBeGreaterThanOrEqual(1);
-  expect(n).toBeLessThanOrEqual(20);
-});
-When('I close the onboarding guide', async ({ catalog }) => {
-  await catalog.closeGuide();
 });
 Then('the account panel entry point is visible', async ({ catalog }) => {
   await expect(catalog.accountEntryPoint).toBeVisible();
