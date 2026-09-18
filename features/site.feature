@@ -22,3 +22,12 @@ Feature: The site — the pages read before sign-in
   Scenario: A card on the front page opens that film in the app
     When I open the first film on the front page
     Then that film's card is open in the app
+
+  Scenario: Stories name their sources and credit their photos
+    Then the stories page shows sourced stories with credited photos
+
+  Scenario: A story's trailer asks YouTube nothing until it is tapped
+    Then a trailer loads only when it is tapped, from the no-cookie player
+
+  Scenario: The front page leads to the newest stories
+    Then the front page leads to the newest stories
