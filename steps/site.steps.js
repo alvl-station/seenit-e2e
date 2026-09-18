@@ -8,7 +8,9 @@ const { CatalogPage } = require('../pages/CatalogPage');
 const { When, Then } = createBdd(test);
 
 const BASE = () => process.env.BASE_URL || 'https://seenit-app.pages.dev/';
-const PAGES = ['main', 'about', 'legal', 'terms', 'privacy', 'community', 'sources', 'contacts'];
+const PAGES = ['main', 'stories', 'about', 'legal', 'terms', 'privacy', 'community', 'sources', 'contacts'];
+// Contacts live in the footer, not on the strip — no tab is lit there.
+const UNTABBED = ['contacts'];
 const DOCUMENTS = ['terms', 'privacy', 'community', 'sources'];
 const DRAFTS = ['terms', 'privacy', 'community'];
 const TMDB_NOTICE = /This product uses the TMDB API but is not endorsed or certified by TMDB\./;
@@ -46,8 +48,9 @@ Then("every page of the site shows the tab strip and TMDB's notice", async ({ br
     for (const name of PAGES) {
       await site.goto(name, BASE());
       await expect(site.tabs, name).toHaveCount(4);
-      await expect(site.activeTab, name).toHaveCount(1);
+      await expect(site.activeTab, name).toHaveCount(UNTABBED.includes(name) ? 0 : 1);
       await expect(site.footerNote, name).toHaveText(TMDB_NOTICE);
+      await expect(site.footerContacts, name).toHaveCount(1);
     }
   });
 });
@@ -101,4 +104,40 @@ Then("that film's card is open in the app", async ({ page, ctx }) => {
   const modal = new MovieModalPage(page);
   await modal.waitUntilOpen(30000);
   await expect(modal.title).toHaveText(ctx.frontPageTitle);
+});
+
+Then('the stories page shows sourced stories with credited photos', async ({ browser }) => {
+  await asStranger(browser, async (site) => {
+    await site.goto('stories', BASE());
+    expect(await site.stories.count()).toBeGreaterThan(0);
+    // Every story names where it came from; every photo, whose it is.
+    for (const story of await site.stories.all()) {
+      expect(await story.locator('.story-sources li').count()).toBeGreaterThan(0);
+    }
+    for (const credit of await site.storyPhotoCredits.all()) {
+      await expect(credit).toContainText('Wikimedia Commons');
+    }
+  });
+});
+
+Then('a trailer loads only when it is tapped, from the no-cookie player', async ({ browser }) => {
+  await asStranger(browser, async (site) => {
+    await site.goto('stories', BASE());
+    await expect(site.trailerFrames).toHaveCount(0);
+    await site.trailerButtons.first().click();
+    await expect(site.trailerFrames).toHaveCount(1);
+    await expect(site.trailerFrames.first()).toHaveAttribute('src', /^https:\/\/www\.youtube-nocookie\.com\/embed\/[\w-]{11}\?/);
+  });
+});
+
+Then("the front page leads to the newest stories", async ({ browser }) => {
+  await asStranger(browser, async (site, page) => {
+    await site.goto('main', BASE());
+    const first = site.storyTeasers.first();
+    await expect(first).toHaveAttribute('href', /^stories#[a-z0-9-]+$/);
+    const anchor = (await first.getAttribute('href')).split('#')[1];
+    await first.click();
+    await expect(page).toHaveURL(new RegExp(`/stories#${anchor}$`));
+    await expect(page.locator(`article.story#${anchor}`)).toBeVisible();
+  });
 });

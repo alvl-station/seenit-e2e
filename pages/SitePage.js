@@ -22,6 +22,14 @@ class SitePage {
     this.sectionMenu = page.locator('.site-subnav .opt');
     this.draftStamp = page.locator('.site-draft');
     this.footerNote = page.locator('.site-foot-note');
+    this.footerContacts = page.locator('.site-foot-links a[href="contacts"]');
+    // Stories: the page, and the front page's strip of the newest.
+    this.stories = page.locator('article.story');
+    this.storySources = page.locator('article.story .story-sources li');
+    this.storyPhotoCredits = page.locator('article.story .story-photo figcaption');
+    this.trailerButtons = page.locator('.story-video');
+    this.trailerFrames = page.locator('iframe.story-frame');
+    this.storyTeasers = page.locator('a.story-teaser');
   }
 
   async goto(name, base) {
