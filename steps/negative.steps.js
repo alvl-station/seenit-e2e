@@ -16,10 +16,12 @@ const { Given, When, Then } = createBdd(test);
 // a film lands in, and a hand-picked one put the same film in different
 // places depending on who added it. It is shown, not offered — so it left
 // the owned list below and leads this one.
-const FETCHED_FACT_LABELS = ['Жанр', 'Рік', 'Рейтинг',
+// Опис joined them on 2026-09-18 (owner's call): a description is the
+// source's Ukrainian overview or nothing, never typed by whoever adds a film.
+const FETCHED_FACT_LABELS = ['Опис', 'Жанр', 'Рік', 'Рейтинг',
   'Акторський склад', 'Нагороди — перемоги', 'Нагороди — номінації'];
 // Everything a person genuinely owns and must keep control of.
-const OWNED_FIELD_IDS = ['cfDesc', 'cfNewColName', 'cfRecByNew', 'cfRecBySelect',
+const OWNED_FIELD_IDS = ['cfNewColName', 'cfRecByNew', 'cfRecBySelect',
   'cfTitleEn', 'cfTitleUk', 'cfType'];
 
 function addModalOf(ctx, page) {
