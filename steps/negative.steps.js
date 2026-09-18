@@ -7,13 +7,16 @@ const { test, expect } = require('../support/fixtures');
 const { AddModalPage } = require('../pages/AddModalPage');
 const { Given, When, Then } = createBdd(test);
 
-// The facts fetched from TMDb / OMDb / Wikidata, in render order.
+// The facts fetched from TMDb / Wikidata, in render order. The critics'
+// share left the form with OMDb (seenit-frontend #387): the score is
+// SeenIt's own now, computed by the Worker, and the add flow never shows
+// or writes it.
 //
 // Жанр joined them (owner's call): it decides which section of the catalogue
 // a film lands in, and a hand-picked one put the same film in different
 // places depending on who added it. It is shown, not offered — so it left
 // the owned list below and leads this one.
-const FETCHED_FACT_LABELS = ['Жанр', 'Рік', 'Рейтинг', 'Відсоток критиків',
+const FETCHED_FACT_LABELS = ['Жанр', 'Рік', 'Рейтинг',
   'Акторський склад', 'Нагороди — перемоги', 'Нагороди — номінації'];
 // Everything a person genuinely owns and must keep control of.
 const OWNED_FIELD_IDS = ['cfDesc', 'cfNewColName', 'cfRecByNew', 'cfRecBySelect',
