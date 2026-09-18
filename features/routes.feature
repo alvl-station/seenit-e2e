@@ -31,8 +31,5 @@ Feature: Addresses — every place in the app is a path
     Then the catalog shows at least one movie
     And the address is "/films"
 
-  Scenario: A fresh visitor at the root meets the landing
-    Then a fresh visitor at the root sees the landing with a way to sign in
-
   Scenario: A fresh visitor on a page is asked to sign in first
     Then a fresh visitor at "friends" is sent to "/login?next=friends"

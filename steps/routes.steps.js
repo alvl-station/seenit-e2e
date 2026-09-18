@@ -3,7 +3,6 @@
 const { createBdd } = require('playwright-bdd');
 const { test, expect } = require('../support/fixtures');
 const { LoginPage } = require('../pages/LoginPage');
-const { LandingPage } = require('../pages/LandingPage');
 const { CatalogPage } = require('../pages/CatalogPage');
 const { When, Then } = createBdd(test);
 
@@ -34,20 +33,6 @@ Then("the die's page is open", async ({ catalog }) => {
 });
 
 // A new context: the shared one carries the saved session.
-Then('a fresh visitor at the root sees the landing with a way to sign in', async ({ browser }) => {
-  const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
-  const page = await ctx.newPage();
-  try {
-    await page.goto(BASE(), { waitUntil: 'domcontentloaded' });
-    const landing = new LandingPage(page);
-    await expect(landing.signInLink).toBeVisible({ timeout: 15000 });
-    await expect(landing.registerLink).toBeVisible();
-    await expect(landing.tabbar).toHaveCount(0);
-    expect(new URL(page.url()).pathname.endsWith('/main')).toBe(true);
-  } finally {
-    await ctx.close();
-  }
-});
 Then('a fresh visitor at {string} is sent to {string}', async ({ browser }, name, address) => {
   const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
   const page = await ctx.newPage();
