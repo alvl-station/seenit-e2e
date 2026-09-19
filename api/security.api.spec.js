@@ -31,13 +31,18 @@ test.describe('who gets in', () => {
     }
   });
 
+  test('the import route is gone for everybody', async () => {
+    const r = await api('POST', '/library/import', { body: { user_uid: 'x', watched: ['movie:603'] } });
+    expect(r.status).toBe(404);
+  });
+
   test('a person is kept out of every CI route', async () => {
     const ci = [
       ['POST', '/pool/sync'], ['POST', '/pool/enrich'], ['POST', '/pool/bump-version'], ['GET', '/pool/budget'],
       ['POST', '/pool/lock'], ['POST', '/pool/rebuild-mark-counts'], ['POST', '/pool/rebuild-stats'],
       ['POST', '/pool/rebuild-genre-shares'], ['GET', '/pool/actors/candidates'], ['POST', '/pool/actors'],
       ['POST', '/pool/wikidata'], ['POST', '/pool/tmdb'], ['POST', '/pool/collections'], ['POST', '/pool/trailers'],
-      ['PUT', '/pool/meta/catalogue_version'], ['PUT', '/library/roles/anyone'], ['POST', '/library/import'],
+      ['PUT', '/pool/meta/catalogue_version'], ['PUT', '/library/roles/anyone'],
     ];
     for (const [method, path] of ci) {
       const r = await api(method, path, { body: method === 'GET' ? undefined : {} });
@@ -121,10 +126,12 @@ test.describe('hostile input', () => {
     }
   });
 
-  test('a broken %-escape in a path is a 400 in JSON, not a server error page', async () => {
+  test('a broken %-escape in a path is a 400, not a server error', async () => {
+    // Cloudflare's edge refuses some malformed paths itself, with its own
+    // HTML 400, before the Worker runs; the Worker answers the rest in JSON.
     const r = await api('GET', '/library/collections/%E0%A4%A/x');
     expect(r.status).toBe(400);
-    expect(r.headers.get('content-type')).toContain('application/json');
+    expect(r.text).not.toMatch(LEAK);
   });
 
   test('a body that is not JSON is a 400', async () => {
@@ -185,7 +192,9 @@ test.describe('the proxies', () => {
   test('forward only the paths the app uses', async () => {
     for (const path of ['/tmdb/4/list/1', '/tmdb/', '/tmdb/..%2F..%2Fetc', '/wikidata/bigdata/namespace/wdq/sparql', '/translate/keygen', '/constructor/x', '/__proto__/x']) {
       const r = await api('GET', path);
-      expect(r.status, path).toBe(404);
+      // 404 from the Worker, or 400 from Cloudflare's edge for a path it
+      // will not route at all; never an answer from upstream.
+      expect([400, 404], path).toContain(r.status);
     }
   });
 
