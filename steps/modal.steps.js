@@ -302,21 +302,14 @@ Given('a series card with seasons is open', async ({ catalog, ctx, page }) => {
   }
   test.skip(true, `none of the first ${tries} series has season data on file`);
 });
-Then('the season dropdown reads {string}', async ({ ctx, page }, text) => {
-  await expect(modalOf(ctx, page).seasonDrop()).toHaveText(text);
+Then('the seasons tab counts the seasons in square brackets', async ({ ctx, page }) => {
+  await expect(modalOf(ctx, page).tabButton('seasons')).toHaveText(/^Сезони \[\d+\]$/);
 });
-Then("the season's episodes are shown without pressing anything", async ({ ctx, page }) => {
-  await expect(modalOf(ctx, page).seasonEpisodes()).toBeVisible();
-});
-When('I choose another season, if there is one', async ({ ctx, page }) => {
+Then('every season is shown with its episodes, without pressing anything', async ({ ctx, page }) => {
   const modal = modalOf(ctx, page);
-  ctx.seasonHead = (await modal.seasonNowHead().textContent()).trim();
-  await modal.openSeasonList();
-  ctx.seasonCount = await modal.seasonCount();
-  if (ctx.seasonCount > 1) await modal.chooseAnotherSeason();
-});
-Then('the season heading changes when another season was chosen', async ({ ctx, page }) => {
-  // A single season has nothing else to choose; the list itself was checked.
-  if (ctx.seasonCount < 2) return;
-  await expect(modalOf(ctx, page).seasonNowHead()).not.toHaveText(ctx.seasonHead);
+  const blocks = modal.seasonBlocks();
+  expect(await blocks.count(), 'no season drawn').toBeGreaterThan(0);
+  await expect(modal.seasonEpisodes().first()).toBeVisible();
+  // Nothing to open or choose: every season is laid out already.
+  await expect(modal.seasonsBlock().locator('.season-drop, [aria-haspopup]')).toHaveCount(0);
 });

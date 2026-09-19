@@ -11,10 +11,8 @@ Feature: The open card — facts and a series' seasons
     When I close the modal
     Then the modal is closed
 
-  Scenario: A series card shows its seasons, and choosing a season shows its episodes
+  Scenario: A series card shows every season with its episodes
     When I switch the shelf to "series"
     Given a series card with seasons is open
-    Then the season dropdown reads "Сезони"
-    And the season's episodes are shown without pressing anything
-    When I choose another season, if there is one
-    Then the season heading changes when another season was chosen
+    Then the seasons tab counts the seasons in square brackets
+    And every season is shown with its episodes, without pressing anything
