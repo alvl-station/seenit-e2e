@@ -101,24 +101,12 @@ class MovieModalPage {
    * Filled by a request after the card opens, and left hidden when the
    * series has no season data on file. Read-only here: nothing is marked. */
   seasonsBlock() { return this.page.locator('#modalOverlay #filmSeasons'); }
-  seasonDrop() { return this.seasonsBlock().locator('.season-drop'); }
+  seasonBlocks() { return this.seasonsBlock().locator('.season-now'); }
   seasonEpisodes() { return this.seasonsBlock().locator('.season-eps'); }
-  seasonNowHead() { return this.seasonsBlock().locator('.season-now-head'); }
-  seasonOptions() { return this.seasonsBlock().locator('.pick-drop-opt[data-kind="season"]'); }
   /** True once the block is shown; false when it stays hidden past `timeout`. */
   async waitForSeasons(timeout = 8000) {
     await this.openTab('seasons');
     return this.seasonsBlock().waitFor({ state: 'visible', timeout }).then(() => true, () => false);
-  }
-  async openSeasonList() {
-    await this.seasonDrop().click();
-    await this.seasonOptions().first().waitFor();
-  }
-  async seasonCount() { return this.seasonOptions().count(); }
-  /** Picks the first season that is not the one shown; the list folds away. */
-  async chooseAnotherSeason() {
-    await this.seasonsBlock().locator('.pick-drop-opt[data-kind="season"]:not(.active)').first().click();
-    await this.seasonsBlock().locator('.pick-drop-list').waitFor({ state: 'detached' });
   }
 }
 
