@@ -85,6 +85,18 @@ class MovieModalPage {
     return this.page.evaluate(() => String((_modalMovie && _modalMovie.country) || ''));
   }
 
+  /* ---- the card's tabs (2026-09-19) ----
+   * Synopsis, people, seasons (series only), details, where to watch — one
+   * open at a time. A card without the row (an older release) has every
+   * block in sight already, so opening a tab it lacks does nothing. */
+  tabButton(id) { return this.page.locator(`#modalOverlay [data-film-tab="${id}"]`); }
+  async openTab(id) {
+    if (!(await this.tabButton(id).count())) return false;
+    await this.tabButton(id).click();
+    await this.page.locator(`#modalOverlay [data-film-pane="${id}"]`).waitFor({ state: 'visible' });
+    return true;
+  }
+
   /* ---- a series' seasons ----
    * Filled by a request after the card opens, and left hidden when the
    * series has no season data on file. Read-only here: nothing is marked. */
@@ -95,6 +107,7 @@ class MovieModalPage {
   seasonOptions() { return this.seasonsBlock().locator('.pick-drop-opt[data-kind="season"]'); }
   /** True once the block is shown; false when it stays hidden past `timeout`. */
   async waitForSeasons(timeout = 8000) {
+    await this.openTab('seasons');
     return this.seasonsBlock().waitFor({ state: 'visible', timeout }).then(() => true, () => false);
   }
   async openSeasonList() {
