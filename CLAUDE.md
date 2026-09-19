@@ -41,6 +41,11 @@ support/   fixtures.js — the extended `test` (from playwright-bdd) whose
 scripts/   the log redactor + its node:test unit suite, and trim-videos.js
            (cuts failure videos to their last 3s for the report)
 .features-gen/  bddgen output (gitignored) — playwright.config's testDir
+api/       the API suite (no browser): contract.api.spec.js (the routes the
+           app relies on, writes undone) and security.api.spec.js (auth,
+           CORS, CI/admin gates, injection, methods, proxies, error bodies,
+           site headers); api/support/api-client.js signs the smoke account
+           in over Firebase REST and keeps the token in memory only
 ```
 Run: `npm run smoke` (= `bddgen && playwright test`), then `npm run report`
 to trim videos, build and open the Allure report locally. Device profiles
@@ -91,7 +96,11 @@ npm install                  # once (Playwright)
 npx playwright install chromium
 npm test                     # node:test unit suite for the redactor (scripts/)
 BASE_URL=... SMOKE_TEST_USERNAME=... SMOKE_TEST_PASSWORD=... npm run smoke
+npm run api                  # the API suite (playwright.api.config.js), not part of smoke
 ```
+
+The API suite runs locally only for now, like everything else here by hand.
+It never prints a token, and every write it makes is undone in a finally.
 
 ## Secrets
 - `TEST_USER` — JSON `{"login": "...", "password": "..."}`; a dedicated
