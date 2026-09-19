@@ -44,9 +44,15 @@ jobs:
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
+      # Dispatch values reach the shell through env, never pasted into the
+      # script: a payload is data, and pasted text would run as code.
       - name: Wait for the deploy to actually be served
+        env:
+          URL: ${{ github.event.client_payload.base_url || inputs.base_url || 'https://seenit-app.pages.dev/' }}
         run: |
-          URL="${{ github.event.client_payload.base_url || inputs.base_url || 'https://seenit-app.pages.dev/' }}"
+          if ! printf '%s' "$URL" | grep -Eq '^https://[A-Za-z0-9.-]+(/[A-Za-z0-9._/-]*)?$'; then
+            echo "::error::base_url is not a plain https URL"; exit 1
+          fi
           echo "Waiting for $URL"
           for i in $(seq 1 30); do
             code=$(curl -s -o /dev/null -w "%{http_code}" "$URL" || echo 000)
@@ -153,6 +159,8 @@ jobs:
 
       - name: Publish the report to gh-pages
         if: always()
+        env:
+          DEPLOY_REF: ${{ github.event.client_payload.ref }}
         run: |
           set -euo pipefail
           cd allure-report
@@ -160,7 +168,7 @@ jobs:
           git config user.name "seenit-e2e"
           git config user.email "e2e@seenit.local"
           git add -A
-          git commit -q -m "Allure report — run ${{ github.run_id }} (${{ github.event.client_payload.ref || 'manual' }})"
+          git commit -q -m "Allure report — run ${GITHUB_RUN_ID} (${DEPLOY_REF:-manual})"
           git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" gh-pages
           echo "Report: https://alvl-station.github.io/seenit-e2e/" >> "$GITHUB_STEP_SUMMARY"
 
@@ -184,12 +192,15 @@ jobs:
       - name: Report verdict back to seenit-frontend
         if: always() && github.event_name == 'repository_dispatch'
         run: |
-          if [ "${{ steps.run.outcome }}" = "success" ]; then EVENT=smoke-passed; else EVENT=smoke-failed; fi
+          if [ "$OUTCOME" = "success" ]; then EVENT=smoke-passed; else EVENT=smoke-failed; fi
           gh api -X POST /repos/alvl-station/seenit-frontend/dispatches \
             -f event_type="$EVENT" \
-            -f 'client_payload[ref]=${{ github.event.client_payload.ref }}' \
-            -f 'client_payload[deploy_run]=${{ github.event.client_payload.deploy_run }}' \
-            -f 'client_payload[e2e_run_url]=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}' \
+            -f "client_payload[ref]=$DEPLOY_REF" \
+            -f "client_payload[deploy_run]=$DEPLOY_RUN" \
+            -f "client_payload[e2e_run_url]=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
             -f 'client_payload[report_url]=https://alvl-station.github.io/seenit-e2e/'
         env:
           GH_TOKEN: ${{ secrets.UI_CALLBACK_PAT }}
+          OUTCOME: ${{ steps.run.outcome }}
+          DEPLOY_REF: ${{ github.event.client_payload.ref }}
+          DEPLOY_RUN: ${{ github.event.client_payload.deploy_run }}
