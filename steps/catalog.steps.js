@@ -22,34 +22,9 @@ Then('the catalogue has stopped arriving', async ({ page }) => {
   const after = await page.evaluate(() => MOVIES.length);
   expect(after).toBe(before);
 });
-When('I search for {string}', async ({ catalog }, query) => {
-  await catalog.search(query);
-});
 Then('I see the empty state {string}', async ({ catalog }, text) => {
   await expect(catalog.emptyMessage).toBeVisible();
   await expect(catalog.emptyMessage).toContainText(text);
-});
-When('I open the search field', async ({ catalog }) => {
-  await catalog.openSearchField();
-});
-When('I close the search field', async ({ catalog }) => {
-  await catalog.closeSearchField();
-});
-Then('the search field is wider than its icon', async ({ catalog, page }) => {
-  const box = await catalog.searchBox.boundingBox();
-  const icon = await page.locator('#searchOpenBtn').boundingBox();
-  expect(box.width, 'an open field that stayed icon-width is an unusable search')
-    .toBeGreaterThan(icon.width * 1.5);
-});
-Then('the search field is closed', async ({ catalog }) => {
-  expect(await catalog.searchIsOpen()).toBe(false);
-});
-Then('no second list of results appears', async ({ page }) => {
-  expect(await page.locator('#searchLayer, #searchResults').count()).toBe(0);
-});
-When('I clear the search', async ({ catalog }) => {
-  await catalog.closeSearchField();
-  await catalog.waitForCatalogLoaded();
 });
 
 /* ---- views and layout geometry ---- */

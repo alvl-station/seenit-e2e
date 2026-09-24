@@ -4,18 +4,17 @@ Feature: Negative paths — what a person sees when something finds nothing
   invisible to any test that only asserts "no results were shown".
   Read-only throughout (REQ T-4): searching and opening modals never writes.
 
-  Scenario: A catalog search matching nothing says so
+  Scenario: A search matching nothing says so
     When I search for "qzxjkvbqzxjkvbqzxjkvb"
-    Then the empty state explains that nothing was found
-    And no movie cards are shown
+    Then the search page says nothing was found
 
   Scenario: Whitespace is not treated as a search
     When I search for "   "
-    Then the catalog shows at least one movie
+    Then the search page is open and asks for a query
 
-  Scenario: Clearing a dead-end search restores the catalog
+  Scenario: Leaving a dead-end search restores the catalog
     When I search for "qzxjkvbqzxjkvbqzxjkvb"
-    And I clear the search
+    And I close the search page
     Then the catalog shows at least one movie
     And no empty state is shown
 

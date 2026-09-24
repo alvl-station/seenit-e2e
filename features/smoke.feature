@@ -13,23 +13,28 @@ Feature: Core smoke — login, search, movie modal
     # were asserting against a film that had moved out from under them.
     And the catalogue has stopped arriving
 
-  Scenario: Search narrows the catalog and clearing restores it
+  # Search is a page of its own (2026-09-24): films and series together.
+  Scenario: The search page says when it finds nothing, and closing returns to the shelf
     When I search for "qzxjkvbqzxjkvbqzxjkvb"
-    Then I see the empty state "Нічого не знайдено"
-    When I clear the search
+    Then the search page says nothing was found
+    When I close the search page
     Then the catalog shows at least one movie
 
-  # Search stopped being a layer: the icon grows into a field and the query
-  # filters the page itself. The failure this guards against is the field
-  # opening but staying icon-width — the app then looks unsearchable, and no
-  # assertion about results would notice.
-  Scenario: The search field opens from its icon and closes on the same control
-    When I open the search field
-    Then the search field is wider than its icon
-    And no second list of results appears
-    When I close the search field
-    Then the search field is closed
+  Scenario: The search page opens from its tab and closes on the same tab
+    When I open the search page
+    Then the search page is open and asks for a query
+    When I close the search page
+    Then the search page is closed
     And the catalog shows at least one movie
+
+  # One person, one spelling in the titles; the Ukrainian one comes from the
+  # people store. Both spellings must find the same films and series.
+  Scenario: A person is found under either spelling, films and series together
+    When I search for "Taron Egerton"
+    Then the search page shows films and series
+    When I remember the search results
+    And I search for "Тарон Еджертон"
+    Then the search page shows the same results
 
   Scenario: Opening and closing the movie modal
     When I open the first card
