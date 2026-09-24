@@ -5,10 +5,9 @@
 class CatalogPage {
   constructor(page) {
     this.page = page;
-    this.searchInput = page.locator('#search');
     this.main = page.locator('#main');
     this.cards = page.locator('.card');
-    this.emptyMessage = page.locator('.empty-msg');
+    this.emptyMessage = page.locator('#main .empty-msg');
   }
 
   // '' rather than '/': baseURL may carry a path segment.
@@ -85,42 +84,6 @@ class CatalogPage {
       window.__seenitSheetY = y;
       return settled;
     }, selector, { timeout, polling: 100 }).catch(() => { /* best-effort */ });
-  }
-
-  /* ---- search: a field that grows out of its icon ---- */
-  get searchBox() { return this.page.locator('#topSearch'); }
-  get searchEmptyMessage() { return this.emptyMessage; }
-  async searchIsOpen() {
-    return this.searchBox.evaluate(el => el.classList.contains('open'));
-  }
-  async openSearchField() {
-    if (await this.searchIsOpen()) return;
-    await this.pressStripTab('search');
-    await this.page.locator('#topSearch.open').waitFor();
-    await this.settleSearchWidth();
-  }
-  /** Two identical width samples: the field arrives over a transition. */
-  async settleSearchWidth(timeout = 2000) {
-    await this.page.evaluate(() => { window.__seenitSearchW = -1; });
-    await this.page.waitForFunction(() => {
-      const el = document.getElementById('topSearch');
-      if (!el) return false;
-      const w = Math.round(el.getBoundingClientRect().width);
-      const settled = window.__seenitSearchW === w;
-      window.__seenitSearchW = w;
-      return settled;
-    }, null, { timeout, polling: 100 }).catch(() => { /* the assertion judges the width */ });
-  }
-  /** The icon is shown while the field is open, and closing clears the query. */
-  async closeSearchField() {
-    if (!(await this.searchIsOpen())) return;
-    await this.page.locator('#searchOpenBtn').click();
-    await this.page.locator('#topSearch:not(.open)').waitFor();
-  }
-  get searchScopeToggle() { return this.page.locator('#searchScope'); }
-  async search(query) {
-    await this.openSearchField();
-    await this.searchInput.fill(query);
   }
 
   /* ---- the shelf's own switches, in the drop on the bar ---- */
