@@ -400,6 +400,27 @@ class CatalogPage {
   async accountUsername() {
     return (await this.page.locator('#accountBox .acc-name').innerText()).trim();
   }
+  /* The account's four pages (2026-09-24). Their tabs are the row the
+   * window lends the strip; the window's own copy is hidden while it does. */
+  async accountPageNames() {
+    return (await this.page.locator('.tabbar-window-row .tabbar-tab--window').allTextContents())
+      .map(t => t.trim());
+  }
+  async openAccountPage(name) {
+    await this.windowTab(name).click();
+  }
+  /** Whether the statistics tab is locked, and whether the account has PRO. */
+  async statisticsLock() {
+    const cell = this.windowTab('Статистика');
+    return {
+      locked: await cell.evaluate(el => el.classList.contains('is-locked')),
+      pro: await this.page.evaluate(() => isPro()),
+    };
+  }
+  get accountStats() { return this.page.locator('#accStats'); }
+  get accountServices() { return this.page.locator('#accServices input[data-service]'); }
+  get accountAchievements() { return this.page.locator('#accountBox .ach'); }
+  get accountAvatar() { return this.page.locator('#accAvatarBtn .acc-avatar'); }
   /** The lit tab closes its page. */
   async closeAccountPanel() {
     await this.pressStripTab('account');

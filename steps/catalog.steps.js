@@ -266,6 +266,28 @@ Then('the account panel shows the signed-in username', async ({ catalog }) => {
 Then('the account panel entry point is visible', async ({ catalog }) => {
   await expect(catalog.accountEntryPoint).toBeVisible();
 });
+Then('the account panel shows my picture in a circle', async ({ catalog }) => {
+  await expect(catalog.accountAvatar).toBeVisible();
+});
+Then('the account is four pages: {string}', async ({ catalog }, names) => {
+  expect(await catalog.accountPageNames()).toEqual(names.split(',').map(s => s.trim()));
+});
+Then('the statistics page opens only with PRO', async ({ catalog }) => {
+  const { locked, pro } = await catalog.statisticsLock();
+  expect(locked).toBe(!pro);
+  await catalog.openAccountPage('Статистика');
+  if (pro) await expect(catalog.accountStats).toBeVisible();
+  else await expect(catalog.accountStats).toHaveCount(0);
+});
+When('I open the account\'s {string} page', async ({ catalog }, name) => {
+  await catalog.openAccountPage(name);
+});
+Then('the services are listed', async ({ catalog }) => {
+  await expect.poll(() => catalog.accountServices.count()).toBeGreaterThan(0);
+});
+Then('the achievements are listed', async ({ catalog }) => {
+  await expect.poll(() => catalog.accountAchievements.count()).toBeGreaterThan(0);
+});
 Then('the account panel offers a password change', async ({ page }) => {
   const toggle = page.locator('#accPassToggle');
   await expect(toggle).toBeVisible();
