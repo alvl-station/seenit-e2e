@@ -52,6 +52,11 @@ class MovieModalPage {
    * WINNER or NOMINATION written on the badge, and a tap opens that
    * ceremony's categories in the anchored popover. */
   laurels() { return this.page.locator('#modalOverlay .film-awards .laurel'); }
+  /** The row the laurels stand in: it scrolls sideways. */
+  awardsRail() { return this.page.locator('#modalOverlay .film-awards-rail'); }
+  /** The counts over the niche. */
+  awardsCount() { return this.page.locator('#modalOverlay .film-awards-count'); }
+  laurelCategory(i) { return this.laurels().nth(i).locator('.laurel-cat'); }
   laurelName(i) { return this.laurels().nth(i).locator('.laurel-name'); }
   laurelKind(i) { return this.laurels().nth(i).locator('.laurel-kind'); }
   /** The words as written, not as CSS capitalises them. */

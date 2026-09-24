@@ -3,12 +3,13 @@ Feature: The award breakdown and the critic popover
   (categories in Ukrainian, revealed by a tap on a laurel) and REQ U-4 (an
   explanation appears next to the tapped element, never covering it).
 
-  Scenario: The awards stand as laurels, and a tap opens a ceremony's categories
-    # The open card, under the runtime line (A-5, 2026-09-25).
+  Scenario: The awards stand as laurels in a niche, and a tap says them in Ukrainian
+    # The open card, under the runtime line: counts over a niche of laurels,
+    # English on each badge, Ukrainian in the popover (A-4/A-5, 2026-09-25).
     Given a movie modal with awards is open
     Then every laurel names a curated English ceremony and says WINNER or NOMINATION
     When I tap the first laurel
-    Then the popover names that ceremony and lists its categories in Ukrainian
+    Then the popover names that ceremony and says it in Ukrainian
     When I tap the first laurel
     Then the popover disappears
 
