@@ -47,17 +47,24 @@ class MovieModalPage {
     })));
   }
 
-  /* ---- the award row + its inline per-ceremony breakdown ----
-   * The pill row is gone (interface-book redesign): the modal shows the
-   * same two sums the catalog card does, and a tap unfolds the schedule
-   * inline — ceremony names in English, categories in Ukrainian. */
-  awardsRow() { return this.page.locator('#modalOverlay .film-awards-row'); }
-  breakdown() { return this.page.locator('#modalOverlay .film-awards-breakdown'); }
-  ceremonyNames() { return this.page.locator('#modalOverlay .cer-name'); }
-  ceremonyCategories() { return this.page.locator('#modalOverlay .cer-cats li'); }
-  async openBreakdown() {
-    await this.awardsRow().click();
-    await this.breakdown().waitFor({ state: 'visible' });
+  /* ---- the awards, as laurel badges under the runtime line ----
+   * (seenit-frontend A-5, 2026-09-25): each ceremony between two branches,
+   * WINNER or NOMINATION written on the badge, and a tap opens that
+   * ceremony's categories in the anchored popover. */
+  laurels() { return this.page.locator('#modalOverlay .film-awards .laurel'); }
+  /** The row the laurels stand in: it scrolls sideways. */
+  awardsRail() { return this.page.locator('#modalOverlay .film-awards-rail'); }
+  /** The counts over the niche. */
+  awardsCount() { return this.page.locator('#modalOverlay .film-awards-count'); }
+  laurelCategory(i) { return this.laurels().nth(i).locator('.laurel-cat'); }
+  laurelName(i) { return this.laurels().nth(i).locator('.laurel-name'); }
+  laurelKind(i) { return this.laurels().nth(i).locator('.laurel-kind'); }
+  /** The words as written, not as CSS capitalises them. */
+  async laurelText(i) {
+    return {
+      name: ((await this.laurelName(i).textContent()) || '').trim(),
+      kind: ((await this.laurelKind(i).textContent()) || '').trim(),
+    };
   }
   /** The sound control on the title plate — present only with a trailer. */
   soundButton() { return this.page.locator('#modalOverlay .film-sound'); }

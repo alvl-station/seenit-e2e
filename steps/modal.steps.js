@@ -86,46 +86,40 @@ Given('a movie modal with a critic score is open', async ({ catalog, ctx, page }
   await modalOf(ctx, page).waitUntilOpen();
 });
 
-/* ---- the award breakdown + popover ---- */
-Then('the award row shows sums and no ceremony names', async ({ ctx, page }) => {
+/* ---- the awards as laurels + their popover ---- */
+Then('every laurel names a curated English ceremony and says WINNER or NOMINATION', async ({ ctx, page }) => {
   const modal = modalOf(ctx, page);
-  const row = modal.awardsRow();
-  await expect(row).toBeVisible();
-  const text = (await row.innerText()).trim();
-  expect(text).toMatch(/НАГОРОДИ\s*\d+|НОМІНАЦІЇ\s*\d+/);
-  expect(text, 'ceremony names stay behind the tap (A-5)').not.toMatch(/[A-Za-z]{3,}/);
-  await expect(modal.breakdown()).toBeHidden();
-});
-When('I unfold the award breakdown', async ({ ctx, page }) => {
-  await modalOf(ctx, page).openBreakdown();
-});
-When('I tap the award row again', async ({ ctx, page }) => {
-  await modalOf(ctx, page).awardsRow().click();
-});
-Then('the breakdown folds back', async ({ ctx, page }) => {
-  await expect(modalOf(ctx, page).breakdown()).toBeHidden();
-});
-Then('every ceremony header is a curated English name', async ({ ctx, page }) => {
-  const modal = modalOf(ctx, page);
-  const re = pillPattern(await curatedNames(page));
-  const n = await modal.ceremonyNames().count();
+  const names = await curatedNames(page);
+  const n = await modal.laurels().count();
   expect(n).toBeGreaterThan(0);
+  let wonDone = false;
   for (let i = 0; i < n; i++) {
-    const text = (await modal.ceremonyNames().nth(i).innerText()).trim();
-    expect(text, `ceremony "${text}" is not a curated English name`).toMatch(re);
-    expect(text, `ceremony "${text}" contains Cyrillic — award names stay English (A-3)`)
-      .not.toMatch(/[\u0400-\u04FF]/);
+    const { name, kind } = await modal.laurelText(i);
+    expect(names, `laurel "${name}" is not a curated English name (A-1/A-3)`).toContain(name);
+    expect(kind).toMatch(/^(WINNER|NOMINATION)( ×\d+)?$/);
+    // Wins first: once a nomination appears, no win may follow it.
+    if (kind.startsWith('NOMINATION')) wonDone = true;
+    else expect(wonDone, 'wins come before nominations').toBe(false);
   }
+  // Nothing on a laurel is translated: its category is English.
+  await expect(modal.awardsRail()).not.toContainText(/[\u0400-\u04FF]/);
+  // The counts stand over the niche, and add up to what the laurels carry.
+  await expect(modal.awardsCount()).toBeVisible();
 });
-Then('every category bullet reads in Ukrainian', async ({ ctx, page }) => {
+When('I tap the first laurel', async ({ ctx, page }) => {
+  await modalOf(ctx, page).laurels().first().click();
+});
+Then('the popover names that ceremony and says it in Ukrainian', async ({ ctx, page }) => {
   const modal = modalOf(ctx, page);
-  const n = await modal.ceremonyCategories().count();
-  // Count-only award shapes legitimately have no bullets at all.
-  for (let i = 0; i < n; i++) {
-    const text = (await modal.ceremonyCategories().nth(i).innerText()).trim();
-    expect(text, `category "${text}" carries no Cyrillic — categories read in Ukrainian (A-4)`)
-      .toMatch(/[\u0400-\u04FF]/);
-  }
+  await expect.poll(() => modal.popoverIsShown()).toBe(true);
+  const text = ((await modal.popover().textContent()) || '').trim();
+  const { name } = await modal.laurelText(0);
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  // «Oscar · перемога», «Oscar · номінація ×2»: the ceremony and the result.
+  expect(lines[0].startsWith(`${name} · `), `popover opens with the ceremony: ${lines[0]}`).toBe(true);
+  expect(lines[0]).toMatch(/· (перемога|номінація)( ×\d+)?$/);
+  // And the rest of it is Ukrainian: the category, what the ceremony is.
+  expect(lines.slice(1).some(l => /[\u0400-\u04FF]/.test(l))).toBe(true);
 });
 When('I tap the critic badge', async ({ ctx, page }) => {
   await modalOf(ctx, page).criticBadge().first().click();
