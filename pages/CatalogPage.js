@@ -403,7 +403,7 @@ class CatalogPage {
   /* The account's four pages (2026-09-24). Their tabs are the row the
    * window lends the strip; the window's own copy is hidden while it does. */
   async accountPageNames() {
-    return (await this.page.locator('.tabbar-window-row .tabbar-tab--window').allInnerTexts())
+    return (await this.page.locator('.tabbar-window-row .tabbar-tab--window').allTextContents())
       .map(t => t.trim());
   }
   async openAccountPage(name) {
