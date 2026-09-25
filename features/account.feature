@@ -18,17 +18,27 @@ Feature: Account panel
     When I close the account panel
     Then the account panel is closed
 
-  Scenario: The account is four pages, and statistics is PRO's
+  Scenario: The account is five pages, and statistics is PRO's
     # REQUIREMENTS PR-9. Read-only: the tabs switch pages, nothing is saved.
     # The lock is asserted against the account's own tier, so the scenario
     # holds whether or not the test account has PRO.
+    # «Свайп» joined the row on 2026-09-25, when its header cell went to
+    # «Дивлюся».
     When I open the account panel
-    Then the account is four pages: "Мої дані, Сервіси, Статистика, Досягнення"
+    Then the account's pages are: "Мої дані, Сервіси, Статистика, Досягнення, Свайп"
     And the statistics page opens only with PRO
     When I open the account's "Сервіси" page
     Then the services are listed
     When I open the account's "Досягнення" page
     Then the achievements are listed
+
+  Scenario: The swipe is a page of the account, and «Дивлюся» has its header cell
+    # Owner's ask, 2026-09-25. Read-only: the deck is looked at, not swiped —
+    # a swipe up would open the meter and a swipe down records «not seen».
+    Then the header's words are: "Фільми, Серіали, Добірки, Дивлюся, Підбір"
+    When I open the account panel
+    And I open the account's "Свайп" page
+    Then the swipe deck stands in the account with one film on it
 
   Scenario: A fresh visitor is offered both ways in
     # A brand-new browser with no saved session must land on the login
