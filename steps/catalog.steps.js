@@ -48,13 +48,19 @@ Given('the catalog has a movie with awards', async ({ catalog, ctx }) => {
 Then('that card shows the award row with no ceremony names', async ({ catalog, ctx }) => {
   const row = catalog.cardAwardsRow(ctx.awardCardIndex);
   await expect(row).toBeVisible();
-  // The tile shows a trophy and one sum; the ceremonies stay behind the tap.
-  const text = (await row.innerText()).trim();
-  expect(text).toMatch(/^\d+$/);
-  expect(await row.getAttribute('title')).toMatch(/Нагороди/);
+  // Two labels since 2026-09-25: the cup counts wins, the ring beside it
+  // nominations. Each is a bare number; the ceremonies stay behind the tap.
+  const labels = catalog.cardAwardLabels(ctx.awardCardIndex);
+  const n = await labels.count();
+  expect(n).toBeGreaterThan(0);
+  expect(n).toBeLessThanOrEqual(2);
+  for (let i = 0; i < n; i++) {
+    expect((await labels.nth(i).innerText()).trim()).toMatch(/^\d+$/);
+    expect(await labels.nth(i).getAttribute('title')).toMatch(/^(Нагороди|Номінації)$/);
+  }
 });
 When("I tap that card's award row", async ({ catalog, ctx }) => {
-  await catalog.cardAwardsRow(ctx.awardCardIndex).click();
+  await catalog.cardAwardLabels(ctx.awardCardIndex).first().click();
 });
 Then('the award breakdown popover is shown', async ({ catalog }) => {
   await expect(catalog.infoPopover).toBeVisible();

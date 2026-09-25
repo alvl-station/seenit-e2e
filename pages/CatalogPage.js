@@ -188,6 +188,9 @@ class CatalogPage {
   cardYearText(index = 0) { return this.cards.nth(index).locator('.card-meta-row .year').first(); }
   cardRatingBadge(index = 0) { return this.cards.nth(index).locator('.rating-badge'); }
   cardAwardsRow(index = 0) { return this.cards.nth(index).locator('.card-awards'); }
+  /* The two labels inside the row since 2026-09-25: the cup (wins) and,
+     to its right, the silver ring (nominations). Either may be absent. */
+  cardAwardLabels(index = 0) { return this.cardAwardsRow(index).locator('.card-award-won, .card-award-nom'); }
   cardCriticBadge(index = 0) { return this.cards.nth(index).locator('.critic-badge'); }
   get infoPopover() { return this.page.locator('#infoPopover'); }
 
