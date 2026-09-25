@@ -40,6 +40,15 @@ Feature: Account panel
     And I open the account's "Свайп" page
     Then the swipe deck stands in the account with one film on it
 
+  Scenario: «Дивлюся» is a page of its own, and the shelf stays under it
+    # Owner's ask, 2026-09-25: the header word opens a page that repeats the
+    # watching list, not the collection opened on the shelf. Read-only; the
+    # page holds the account's series under way, or says what it is for.
+    When I press the header word "Дивлюся"
+    Then the watching page is open
+    When I press the header word "Дивлюся"
+    Then the watching page is closed
+
   Scenario: A fresh visitor is offered both ways in
     # A brand-new browser with no saved session must land on the login
     # screen and see the password form AND the Google button. OAuth itself
