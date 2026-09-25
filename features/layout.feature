@@ -17,9 +17,10 @@ Feature: Card layout across view modes
     And I switch the view to "grid-s"
     Then the first poster is narrower than remembered
 
-  Scenario: The award row shows two sums, and the breakdown stays behind a tap
-    # Awards are data: «НАГОРОДИ n» and «НОМІНАЦІЇ n» in the data block,
-    # ceremony names only in the popover the row opens (REQ A-5).
+  Scenario: The award row shows wins and nominations apart, and the breakdown stays behind a tap
+    # The tile carries a cup with the wins and, to its right, a silver ring
+    # with the nominations (2026-09-25); ceremony names only in the popover
+    # a label opens (REQ A-5).
     Given the catalog has a movie with awards
     Then that card shows the award row with no ceremony names
     When I switch the view to "grid-s"
