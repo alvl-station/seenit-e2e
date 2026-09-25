@@ -250,6 +250,17 @@ Then('the account\'s pages are: {string}', async ({ catalog }, names) => {
 Then('the header\'s words are: {string}', async ({ catalog }, names) => {
   expect(await catalog.headerWords()).toEqual(names.split(',').map(s => s.trim()));
 });
+When('I press the header word {string}', async ({ catalog }, word) => {
+  await catalog.pressHeaderWord(word);
+});
+Then('the watching page is open', async ({ catalog }) => {
+  await expect(catalog.watchingPage).toHaveClass(/\bopen\b/);
+  // Either the series under way or the line that says what the page is for.
+  await expect(catalog.watchingPage.locator('[data-watching-grid] .card, .empty-hint').first()).toBeVisible();
+});
+Then('the watching page is closed', async ({ catalog }) => {
+  await expect(catalog.watchingPage).not.toHaveClass(/\bopen\b/);
+});
 Then('the swipe deck stands in the account with one film on it', async ({ catalog }) => {
   await expect(catalog.accountSwipeDeck).toBeVisible();
   await expect.poll(() => catalog.accountSwipeDeck.locator('.card').count()).toBe(1);

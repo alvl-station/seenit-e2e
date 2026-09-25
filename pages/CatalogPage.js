@@ -383,6 +383,11 @@ class CatalogPage {
   get accountStats() { return this.page.locator('#accStats'); }
   /* The swipe's deck, carried into the account's «Свайп» page (2026-09-25). */
   get accountSwipeDeck() { return this.page.locator('#accountBox #swipeDeck'); }
+  get watchingPage() { return this.page.locator('#watchingSheet'); }
+  /** A word in the header's row, pressed by what it says. */
+  async pressHeaderWord(word) {
+    await this.page.locator('#topbarTabs .topbar-tab', { hasText: word }).click();
+  }
   async headerWords() {
     return (await this.page.locator('#topbarTabs .topbar-tab').allTextContents()).map(t => t.trim());
   }
