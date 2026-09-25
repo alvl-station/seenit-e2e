@@ -244,8 +244,15 @@ Then('the account panel entry point is visible', async ({ catalog }) => {
 Then('the account panel shows my picture in a circle', async ({ catalog }) => {
   await expect(catalog.accountAvatar).toBeVisible();
 });
-Then('the account is four pages: {string}', async ({ catalog }, names) => {
+Then('the account\'s pages are: {string}', async ({ catalog }, names) => {
   expect(await catalog.accountPageNames()).toEqual(names.split(',').map(s => s.trim()));
+});
+Then('the header\'s words are: {string}', async ({ catalog }, names) => {
+  expect(await catalog.headerWords()).toEqual(names.split(',').map(s => s.trim()));
+});
+Then('the swipe deck stands in the account with one film on it', async ({ catalog }) => {
+  await expect(catalog.accountSwipeDeck).toBeVisible();
+  await expect.poll(() => catalog.accountSwipeDeck.locator('.card').count()).toBe(1);
 });
 Then('the statistics page opens only with PRO', async ({ catalog }) => {
   const { locked, pro } = await catalog.statisticsLock();

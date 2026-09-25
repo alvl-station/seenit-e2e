@@ -363,7 +363,7 @@ class CatalogPage {
   async accountUsername() {
     return (await this.page.locator('#accountBox .acc-name').innerText()).trim();
   }
-  /* The account's four pages (2026-09-24). Their tabs are the row the
+  /* The account's pages (2026-09-24; the swipe made five on 2026-09-25). Their tabs are the row the
    * window lends the strip; the window's own copy is hidden while it does. */
   async accountPageNames() {
     return (await this.page.locator('.tabbar-window-row .tabbar-tab--window').allTextContents())
@@ -381,6 +381,11 @@ class CatalogPage {
     };
   }
   get accountStats() { return this.page.locator('#accStats'); }
+  /* The swipe's deck, carried into the account's «Свайп» page (2026-09-25). */
+  get accountSwipeDeck() { return this.page.locator('#accountBox #swipeDeck'); }
+  async headerWords() {
+    return (await this.page.locator('#topbarTabs .topbar-tab').allTextContents()).map(t => t.trim());
+  }
   get accountServices() { return this.page.locator('#accServices input[data-service]'); }
   get accountAchievements() { return this.page.locator('#accountBox .ach'); }
   get accountAvatar() { return this.page.locator('#accAvatarBtn .acc-avatar'); }
