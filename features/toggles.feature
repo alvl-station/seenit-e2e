@@ -3,6 +3,9 @@ Feature: Toggle-off on second tap and hover on touch
   sticky :hover on touch devices. The genre is an option in the filter
   window now; «Рекомендую» is a word inside the archive.
 
+  Read-only. The two count scenarios that used to close this file live in
+  marks.feature now: a count read here raced a mark being set there.
+
   Scenario: A genre option deselects on a second tap
     Given the catalog has more than one genre
     When I tap the first genre option
@@ -26,12 +29,3 @@ Feature: Toggle-off on second tap and hover on touch
     When I touch-tap the first genre option
     And I touch-tap the first genre option again
     Then the option is inactive and its border color matches the remembered one
-
-  Scenario: The "Дивився" count matches the films the archive lists
-    When I isolate the catalog to watched films
-    Then the "Дивився" tab count matches the films it lists
-
-  Scenario: The "Рекомендую" count matches the films the archive lists under it
-    When I isolate the catalog to watched films
-    And I narrow the archive to "Рекомендую"
-    Then the "Рекомендую" tab count matches the films it lists

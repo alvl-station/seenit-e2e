@@ -75,21 +75,35 @@ module.exports = defineConfig({
   projects: [
     // Signs in once and saves the session; everything else depends on it.
     { name: 'setup', testMatch: /auth\.setup\.js$/, testDir: '.' },
+    // THE SHARED ACCOUNT, ALONE. Every scenario that writes a mark or
+    // compares a count against what the archive lists is tagged @marks
+    // and lives in ONE feature file (features/marks.feature). One file
+    // means one worker under fullyParallel: false, and this project runs
+    // to completion before the read-only projects below start — so no
+    // mark is ever set while another scenario is counting. `workers` is
+    // global in Playwright, which is why the isolation is a dependency and
+    // a single file rather than a per-project worker count.
+    {
+      name: 'marks',
+      dependencies: ['setup'],
+      grep: /@marks/,
+      use: { ...devices['Desktop Chrome'], storageState: STATE_FILE },
+    },
     {
       name: 'desktop',
-      dependencies: ['setup'],
-      grepInvert: /@phone/,
+      dependencies: ['marks'],
+      grepInvert: /@phone|@marks/,
       use: { ...devices['Desktop Chrome'], storageState: STATE_FILE },
     },
     {
       name: 'phone-portrait',
-      dependencies: ['setup'],
+      dependencies: ['marks'],
       grep: /@phone-portrait/,
       use: { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, storageState: STATE_FILE },
     },
     {
       name: 'phone-landscape',
-      dependencies: ['setup'],
+      dependencies: ['marks'],
       grep: /@phone-landscape/,
       use: { viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true, storageState: STATE_FILE },
     },

@@ -1,3 +1,4 @@
+@marks
 Feature: Marking a film watched or recommended
   These scenarios write, into the test account's own lists only; the
   catalogue stays shared, so adding or deleting a film stays forbidden.
@@ -8,6 +9,15 @@ Feature: Marking a film watched or recommended
   The counts are read the way the account screen counts them; the archive
   («Архів» in the strip) is where a marked film is listed, and its three
   words («Усі», «Рекомендую», «Обовʼязково») narrow it.
+
+  ONE account, ONE file, ONE worker. Every scenario that writes a mark or
+  compares a count against the films listed lives here, and nowhere else:
+  the @marks tag puts this file in its own Playwright project, which runs
+  alone before the read-only projects start (playwright.config.js). Two of
+  these running side by side made their counts race — one scenario's
+  toggle landing between another's "remember" and "compare" reads — and
+  a count scenario in another file raced the same way against a mark
+  being set here. A new scenario that marks, or counts, goes in this file.
 
   Scenario: Marking a film watched raises the count and keeps it reachable
     Given I remember the "Дивився" count
@@ -52,3 +62,14 @@ Feature: Marking a film watched or recommended
     When I isolate the catalog to watched films
     And I toggle "переглянуто" on that film
     Then the "Дивився" count is back to what I remembered
+
+  # Moved from toggles.feature (2026-09-27): these read the counts, so they
+  # race any mark being set in parallel and belong in the serial project.
+  Scenario: The "Дивився" count matches the films the archive lists
+    When I isolate the catalog to watched films
+    Then the "Дивився" tab count matches the films it lists
+
+  Scenario: The "Рекомендую" count matches the films the archive lists under it
+    When I isolate the catalog to watched films
+    And I narrow the archive to "Рекомендую"
+    Then the "Рекомендую" tab count matches the films it lists
