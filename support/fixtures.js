@@ -94,7 +94,13 @@ const test = bddBase.extend({
           if (await catalog.cardTitledIsWatched(title)) await catalog.toggleWatchedOnCardTitled(title);
         }
       } catch (err) {
-        // Best-effort: a teardown failure must not mask the real one.
+        // Best-effort: a teardown failure must not mask the real one — but
+        // it must not vanish either, or a mark left behind is traced to
+        // nothing. The annotation shows on the test in the report.
+        test.info().annotations.push({
+          type: 'teardown-failed',
+          description: `could not unmark "${title}" (${which}): ${String(err && err.message || err).split('\n')[0]}`,
+        });
       }
     }
   },

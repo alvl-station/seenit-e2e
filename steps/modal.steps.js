@@ -4,6 +4,7 @@ const { createBdd } = require('playwright-bdd');
 const { test, expect } = require('../support/fixtures');
 const { MovieModalPage } = require('../pages/MovieModalPage');
 const { AddModalPage } = require('../pages/AddModalPage');
+const { skipWithoutData } = require('../support/skips');
 const { Given, When, Then } = createBdd(test);
 
 // The only names a badge may carry are the curated English ones, and the app
@@ -73,7 +74,7 @@ Then('the modal is closed', async ({ ctx, page }) => {
 /* ---- modal preconditions (Given) ---- */
 Given('a movie modal with awards is open', async ({ catalog, ctx, page }) => {
   const i = await catalog.firstCardIndexWithAwards();
-  test.skip(i === -1, 'no movie with awards in the catalog right now');
+  skipWithoutData(i === -1, 'no movie with awards in the catalog right now');
   await catalog.openCard(i);
   await modalOf(ctx, page).waitUntilOpen();
 });
@@ -81,7 +82,7 @@ Given('a movie modal with a critic score is open', async ({ catalog, ctx, page }
   // Find the card by its own critic badge instead of opening modals one by
   // one until we hit a match — one DOM scan, no wasted navigation.
   const i = await catalog.firstCardIndexWithCriticScore();
-  test.skip(i === -1, 'no movie with a critic score in the catalog right now');
+  skipWithoutData(i === -1, 'no movie with a critic score in the catalog right now');
   await catalog.openCard(i);
   await modalOf(ctx, page).waitUntilOpen();
 });
@@ -188,9 +189,11 @@ const KIND_ORDER = ['Передплата', 'Безкоштовно', 'Безк�
 
 Given('a movie modal with providers is open', async ({ catalog, ctx, page }) => {
   const i = await catalog.firstCardIndexWithProviders();
-  // Not a failure: no film has providers until the backfill has run, and a
-  // red smoke suite rolls the live site back a release.
-  test.skip(i === -1, 'no film in the catalog has providers on file yet');
+  // Not a failure off production: no film has providers until the backfill
+  // has run, and a red smoke suite rolls the live site back a release. On
+  // production the backfill HAS run, and no providers means the card lost
+  // them (support/skips.js).
+  skipWithoutData(i === -1, 'no film in the catalog has providers on file yet');
   await catalog.openCard(i);
   await modalOf(ctx, page).waitUntilOpen();
   await modalOf(ctx, page).openTab('watch');
@@ -286,15 +289,16 @@ Then('the country, when the film has one, stands on a line of its own', async ({
 /* ---- a series' seasons (read-only: nothing is marked) ---- */
 Given('a series card with seasons is open', async ({ catalog, ctx, page }) => {
   const modal = modalOf(ctx, page);
-  // Not every series has season data on file; try the first few.
-  const tries = Math.min(await catalog.cardCount(), 5);
-  for (let i = 0; i < tries; i++) {
-    await catalog.openCard(i);
-    await modal.waitUntilOpen();
-    if (await modal.waitForSeasons()) return;
-    await modal.close();
-  }
-  test.skip(true, `none of the first ${tries} series has season data on file`);
+  // Chosen from the catalogue data, the way the award and provider
+  // scenarios choose theirs: a series whose record carries season_starts
+  // (season number -> first air date) has its episodes mirrored, so its
+  // card will draw the seasons. Opening the first five cards and waiting
+  // 8 s on each for a block that might never come was 40 s of nothing.
+  const i = await catalog.firstCardIndexWithSeasons();
+  test.skip(i === -1, 'no series in the catalog has season data on file');
+  await catalog.openCard(i);
+  await modal.waitUntilOpen();
+  expect(await modal.waitForSeasons(), 'the series has seasons on file but the card drew none').toBe(true);
 });
 Then('the seasons tab counts the seasons in square brackets', async ({ ctx, page }) => {
   await expect(modalOf(ctx, page).tabButton('seasons')).toHaveText(/^Сезони \[\d+\]$/);

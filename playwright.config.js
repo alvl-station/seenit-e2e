@@ -51,12 +51,19 @@ module.exports = defineConfig({
   // and headroom is what stops a slow run from reading as a broken app. A
   // minute of wall-clock is not worth a false alarm on a deploy.
   workers: 2,
+  // One retry in CI, and every test that needed it is named in the run
+  // summary (scripts/summarize-run.js reads the JSON below) — a retry
+  // that passes is a flake, and a flake hidden inside a green run is a
+  // flake nobody fixes.
   retries: process.env.CI ? 1 : 0,
-  // 'list' for the live CI log, Allure for the published report (roadmap:
-  // a separate Pages site with screenshots and short videos on failure).
+  // 'list' for the live CI log, Allure for the published report, JSON for
+  // the run summary (flaky and skipped tests, the verdict's evidence). The
+  // JSON goes under test-results/, which is never uploaded — it carries
+  // raw error messages.
   reporter: [
     ['list'],
     ['allure-playwright', { resultsDir: 'allure-results', detail: false }],
+    ['json', { outputFile: 'test-results/smoke.json' }],
   ],
   use: {
     // Smoke suite runs against a live, already-deployed URL — no local dev

@@ -2,6 +2,8 @@
 // tab strip at the bottom), the shelf of cards, and the pages the bars open.
 // The header's own icons are hidden (src/style.css: the doors went to the
 // strip), so every page is opened by its tab.
+const { expect } = require('@playwright/test');
+
 class CatalogPage {
   constructor(page) {
     this.page = page;
@@ -130,14 +132,16 @@ class CatalogPage {
   async optionIsActive(opt) {
     return opt.evaluate(el => el.classList.contains('active'));
   }
+  /** The option's border colour once its transition has settled. */
   async optionBorderColor(opt) {
     let last = null;
-    for (let i = 0; i < 20; i++) {
+    // Two reads that agree, polled: the colour is mid-transition until they do.
+    await expect(async () => {
       const now = await opt.evaluate(el => getComputedStyle(el).borderColor);
-      if (now === last) return now;
+      const settled = now === last;
       last = now;
-      await this.page.waitForTimeout(120);
-    }
+      expect(settled).toBe(true);
+    }).toPass({ intervals: [120], timeout: 3000 }).catch(() => { /* best-effort: the last read stands */ });
     return last;
   }
   async noGenreChosen() {
@@ -259,15 +263,32 @@ class CatalogPage {
     const already = await drawnMatch();
     if (already !== -1) return already;
     await this.chooseGenreGroup(found.group);
-    for (let i = 0; i < 80; i++) {
-      const idx = await drawnMatch();
-      if (idx !== -1) return idx;
+    // Pull the sentinel into view and re-check, polled until a matching
+    // card is drawn or the shelf has no more batches to draw.
+    let idx = -1;
+    await expect(async () => {
+      idx = await drawnMatch();
+      if (idx !== -1) return;
       const sentinel = this.page.locator('#renderSentinel');
-      if (!(await sentinel.count())) break;
+      if (!(await sentinel.count())) return; // nothing left to draw
       await sentinel.scrollIntoViewIfNeeded();
-      await this.page.waitForTimeout(150);
-    }
-    return -1;
+      throw new Error('no matching card drawn yet');
+    }).toPass({ intervals: [150], timeout: 12_000 }).catch(() => { /* ran out of time: -1 */ });
+    return idx;
+  }
+  /** A series whose episodes are mirrored: its record carries season_starts. */
+  async firstCardIndexWithSeasons() {
+    return this.revealCardWhere(m => (m.kind === 'tv' || String(m.film_key || '').startsWith('tv:'))
+      && m.season_starts && Object.keys(m.season_starts).length > 0, null);
+  }
+
+  /* ---- the build stamp ---- */
+  /** `<meta name="seenit-build">`, stamped by the deploy; null on a page without one. */
+  async buildStamp() {
+    return this.page.evaluate(() => {
+      const meta = document.querySelector('meta[name="seenit-build"]');
+      return meta ? meta.getAttribute('content') : null;
+    });
   }
 
   /* ---- the bin bar (nothing here ever confirms) ---- */
