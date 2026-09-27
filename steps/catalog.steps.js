@@ -4,6 +4,7 @@
 const { createBdd } = require('playwright-bdd');
 const { test, expect } = require('../support/fixtures');
 const { NewCollectionPage } = require('../pages/NewCollectionPage');
+const { baseUrl } = require('../support/base-url');
 const { Given, When, Then } = createBdd(test);
 
 function overlaps(a, b) {
@@ -311,7 +312,7 @@ Then('a fresh visitor sees the password form and the Google button', async ({ br
     for (let attempt = 0; attempt < 4; attempt++) {
       try {
         // The root sends a fresh visitor to the landing; the form is at /login.
-        await page.goto((process.env.BASE_URL || 'https://seenit-app.pages.dev/') + 'login', { waitUntil: 'domcontentloaded' });
+        await page.goto(baseUrl() + 'login', { waitUntil: 'domcontentloaded' });
         await expect(page.locator('#loginForm')).toBeVisible({ timeout: 10000 });
         lastErr = null;
         break;

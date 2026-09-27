@@ -4,9 +4,9 @@ const { createBdd } = require('playwright-bdd');
 const { test, expect } = require('../support/fixtures');
 const { LoginPage } = require('../pages/LoginPage');
 const { CatalogPage } = require('../pages/CatalogPage');
+const { baseUrl: BASE } = require('../support/base-url');
 const { When, Then } = createBdd(test);
 
-const BASE = () => process.env.BASE_URL || 'https://seenit-app.pages.dev/';
 const POLL = { timeout: 10000 };
 
 When('I open the address {string}', async ({ catalog }, name) => {

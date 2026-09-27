@@ -12,6 +12,7 @@
 const { defineConfig, devices } = require('@playwright/test');
 const { defineBddConfig } = require('playwright-bdd');
 const path = require('path');
+const { baseUrl } = require('./support/base-url');
 
 // One sign-in per run, reused by every project (see support/auth.setup.js).
 const STATE_FILE = path.join(__dirname, '.auth', 'state.json');
@@ -59,8 +60,9 @@ module.exports = defineConfig({
   ],
   use: {
     // Smoke suite runs against a live, already-deployed URL — no local dev
-    // server; production by default so it's runnable by hand too.
-    baseURL: process.env.BASE_URL || 'https://seenit-app.pages.dev/',
+    // server; production by default so it's runnable by hand too. The one
+    // place the default is spelled out is support/base-url.js.
+    baseURL: baseUrl(),
     // Traces are OFF on purpose, and it costs us nothing: a trace records
     // every action's arguments — including the password passed to fill() —
     // and this repo is public, so traces were already banned from artifacts
