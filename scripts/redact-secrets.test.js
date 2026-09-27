@@ -1,8 +1,10 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
+const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
-const { redact, variantsOf, secretsFromEnv, PLACEHOLDER, MIN_LENGTH } = require('../scripts/redact-secrets.js');
+const { redact, variantsOf, secretsFromEnv, redactFiles, PLACEHOLDER, MIN_LENGTH } = require('../scripts/redact-secrets.js');
 
 const SCRIPT = path.join(__dirname, '..', 'scripts', 'redact-secrets.js');
 
@@ -140,5 +142,53 @@ describe('CLI (how the workflow actually uses it)', () => {
       SMOKE_TEST_PASSWORD: password,
     });
     assert.doesNotMatch(out, /Sm0ke/);
+  });
+});
+
+describe('file mode (the Allure result JSON before it is published)', () => {
+  const password = 'Sm0ke!Test#Pw';
+  const username = 'smokeuser';
+  // A scratch directory per test: the glob is resolved against real files.
+  const scratch = () => fs.mkdtempSync(path.join(os.tmpdir(), 'redact-'));
+
+  it('rewrites a file that carries a secret and reports it', () => {
+    const dir = scratch();
+    const file = path.join(dir, 'a-result.json');
+    fs.writeFileSync(file, JSON.stringify({ statusDetails: { message: `Received: "${username}"` } }));
+    const changed = redactFiles([path.join(dir, '*.json')], [username, password]);
+    assert.deepEqual(changed, [file]);
+    assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /smokeuser/);
+    assert.match(fs.readFileSync(file, 'utf8'), /Received/);
+  });
+
+  it('leaves a clean file byte-for-byte alone', () => {
+    const dir = scratch();
+    const file = path.join(dir, 'clean-result.json');
+    const body = JSON.stringify({ name: 'the catalog shows at least one movie', status: 'passed' });
+    fs.writeFileSync(file, body);
+    const before = fs.statSync(file).mtimeMs;
+    assert.deepEqual(redactFiles([path.join(dir, '*.json')], [username, password]), []);
+    assert.equal(fs.readFileSync(file, 'utf8'), body);
+    assert.equal(fs.statSync(file).mtimeMs, before);
+  });
+
+  it('touches only what the glob names', () => {
+    const dir = scratch();
+    fs.writeFileSync(path.join(dir, 'x-result.json'), `user=${username}`);
+    fs.writeFileSync(path.join(dir, 'video.webm'), `user=${username}`);
+    redactFiles([path.join(dir, '*.json')], [username]);
+    assert.equal(fs.readFileSync(path.join(dir, 'video.webm'), 'utf8'), `user=${username}`);
+  });
+
+  it('is reachable from the CLI with --files, secrets still from env', () => {
+    const dir = scratch();
+    const file = path.join(dir, 'b-result.json');
+    fs.writeFileSync(file, `pass=${password}\n`);
+    const out = execFileSync('node', [SCRIPT, '--files', path.join(dir, '*.json'), 'SMOKE_TEST_USERNAME', 'SMOKE_TEST_PASSWORD'], {
+      encoding: 'utf8',
+      env: { ...process.env, SMOKE_TEST_USERNAME: username, SMOKE_TEST_PASSWORD: password },
+    });
+    assert.match(out, /Redacted 1 file/);
+    assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /Sm0ke/);
   });
 });

@@ -241,9 +241,12 @@ Then('the account panel is closed', async ({ catalog }) => {
   expect(await catalog.accountPanelIsOpen()).toBe(false);
 });
 Then('the account panel shows the signed-in username', async ({ catalog }) => {
+  // Booleans only: a failed `expect(name)` prints the value in `Received:`,
+  // and that line lands in the published report and the public log. The
+  // name is the test account's username.
   const name = await catalog.accountUsername();
-  expect(name.length).toBeGreaterThan(0);
-  expect(name).not.toContain('@');
+  expect(name.length > 0, 'the account panel shows no name').toBe(true);
+  expect(name.includes('@'), 'the account panel shows the e-mail form of the name').toBe(false);
 });
 Then('the account panel entry point is visible', async ({ catalog }) => {
   await expect(catalog.accountEntryPoint).toBeVisible();
