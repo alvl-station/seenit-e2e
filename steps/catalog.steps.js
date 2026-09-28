@@ -4,6 +4,8 @@
 const { createBdd } = require('playwright-bdd');
 const { test, expect } = require('../support/fixtures');
 const { NewCollectionPage } = require('../pages/NewCollectionPage');
+const { baseUrl } = require('../support/base-url');
+const { skipWithoutData } = require('../support/skips');
 const { Given, When, Then } = createBdd(test);
 
 function overlaps(a, b) {
@@ -11,16 +13,35 @@ function overlaps(a, b) {
            a.y + a.height <= b.y || b.y + b.height <= a.y);
 }
 
+/* ---- the build stamp ---- */
+Then('the served page carries the deployed build stamp', async ({ catalog }) => {
+  const expected = process.env.DEPLOY_STAMP;
+  test.skip(!expected, 'no DEPLOY_STAMP in the environment: a run by hand, or a deploy that predates the stamp');
+  // The ref and sha of the build the workflow was told about, both printed
+  // on a mismatch: neither is secret, and the pair says which release the
+  // CDN handed the browser instead.
+  await expect.poll(() => catalog.buildStamp(), {
+    message: `the page under test is not build ${expected}`,
+    timeout: 10_000,
+  }).toBe(expected);
+});
+
 /* ---- catalog basics ---- */
 Then('the catalog shows at least one movie', async ({ catalog }) => {
   expect(await catalog.cardCount()).toBeGreaterThan(0);
 });
 Then('the catalogue has stopped arriving', async ({ page }) => {
   expect(await page.evaluate(() => window.__catalogueLoaded)).toBe(true);
-  const before = await page.evaluate(() => MOVIES.length);
-  await page.waitForTimeout(1500);
-  const after = await page.evaluate(() => MOVIES.length);
-  expect(after).toBe(before);
+  // Two reads half a second apart that agree, polled until they do: a
+  // batch still landing fails the read and the next pair is tried, instead
+  // of one fixed sleep that was either too short or dead time.
+  let last = -1;
+  await expect(async () => {
+    const now = await page.evaluate(() => MOVIES.length);
+    const stable = now === last;
+    last = now;
+    expect(stable, `the catalogue is still arriving (${now} films)`).toBe(true);
+  }).toPass({ intervals: [500], timeout: 10_000 });
 });
 Then('I see the empty state {string}', async ({ catalog }, text) => {
   await expect(catalog.emptyMessage).toBeVisible();
@@ -43,7 +64,7 @@ Then('the first poster is narrower than remembered', async ({ catalog, ctx }) =>
 });
 Given('the catalog has a movie with awards', async ({ catalog, ctx }) => {
   ctx.awardCardIndex = await catalog.firstCardIndexWithAwards();
-  test.skip(ctx.awardCardIndex === -1, 'no movie with awards in the catalog right now');
+  skipWithoutData(ctx.awardCardIndex === -1, 'no movie with awards in the catalog right now');
 });
 Then('that card shows the award row with no ceremony names', async ({ catalog, ctx }) => {
   const row = catalog.cardAwardsRow(ctx.awardCardIndex);
@@ -183,7 +204,7 @@ const countFor = async (catalog, tab) =>
 Then('the {string} tab count matches the films it lists', async ({ catalog }, tab) => {
   // The shelf is films or series, so the archive lists the mark's films of this shelf.
   const count = await countFor(catalog, tab);
-  test.skip(count === null, `nothing marked as "${tab}" right now`);
+  skipWithoutData(count === null, `nothing marked as "${tab}" right now`);
   const expected = await catalog.archiveExpected(tab === 'Дивився' ? 'watched' : 'liked');
   expect(expected).toBeGreaterThan(0);
   await expect.poll(() => catalog.listedCount()).toBe(expected);
@@ -240,9 +261,12 @@ Then('the account panel is closed', async ({ catalog }) => {
   expect(await catalog.accountPanelIsOpen()).toBe(false);
 });
 Then('the account panel shows the signed-in username', async ({ catalog }) => {
+  // Booleans only: a failed `expect(name)` prints the value in `Received:`,
+  // and that line lands in the published report and the public log. The
+  // name is the test account's username.
   const name = await catalog.accountUsername();
-  expect(name.length).toBeGreaterThan(0);
-  expect(name).not.toContain('@');
+  expect(name.length > 0, 'the account panel shows no name').toBe(true);
+  expect(name.includes('@'), 'the account panel shows the e-mail form of the name').toBe(false);
 });
 Then('the account panel entry point is visible', async ({ catalog }) => {
   await expect(catalog.accountEntryPoint).toBeVisible();
@@ -311,7 +335,7 @@ Then('a fresh visitor sees the password form and the Google button', async ({ br
     for (let attempt = 0; attempt < 4; attempt++) {
       try {
         // The root sends a fresh visitor to the landing; the form is at /login.
-        await page.goto((process.env.BASE_URL || 'https://seenit-app.pages.dev/') + 'login', { waitUntil: 'domcontentloaded' });
+        await page.goto(baseUrl() + 'login', { waitUntil: 'domcontentloaded' });
         await expect(page.locator('#loginForm')).toBeVisible({ timeout: 10000 });
         lastErr = null;
         break;

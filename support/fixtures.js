@@ -23,17 +23,27 @@ const { CatalogPage } = require('../pages/CatalogPage');
 const test = bddBase.extend({
   catalog: async ({ page }, use) => {
     const catalog = new CatalogPage(page);
-    // Already authenticated: the 'setup' project signed in once and saved
-    // the session (support/auth.setup.js), so this just opens the catalog.
-    await catalog.goto();
     // Failure screenshots and videos are PUBLISHED (the Allure report is a
     // public Pages site). Masking the login inputs costs nothing and covers
     // the case where the saved session expired and the overlay reappears —
     // -webkit-text-security renders them as dots without touching the DOM
-    // value, so login still behaves normally (REQUIREMENTS S-4).
-    await page.addStyleTag({
-      content: '#loginUser, #loginPass { -webkit-text-security: disc; }',
-    }).catch(() => { /* best-effort */ });
+    // value, so login still behaves normally (REQUIREMENTS S-4). #accWho is
+    // the account panel's name line — the same username, printed on a
+    // screen several scenarios open. An init script rather than a style
+    // tag, so the mask survives the reloads and navigations a scenario
+    // makes ("I reload the catalog", the front page and back).
+    await page.addInitScript(() => {
+      const mask = () => {
+        const style = document.createElement('style');
+        style.textContent = '#loginUser, #loginPass, #accWho { -webkit-text-security: disc; }';
+        (document.head || document.documentElement).appendChild(style);
+      };
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mask);
+      else mask();
+    });
+    // Already authenticated: the 'setup' project signed in once and saved
+    // the session (support/auth.setup.js), so this just opens the catalog.
+    await catalog.goto();
     // #loginOverlay is visible on load by DESIGN and only hides once
     // Firebase's onAuthStateChanged fires with the restored user — an
     // instant check races that and always sees the overlay. Wait for it to
@@ -84,7 +94,13 @@ const test = bddBase.extend({
           if (await catalog.cardTitledIsWatched(title)) await catalog.toggleWatchedOnCardTitled(title);
         }
       } catch (err) {
-        // Best-effort: a teardown failure must not mask the real one.
+        // Best-effort: a teardown failure must not mask the real one — but
+        // it must not vanish either, or a mark left behind is traced to
+        // nothing. The annotation shows on the test in the report.
+        test.info().annotations.push({
+          type: 'teardown-failed',
+          description: `could not unmark "${title}" (${which}): ${String(err && err.message || err).split('\n')[0]}`,
+        });
       }
     }
   },

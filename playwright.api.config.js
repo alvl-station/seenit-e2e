@@ -11,7 +11,13 @@ module.exports = defineConfig({
   testMatch: /\.api\.spec\.js$/,
   timeout: 60_000,
   fullyParallel: false,
-  workers: 4,
+  // ONE worker: both files write and read the SAME account's `must` list.
+  // contract.api.spec.js toggles must/movie:603 while security.api.spec.js
+  // asserts that `must` is unchanged after a hostile write — at four
+  // workers those two ran side by side and the security assertion caught
+  // the contract test's mark. The suite is a few dozen HTTP calls; serial
+  // costs seconds.
+  workers: 1,
   retries: 0,
   reporter: [['list']],
   use: { trace: 'off' },

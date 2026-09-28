@@ -111,19 +111,26 @@ test.describe('hostile input', () => {
   });
 
   test('never becomes a mark', async () => {
+    // Through the batch route, the only way marks are written now.
     const before = (await api('GET', '/library/marks')).json;
     for (const h of hostile) {
-      const r = await api('PUT', `/library/marks/must/${encodeURIComponent(h)}`);
+      const r = await api('POST', '/library/marks/batch', { body: { ops: [{ list: 'must', key: h, on: true }] } });
       expect(r.status, h).toBe(400);
     }
     expect((await api('GET', '/library/marks')).json.must).toEqual(before.must);
   });
 
-  test('a list name that is not a list is refused', async () => {
+  test('a list name that is not a list refuses the whole batch', async () => {
+    const before = (await api('GET', '/library/marks')).json;
     for (const list of ['users', 'watched;DROP', 'watched)--', '__proto__']) {
-      const r = await api('PUT', `/library/marks/${encodeURIComponent(list)}/movie%3A603`);
+      const r = await api('POST', '/library/marks/batch', {
+        // A good op beside the bad one: the batch is refused whole, or it is
+        // not refused at all.
+        body: { ops: [{ list, key: 'movie:603', on: true }, { list: 'must', key: 'movie:603', on: true }] },
+      });
       expect(r.status, list).toBe(400);
     }
+    expect((await api('GET', '/library/marks')).json.must).toEqual(before.must);
   });
 
   test('a broken %-escape in a path is a 400, not a server error', async () => {
@@ -165,18 +172,32 @@ test.describe('hostile input', () => {
 });
 
 test.describe('methods', () => {
-  test('a mark is never set by GET or POST', async () => {
+  test('a mark is never set through the retired per-key route, by any method', async () => {
+    // /library/marks/{list}/{key} is being removed: a Worker that still has
+    // it answers 405 to anything but PUT/DELETE, one without it answers 404.
+    // Either way nothing may be written, and a PUT must not land a mark on
+    // a Worker where the route is gone.
     const key = encodeURIComponent('movie:603');
     const before = (await api('GET', '/library/marks')).json.must;
     try {
       for (const method of ['GET', 'POST']) {
         const r = await api(method, `/library/marks/must/${key}`);
-        expect(r.status, method).toBe(405);
+        expect([404, 405], method).toContain(r.status);
       }
       expect((await api('GET', '/library/marks')).json.must).toEqual(before);
     } finally {
-      // An older Worker SETS the mark on a GET; leave the list as found.
-      if (!before.includes('movie:603')) await api('DELETE', `/library/marks/must/${key}`);
+      // An older Worker SETS the mark on a GET; leave the list as found,
+      // through the route that stays.
+      if (!before.includes('movie:603')) {
+        await api('POST', '/library/marks/batch', { body: { ops: [{ list: 'must', key: 'movie:603', on: false }] } });
+      }
+    }
+  });
+
+  test('the batch route takes POST only', async () => {
+    for (const method of ['GET', 'PUT', 'DELETE']) {
+      const r = await api(method, '/library/marks/batch', { body: method === 'GET' ? undefined : { ops: [] } });
+      expect([404, 405], method).toContain(r.status);
     }
   });
 

@@ -10,6 +10,21 @@ const { api } = require('./support/api-client');
 const FILM = 'movie:603';      // The Matrix: in the catalogue for good
 const SERIES = 'tv:1396';      // Breaking Bad
 
+/** One mark on the `must` list, set or cleared, the way the app writes them. */
+const markMust = (key, on) => api('POST', '/library/marks/batch', { body: { ops: [{ list: 'must', key, on }] } });
+
+/**
+ * Skips the test unless every key is already in the shared catalogue. A
+ * collection write naming an uncatalogued title makes the Worker fetch and
+ * INSERT it, and this suite never adds a film.
+ */
+async function onlyIfCatalogued(...keys) {
+  for (const key of keys) {
+    const r = await api('GET', `/pool/films/${encodeURIComponent(key)}`);
+    test.skip(r.status !== 200, `${key} is not in the catalogue (HTTP ${r.status}); writing it would add a film`);
+  }
+}
+
 test.describe('the catalogue', () => {
   test('GET /pool/version names the catalogue version', async () => {
     const r = await api('GET', '/pool/version');
@@ -78,49 +93,57 @@ test.describe('one person\'s library', () => {
     for (const list of ['watched', 'liked', 'must']) expect(Array.isArray(r.json[list]), list).toBe(true);
   });
 
-  test('a mark is set with PUT, read back, and cleared with DELETE', async () => {
-    // "must" is the list the smoke scenarios touch least.
+  test('a mark is set in a batch, read back, and cleared in another', async () => {
+    // "must" is the list the smoke scenarios touch least. The batch route is
+    // the only way the app writes marks now; the per-key PUT/DELETE is gone.
     const before = (await api('GET', '/library/marks')).json.must.includes(FILM);
     try {
-      expect((await api('PUT', `/library/marks/must/${encodeURIComponent(FILM)}`)).status).toBe(200);
+      expect((await markMust(FILM, true)).status).toBe(200);
       expect((await api('GET', '/library/marks')).json.must).toContain(FILM);
-      expect((await api('DELETE', `/library/marks/must/${encodeURIComponent(FILM)}`)).status).toBe(200);
+      expect((await markMust(FILM, false)).status).toBe(200);
       expect((await api('GET', '/library/marks')).json.must).not.toContain(FILM);
     } finally {
       // Leave the list as it was found.
-      await api(before ? 'PUT' : 'DELETE', `/library/marks/must/${encodeURIComponent(FILM)}`);
+      await markMust(FILM, before);
     }
   });
 
-  test('a collection is made, filled, renamed, published, read and deleted', async () => {
+  test('a collection is made, filled, renamed, published, read off the shelf and deleted', async () => {
+    // Both titles must already be in the shared catalogue: adding a title a
+    // collection names is how the Worker INSERTS one it has never seen, and
+    // this suite never adds a film (REQUIREMENTS T-4). Skipped, not failed,
+    // when either is missing — the test would otherwise write the catalogue.
+    await onlyIfCatalogued(FILM, SERIES);
     const id = `e2e-api-${Date.now().toString(36)}`;
-    const me = (await api('GET', '/library/me')).json;
+    // The shelf entry for this collection, or null once it is gone.
+    const onShelf = async () => {
+      const shelf = await api('GET', '/library/collections');
+      expect(shelf.status).toBe(200);
+      return shelf.json.collections.find(c => c.collection_id === id && c.source === 'own') || null;
+    };
     try {
       let r = await api('PUT', `/library/collections/${id}`, { body: { name: 'E2E API', film_ids: [FILM] } });
       expect(r.status).toBe(200);
-      r = await api('PUT', `/library/collections/${id}/films/${encodeURIComponent(SERIES)}`, { body: { name: 'E2E API' } });
+      // No `film` body, ever: with the title already catalogued the Worker
+      // only references it, and a body could not add anything anyway.
+      r = await api('PUT', `/library/collections/${id}/films/${encodeURIComponent(SERIES)}`);
       expect(r.status).toBe(200);
       r = await api('PUT', `/library/collections/${id}`, { body: { name: 'E2E API renamed' } });
       expect(r.status).toBe(200);
       r = await api('PUT', `/library/collections/${id}/public`, { body: { visibility: 'private' } });
       expect(r.status).toBe(200);
 
-      r = await api('GET', `/library/collections/${encodeURIComponent(me.uid)}/${id}`);
-      expect(r.status).toBe(200);
-      expect(r.json.collection.name).toBe('E2E API renamed');
-      expect(r.json.collection.film_ids).toEqual([FILM, SERIES]);
-
-      r = await api('GET', `/library/collections/${encodeURIComponent(me.uid)}/${id}/films`);
-      expect(r.status).toBe(200);
-      expect(r.json.films.map(f => f.film_key)).toEqual([FILM, SERIES]);
-
-      const shelf = await api('GET', '/library/collections');
-      expect(shelf.status).toBe(200);
+      // Read back the way the app reads its own: off the shelf. The
+      // per-owner read routes are gone.
+      const mine = await onShelf();
+      expect(mine, 'the collection is not on the shelf').not.toBeNull();
+      expect(mine.name).toBe('E2E API renamed');
+      expect(mine.film_ids).toEqual([FILM, SERIES]);
     } finally {
       const r = await api('DELETE', `/library/collections/${id}`);
       expect(r.status).toBe(200);
     }
-    expect((await api('GET', `/library/collections/${encodeURIComponent(me.uid)}/${id}`)).status).toBe(404);
+    expect(await onShelf()).toBeNull();
   });
 
   test('GET /library/users finds people by a typed name', async () => {

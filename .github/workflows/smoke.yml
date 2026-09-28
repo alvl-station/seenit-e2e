@@ -1,8 +1,9 @@
 # Stage 2 of SeenIt's event-driven deploy chain: seenit-frontend's deploy.yml
-# dispatches run-smoke here after pushing a build to the public `seenit` repo;
-# this suite hits the live URL and dispatches the verdict back
-# (smoke-passed / smoke-failed), which seenit-frontend's verdict.yml turns
-# into mark-deployed or rollback.
+# dispatches run-smoke here after pushing a build to Cloudflare Pages; this
+# suite waits for THAT build to be served, runs against it, and dispatches
+# the verdict back (smoke-passed / smoke-failed / smoke-inconclusive), which
+# seenit-frontend's verdict.yml turns into mark-deployed, rollback, or a
+# shrug that moves nothing.
 #
 # This repo is PUBLIC on purpose — Actions minutes are unlimited for public
 # repos, and the Playwright run (browser install included) is the most
@@ -15,8 +16,15 @@
 #     touching disk: the log is a public artifact, and the login/password
 #     are jq-derived from the TEST_USER JSON, so Actions' automatic masking
 #     has never seen them (it masks only exact secret strings it was given).
+#     The Allure result files are rewritten the same way before the report
+#     is generated.
 #   - Playwright traces are never uploaded: a trace records each action's
 #     arguments — including the literal password typed into fill().
+#
+# Three jobs, least privilege each: `smoke` reads the repo and runs the
+# suite; `publish` is the only job that may write (the gh-pages push);
+# `verdict` holds no repository permission at all — the dispatch uses the
+# PAT, and a job that can push should not be the one that also decides.
 name: Smoke
 
 on:
@@ -30,84 +38,202 @@ on:
         default: ""
         type: string
 
+# One run at a time, queued, never cancelled: every run signs in as the
+# same test account and marks its films, and every run rewrites the same
+# gh-pages branch. Two at once would race each other's counts and each
+# other's report.
+concurrency:
+  group: smoke
+  cancel-in-progress: false
+
+# Nothing by default. Each job below asks for exactly what it needs.
+permissions:
+  contents: read
+
+env:
+  # The one production URL; support/base-url.js carries the same value for
+  # the suite. A change here is a change there.
+  PRODUCTION_URL: https://seenit-app.pages.dev/
+  # Where the published reports live (the gh-pages branch of this repo).
+  REPORT_HOST: https://alvl-station.github.io/seenit-e2e
+
 jobs:
   smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
-      contents: write   # pushes the generated report to the gh-pages branch
+      contents: read
+    outputs:
+      verdict: ${{ steps.verdict.outputs.verdict }}
+      stamp: ${{ steps.target.outputs.stamp }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      # ---- setup: anything failing here is NOT a verdict on the deploy ----
+      # These steps are kept apart from the test step on purpose. When one
+      # of them fails the test step never runs, the JSON report never
+      # exists, and the verdict below reads that as inconclusive rather
+      # than as a red suite — an npm registry hiccup must not roll a
+      # release back.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: "22"
-      - run: npm install
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
+      # NOT preinstalled on ubuntu-latest (assumed it was; the first drill
+      # run reported ENOENT and kept every video untrimmed).
+      - name: Install ffmpeg
+        run: sudo apt-get install -y --no-install-recommends ffmpeg
 
-      # Dispatch values reach the shell through env, never pasted into the
-      # script: a payload is data, and pasted text would run as code.
-      - name: Wait for the deploy to actually be served
+      # The test account, derived once and masked for the live log; the
+      # later steps (redaction, the summary) read the two variables from
+      # the job env. GITHUB_ENV is a file on this runner and nothing else.
+      - name: Read the test account
         env:
-          URL: ${{ github.event.client_payload.base_url || inputs.base_url || 'https://seenit-app.pages.dev/' }}
+          TEST_USER: ${{ secrets.TEST_USER }}
         run: |
-          if ! printf '%s' "$URL" | grep -Eq '^https://[A-Za-z0-9.-]+(/[A-Za-z0-9._/-]*)?$'; then
-            echo "::error::base_url is not a plain https URL"; exit 1
-          fi
-          echo "Waiting for $URL"
-          for i in $(seq 1 30); do
-            code=$(curl -s -o /dev/null -w "%{http_code}" "$URL" || echo 000)
-            if [ "$code" = "200" ]; then echo "Serving (attempt $i)."; exit 0; fi
-            sleep 2
-          done
-          echo "::warning::Never returned 200 after 60s, running the suite anyway."
-
-      - name: Run smoke suite (redacted output)
-        id: run
-        run: |
-          set -o pipefail
+          set -euo pipefail
           echo "$TEST_USER" | jq -e 'has("login") and has("password")' > /dev/null || {
             echo "::error::TEST_USER secret does not look like valid JSON with 'login' and 'password' fields."
             exit 1
           }
-          export SMOKE_TEST_USERNAME="$(echo "$TEST_USER" | jq -r '.login')"
-          export SMOKE_TEST_PASSWORD="$(echo "$TEST_USER" | jq -r '.password')"
-          echo "::add-mask::$SMOKE_TEST_USERNAME"
-          echo "::add-mask::$SMOKE_TEST_PASSWORD"
+          u="$(echo "$TEST_USER" | jq -r '.login')"
+          p="$(echo "$TEST_USER" | jq -r '.password')"
+          echo "::add-mask::$u"
+          echo "::add-mask::$p"
+          { echo "SMOKE_TEST_USERNAME=$u"; echo "SMOKE_TEST_PASSWORD=$p"; } >> "$GITHUB_ENV"
+
+      # Dispatch values reach the shell through env, never pasted into the
+      # script: a payload is data, and pasted text would run as code. Each
+      # is checked for shape before it is used anywhere.
+      - name: Resolve the URL and build under test
+        id: target
+        env:
+          URL: ${{ github.event.client_payload.base_url || inputs.base_url || env.PRODUCTION_URL }}
+          STAMP: ${{ github.event.client_payload.stamp }}
+        run: |
+          set -euo pipefail
+          if ! printf '%s' "$URL" | grep -Eq '^https://[A-Za-z0-9.-]+(/[A-Za-z0-9._/-]*)?$'; then
+            echo "::error::base_url is not a plain https URL"; exit 1
+          fi
+          case "$URL" in */) ;; *) URL="$URL/";; esac
+          if [ -n "$STAMP" ] && ! printf '%s' "$STAMP" | grep -Eq '^[A-Za-z0-9._-]+@[0-9a-f]{7,40}$'; then
+            echo "::error::stamp is not <ref>@<sha>"; exit 1
+          fi
+          echo "BASE_URL=$URL" >> "$GITHUB_ENV"
+          echo "DEPLOY_STAMP=$STAMP" >> "$GITHUB_ENV"
+          echo "stamp=$STAMP" >> "$GITHUB_OUTPUT"
+          # On production every data-dependent scenario has data today, so
+          # a skip there is the app failing to show it (support/skips.js).
+          if [ "$URL" = "$PRODUCTION_URL" ]; then
+            echo "SMOKE_STRICT_SKIPS=1" >> "$GITHUB_ENV"
+            echo "Production: data skips count as failures."
+          fi
+          echo "Target: $URL (build ${STAMP:-unstamped})"
+
+      # A Pages deploy is visible at the edge before it is visible
+      # everywhere: one fetch that shows the new build proves nothing about
+      # the next. Three fetches in a row carrying the deploy's own stamp
+      # do. A run that started before the CDN caught up used to test the
+      # PREVIOUS release and call the new one green.
+      - name: Wait for the deployed build to be served
+        run: |
+          set -uo pipefail
+          stamp_of() {
+            curl -sS -m 20 -H 'Cache-Control: no-cache' "$BASE_URL" 2>/dev/null \
+              | node -e '
+                let html = ""; process.stdin.on("data", c => html += c).on("end", () => {
+                  const tag = /<meta\s[^>]*name="seenit-build"[^>]*>/i.exec(html);
+                  const content = tag && /content="([^"]*)"/i.exec(tag[0]);
+                  process.stdout.write(content ? content[1] : "");
+                });'
+          }
+          if [ -z "$DEPLOY_STAMP" ]; then
+            echo "::warning::The dispatch carried no stamp (an older deploy.yml, or a run by hand): waiting for HTTP 200 only, which cannot tell one build from another."
+            for i in $(seq 1 30); do
+              code=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL" || echo 000)
+              if [ "$code" = "200" ]; then echo "Serving (attempt $i)."; exit 0; fi
+              sleep 2
+            done
+            echo "::warning::Never returned 200 after 60s, running the suite anyway."
+            exit 0
+          fi
+          echo "Waiting for $BASE_URL to serve build $DEPLOY_STAMP (three fetches in a row, up to 10 min)."
+          streak=0; seen=""
+          for i in $(seq 1 200); do
+            now=$(stamp_of)
+            if [ "$now" = "$DEPLOY_STAMP" ]; then
+              streak=$((streak + 1))
+              if [ "$streak" -ge 3 ]; then echo "Served $DEPLOY_STAMP three times in a row (fetch $i)."; exit 0; fi
+            else
+              streak=0
+              [ "$now" != "$seen" ] && { echo "fetch $i: serving ${now:-no stamp}"; seen="$now"; }
+            fi
+            sleep 3
+          done
+          echo "::error::$BASE_URL never served build $DEPLOY_STAMP within 10 minutes (last seen: ${seen:-no stamp}). The suite did not run; the verdict is inconclusive."
+          exit 1
+
+      # ---- the suite: the only step whose failure is a verdict ----
+      - name: Run smoke suite (redacted output)
+        id: run
+        run: |
+          set -o pipefail
           npx bddgen
           npx playwright test --config playwright.config.js 2>&1 \
             | node scripts/redact-secrets.js SMOKE_TEST_USERNAME SMOKE_TEST_PASSWORD \
             | tee smoke-test-log.txt
-        env:
-          BASE_URL: ${{ github.event.client_payload.base_url || inputs.base_url || 'https://seenit-app.pages.dev/' }}
-          TEST_USER: ${{ secrets.TEST_USER }}
 
-      # ---- Allure report -> its own public Pages site (gh-pages branch) ----
+      # From the JSON report, not the exit code: a suite that never wrote
+      # one (a setup step above failed, a runner crash, a cancellation) is
+      # inconclusive, and only a test that failed after its retry is a
+      # failure. scripts/summarize-run.js holds the rule.
+      - name: Decide the verdict
+        id: verdict
+        if: always()
+        env:
+          RUN_OUTCOME: ${{ steps.run.outcome }}
+        run: |
+          set -euo pipefail
+          verdict=$(node scripts/summarize-run.js test-results/smoke.json --verdict)
+          if [ "$RUN_OUTCOME" = "cancelled" ]; then verdict=inconclusive; fi
+          if [ "$RUN_OUTCOME" = "skipped" ] && [ "$verdict" != "inconclusive" ]; then verdict=inconclusive; fi
+          echo "verdict=$verdict" >> "$GITHUB_OUTPUT"
+          echo "Verdict: $verdict (test step: $RUN_OUTCOME)"
+          case "$verdict" in
+            inconclusive) echo "::warning::The suite produced no result, so this run says nothing about the deploy.";;
+          esac
+
+      # What a green run hides: every test that passed only on its retry,
+      # every skip and why, every teardown that left a mark behind.
+      - name: Write the run summary
+        if: always()
+        run: node scripts/summarize-run.js test-results/smoke.json >> "$GITHUB_STEP_SUMMARY"
+
+      # ---- Allure report -> the publish job, then its own Pages site ----
       # Videos exist only for failures; trimmed to the last 3s (the moment
       # it broke) per the roadmap. Traces are off entirely — they record
       # fill() arguments and this report is public (REQUIREMENTS S-4/S-5).
-      # Screenshots/videos are safe because the login fields are visually
-      # masked (support/fixtures.js).
-      # NOT preinstalled on ubuntu-latest (assumed it was; the first drill
-      # run reported ENOENT and kept every video untrimmed).
-      - name: Install ffmpeg
-        if: always()
-        run: sudo apt-get install -y --no-install-recommends ffmpeg
-
+      # Screenshots/videos are safe because the login fields and the
+      # account's name line are visually masked (support/fixtures.js).
       - name: Trim failure videos to 3s
         if: always()
         run: node scripts/trim-videos.js allure-results 3
 
+      # A failing assertion's message is written into the result JSON by
+      # the reporter, not through stdout, so the stream redaction above
+      # never saw it. Rewritten in place before the report is built.
+      - name: Redact the Allure results
+        if: always()
+        run: node scripts/redact-secrets.js --files 'allure-results/*.json' --files 'allure-results/*.txt' SMOKE_TEST_USERNAME SMOKE_TEST_PASSWORD
+
       # Allure builds its trend chart from a history/ folder carried over
       # from the PREVIOUS report. Without it every run renders a chart with
-      # one point on it.
-      #
-      # This step existed and never worked: it checked out gh-pages into
-      # /tmp/ghp without creating the directory first, so git refused with
-      # "this operation must be run in a work tree" — and the failure was
-      # swallowed three times over, by 2>/dev/null, by `|| exit 0`, and by
-      # continue-on-error. The chart showed one point for months and nothing
-      # anywhere said why. No work tree is needed at all: git archive can
-      # pull a single folder straight out of the fetched commit.
+      # one point on it. history/ lives at the root of gh-pages, beside the
+      # per-run reports, and git archive pulls it straight out of the
+      # fetched commit — no work tree needed.
       - name: Restore Allure history (keeps the trend chart across runs)
         if: always()
         run: |
@@ -138,69 +264,152 @@ jobs:
       # goes after clicking a point that dropped.
       - name: Label this run for the trend chart
         if: always()
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RUN_NUMBER: ${{ github.run_number }}
         run: |
           mkdir -p allure-results
-          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          cat > allure-results/executor.json <<JSON
-          {
-            "name": "GitHub Actions",
-            "type": "github",
-            "buildOrder": ${{ github.run_number }},
-            "buildName": "smoke #${{ github.run_number }}",
-            "buildUrl": "$RUN_URL",
-            "reportName": "smoke #${{ github.run_number }}",
-            "reportUrl": "$RUN_URL"
-          }
-          JSON
+          jq -n --arg url "$RUN_URL" --argjson n "$RUN_NUMBER" '{
+            name: "GitHub Actions", type: "github",
+            buildOrder: $n, buildName: "smoke #\($n)", buildUrl: $url,
+            reportName: "smoke #\($n)", reportUrl: $url
+          }' > allure-results/executor.json
 
       - name: Generate the Allure report
         if: always()
         run: npx allure generate allure-results --clean -o allure-report
 
-      - name: Publish the report to gh-pages
+      # Two artifacts: the redacted text log for people, and the generated
+      # report for the publish job (the only job allowed to push). Both are
+      # already redacted; NEVER test-results/ — it holds raw, untrimmed
+      # videos, the unredacted JSON report and (when enabled) traces.
+      - name: Upload redacted log artifact
         if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: smoke-report
+          path: smoke-test-log.txt
+          retention-days: 14
+          if-no-files-found: ignore
+      - name: Hand the report to the publish job
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: allure-report
+          path: allure-report
+          retention-days: 1
+          if-no-files-found: ignore
+
+  # The only job that writes anything: the report goes to the gh-pages
+  # branch under runs/<run_id>/, with history/ at the root for the next
+  # run's trend chart and a root index that forwards to the newest run.
+  # Older runs stay (the newest 30), so a rollback issue's link keeps
+  # pointing at the report it was filed with instead of at whatever ran
+  # last.
+  publish:
+    needs: smoke
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write   # the gh-pages push, and nothing else in this workflow
+    outputs:
+      report_url: ${{ steps.publish.outputs.report_url }}
+    steps:
+      - name: Fetch the generated report
+        id: report
+        continue-on-error: true   # a smoke job that died in setup made none
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: allure-report
+          path: allure-report
+      - name: Publish the report to gh-pages
+        id: publish
         env:
           DEPLOY_REF: ${{ github.event.client_payload.ref }}
+          RUN_ID: ${{ github.run_id }}
+          REPO_URL: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
+          KEEP: "30"
         run: |
           set -euo pipefail
-          cd allure-report
+          report_url="$REPORT_HOST/runs/$RUN_ID/"
+          echo "report_url=$report_url" >> "$GITHUB_OUTPUT"
+          if [ ! -s allure-report/index.html ]; then
+            echo "::warning::No report was generated, so nothing is published; $report_url will not resolve."
+            exit 0
+          fi
+          site=$(mktemp -d)
+          cd "$site"
           git init -q -b gh-pages
           git config user.name "seenit-e2e"
           git config user.email "e2e@seenit.local"
+          # The earlier runs, carried over from the published branch (a
+          # branch from before this layout has no runs/ folder: fine).
+          if git fetch -q --depth=1 "$REPO_URL" gh-pages 2>/dev/null; then
+            git archive FETCH_HEAD runs 2>/dev/null | tar -x || true
+          fi
+          mkdir -p runs
+          rm -rf "runs/$RUN_ID"
+          cp -r "$GITHUB_WORKSPACE/allure-report" "runs/$RUN_ID"
+          # history/ at the root is what the next run restores.
+          rm -rf history
+          [ -d "runs/$RUN_ID/history" ] && cp -r "runs/$RUN_ID/history" history
+          # Prune to the newest runs by id (ids only grow).
+          for old in $(ls runs | grep -E '^[0-9]+$' | sort -n | head -n "-$KEEP" || true); do rm -rf "runs/$old"; done
+          touch .nojekyll
+          cat > index.html <<HTML
+          <!doctype html>
+          <meta charset="utf-8">
+          <meta http-equiv="refresh" content="0; url=runs/$RUN_ID/">
+          <title>SeenIt smoke reports</title>
+          <p>Newest report: <a href="runs/$RUN_ID/">run $RUN_ID</a>.</p>
+          HTML
           git add -A
-          git commit -q -m "Allure report — run ${GITHUB_RUN_ID} (${DEPLOY_REF:-manual})"
-          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" gh-pages
-          echo "Report: https://alvl-station.github.io/seenit-e2e/" >> "$GITHUB_STEP_SUMMARY"
+          git commit -q -m "Allure report — run ${RUN_ID} (${DEPLOY_REF:-manual})"
+          git push -q -f "$REPO_URL" gh-pages
+          echo "Report: $report_url" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Upload redacted log artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: smoke-report
-          # NEVER test-results/ — it holds raw, untrimmed videos and (when
-          # enabled) traces. The published Allure report is the artifact
-          # that matters; this is just the redacted text log.
-          path: |
-            smoke-test-log.txt
-          retention-days: 14
-          if-no-files-found: ignore
-
-      # The verdict is an event, not a return value: seenit-frontend never
-      # waits for this run. Skipped for manual (workflow_dispatch) runs —
-      # only a real deploy dispatch should be able to move deployed-latest
-      # or trigger a rollback.
+  # The verdict is an event, not a return value: seenit-frontend never
+  # waits for this run. Skipped for manual (workflow_dispatch) runs — only
+  # a real deploy dispatch should be able to move deployed-latest or
+  # trigger a rollback. No repository permission at all: the dispatch is
+  # made with the PAT, and this job touches nothing here.
+  verdict:
+    needs: [smoke, publish]
+    if: always() && github.event_name == 'repository_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
       - name: Report verdict back to seenit-frontend
-        if: always() && github.event_name == 'repository_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.UI_CALLBACK_PAT }}
+          VERDICT: ${{ needs.smoke.outputs.verdict }}
+          STAMP: ${{ needs.smoke.outputs.stamp }}
+          REPORT_URL: ${{ needs.publish.outputs.report_url }}
+          DEPLOY_REF: ${{ github.event.client_payload.ref }}
+          DEPLOY_RUN: ${{ github.event.client_payload.deploy_run }}
+          E2E_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          if [ "$OUTCOME" = "success" ]; then EVENT=smoke-passed; else EVENT=smoke-failed; fi
+          set -euo pipefail
+          # passed and failed are the only two verdicts that move anything.
+          # Everything else — a setup step that failed, a build the CDN
+          # never served, a cancelled run — is reported as inconclusive,
+          # which verdict.yml treats as "say nothing": no deployed-latest
+          # move, no rollback.
+          case "$VERDICT" in
+            passed) EVENT=smoke-passed ;;
+            failed) EVENT=smoke-failed ;;
+            *) EVENT=smoke-inconclusive
+               echo "::warning::Verdict '${VERDICT:-none}': the deploy was neither passed nor failed; dispatching smoke-inconclusive." ;;
+          esac
+          [ -n "$REPORT_URL" ] || REPORT_URL="$REPORT_HOST/"
+          echo "Dispatching $EVENT for ${DEPLOY_REF:-?} (build ${STAMP:-unstamped})."
           gh api -X POST /repos/alvl-station/seenit-frontend/dispatches \
             -f event_type="$EVENT" \
             -f "client_payload[ref]=$DEPLOY_REF" \
             -f "client_payload[deploy_run]=$DEPLOY_RUN" \
-            -f "client_payload[e2e_run_url]=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
-            -f 'client_payload[report_url]=https://alvl-station.github.io/seenit-e2e/'
-        env:
-          GH_TOKEN: ${{ secrets.UI_CALLBACK_PAT }}
-          OUTCOME: ${{ steps.run.outcome }}
-          DEPLOY_REF: ${{ github.event.client_payload.ref }}
-          DEPLOY_RUN: ${{ github.event.client_payload.deploy_run }}
+            -f "client_payload[stamp]=$STAMP" \
+            -f "client_payload[verdict]=${VERDICT:-inconclusive}" \
+            -f "client_payload[e2e_run_url]=$E2E_RUN_URL" \
+            -f "client_payload[report_url]=$REPORT_URL"

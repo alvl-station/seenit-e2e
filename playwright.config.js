@@ -12,6 +12,7 @@
 const { defineConfig, devices } = require('@playwright/test');
 const { defineBddConfig } = require('playwright-bdd');
 const path = require('path');
+const { baseUrl } = require('./support/base-url');
 
 // One sign-in per run, reused by every project (see support/auth.setup.js).
 const STATE_FILE = path.join(__dirname, '.auth', 'state.json');
@@ -50,17 +51,25 @@ module.exports = defineConfig({
   // and headroom is what stops a slow run from reading as a broken app. A
   // minute of wall-clock is not worth a false alarm on a deploy.
   workers: 2,
+  // One retry in CI, and every test that needed it is named in the run
+  // summary (scripts/summarize-run.js reads the JSON below) — a retry
+  // that passes is a flake, and a flake hidden inside a green run is a
+  // flake nobody fixes.
   retries: process.env.CI ? 1 : 0,
-  // 'list' for the live CI log, Allure for the published report (roadmap:
-  // a separate Pages site with screenshots and short videos on failure).
+  // 'list' for the live CI log, Allure for the published report, JSON for
+  // the run summary (flaky and skipped tests, the verdict's evidence). The
+  // JSON goes under test-results/, which is never uploaded — it carries
+  // raw error messages.
   reporter: [
     ['list'],
     ['allure-playwright', { resultsDir: 'allure-results', detail: false }],
+    ['json', { outputFile: 'test-results/smoke.json' }],
   ],
   use: {
     // Smoke suite runs against a live, already-deployed URL — no local dev
-    // server; production by default so it's runnable by hand too.
-    baseURL: process.env.BASE_URL || 'https://seenit-app.pages.dev/',
+    // server; production by default so it's runnable by hand too. The one
+    // place the default is spelled out is support/base-url.js.
+    baseURL: baseUrl(),
     // Traces are OFF on purpose, and it costs us nothing: a trace records
     // every action's arguments — including the password passed to fill() —
     // and this repo is public, so traces were already banned from artifacts
@@ -73,21 +82,35 @@ module.exports = defineConfig({
   projects: [
     // Signs in once and saves the session; everything else depends on it.
     { name: 'setup', testMatch: /auth\.setup\.js$/, testDir: '.' },
+    // THE SHARED ACCOUNT, ALONE. Every scenario that writes a mark or
+    // compares a count against what the archive lists is tagged @marks
+    // and lives in ONE feature file (features/marks.feature). One file
+    // means one worker under fullyParallel: false, and this project runs
+    // to completion before the read-only projects below start — so no
+    // mark is ever set while another scenario is counting. `workers` is
+    // global in Playwright, which is why the isolation is a dependency and
+    // a single file rather than a per-project worker count.
+    {
+      name: 'marks',
+      dependencies: ['setup'],
+      grep: /@marks/,
+      use: { ...devices['Desktop Chrome'], storageState: STATE_FILE },
+    },
     {
       name: 'desktop',
-      dependencies: ['setup'],
-      grepInvert: /@phone/,
+      dependencies: ['marks'],
+      grepInvert: /@phone|@marks/,
       use: { ...devices['Desktop Chrome'], storageState: STATE_FILE },
     },
     {
       name: 'phone-portrait',
-      dependencies: ['setup'],
+      dependencies: ['marks'],
       grep: /@phone-portrait/,
       use: { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, storageState: STATE_FILE },
     },
     {
       name: 'phone-landscape',
-      dependencies: ['setup'],
+      dependencies: ['marks'],
       grep: /@phone-landscape/,
       use: { viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true, storageState: STATE_FILE },
     },

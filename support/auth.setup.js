@@ -29,6 +29,14 @@ setup('authenticate once', async ({ page, context }) => {
     if (!username || !password) {
       throw new Error('SMOKE_TEST_USERNAME/SMOKE_TEST_PASSWORD env vars are not set.');
     }
+    // BEFORE the fill: a failure screenshot or video of this very step is
+    // published with the Allure report, and this is the one place the
+    // username is typed in the clear. -webkit-text-security draws dots
+    // without touching the DOM value (the `catalog` fixture does the same
+    // for the overlay, but that runs after this sign-in, not during it).
+    await page.addStyleTag({
+      content: '#loginUser, #loginPass { -webkit-text-security: disc; }',
+    }).catch(() => { /* best-effort */ });
     await login.login(username, password);
     await login.waitUntilHidden();
   }

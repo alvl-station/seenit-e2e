@@ -5,7 +5,7 @@ The Playwright smoke suite for **SeenIt** (a personal Ukrainian-language
 movie/TV tracker). This repo is stage 2 of the event-driven deploy chain:
 
 ```
-seenit-frontend deploy.yml ──run-smoke──▶ smoke.yml (here) ──smoke-passed/failed──▶ seenit-frontend verdict.yml
+seenit-frontend deploy.yml ──run-smoke──▶ smoke.yml (here) ──smoke-passed/failed/inconclusive──▶ seenit-frontend verdict.yml
 ```
 
 - Live site under test: https://seenit-app.pages.dev/ (Cloudflare Pages; the old GitHub Pages address forwards there)
@@ -54,9 +54,10 @@ are projects selected by scenario tags: untagged = desktop;
 
 ## Allure report — published, therefore public
 Every CI run publishes an Allure report to the `gh-pages` branch, served at
-**https://alvl-station.github.io/seenit-e2e/**, with history carried over so
-the trend chart survives across runs. Rollback issues in seenit-frontend
-link straight to it.
+**https://alvl-station.github.io/seenit-e2e/runs/<run_id>/** (the root
+forwards to the newest; the newest 30 are kept), with `history/` at the
+root carried over so the trend chart survives across runs. Rollback issues
+in seenit-frontend link straight to the run's own report.
 
 Because that report is world-readable, three rules hold:
 - **Traces are off** (`trace: 'off'`). A trace records every action's
@@ -77,6 +78,13 @@ Because that report is world-readable, three rules hold:
 - **The catalogue is shared, the marks are not.** Marks and collections
   belong to the signed-in account, so a scenario may mark and unmark its
   own films (and must put them back). Never add or delete a film.
+- **One account, one file.** A scenario that writes a mark or compares a
+  count goes in `features/marks.feature` (tagged `@marks`): that file is
+  its own project, run alone before the read-only ones. Anywhere else it
+  races them.
+- **Skips are visible, and strict on production.** A data-dependent skip
+  goes through `support/skips.js`; the run summary lists every skip and
+  every flaky test.
 - **The app's doors are the two bars.** The header's icons are hidden; a
   page is opened by its strip tab (`#tabbarScroll [data-tab]`) or header
   word (`#topbarTabs [data-tab]`), and a lit tab closes its page. A page's
@@ -92,7 +100,7 @@ Because that report is world-readable, three rules hold:
 
 ## Commands
 ```bash
-npm install                  # once (Playwright)
+npm ci                       # once (Playwright)
 npx playwright install chromium
 npm test                     # node:test unit suite for the redactor (scripts/)
 BASE_URL=... SMOKE_TEST_USERNAME=... SMOKE_TEST_PASSWORD=... npm run smoke

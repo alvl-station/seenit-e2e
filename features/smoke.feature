@@ -1,6 +1,15 @@
 Feature: Core smoke — login, search, movie modal
   The original gate the deploy chain runs first. Read-only (REQ T-4).
 
+  Scenario: The page served is the build that was just deployed
+    # The deploy stamps <meta name="seenit-build" content="ref@sha"> into
+    # the page and hands the same stamp to the smoke run (DEPLOY_STAMP).
+    # The workflow already waited for the CDN to serve it; this asserts the
+    # browser under test got that build too, so a green run can never be
+    # a verdict on the previous release. Skipped when no stamp was given
+    # (a run by hand, or an older deploy.yml).
+    Then the served page carries the deployed build stamp
+
   Scenario: Logging in loads the catalog
     Then the catalog shows at least one movie
     # Strengthened alongside the account feature: the header must expose the

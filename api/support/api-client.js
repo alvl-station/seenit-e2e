@@ -3,8 +3,10 @@
 // This repo is PUBLIC: nothing here may print a token, a password or a
 // username. Tokens live in memory for the run; errors carry the status and
 // the route, never a header.
+const { baseUrl } = require('../../support/base-url');
+
 const API = process.env.API_URL || 'https://seenit-proxy.seenit.workers.dev';
-const SITE = process.env.BASE_URL || 'https://seenit-app.pages.dev/';
+const SITE = baseUrl();
 const APP_ORIGIN = new URL(SITE).origin;
 // The app signs in with a username, which Firebase knows as this address.
 const USERNAME_SUFFIX = '@sceneit-app.local';

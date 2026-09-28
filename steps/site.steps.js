@@ -5,9 +5,9 @@ const { test, expect } = require('../support/fixtures');
 const { SitePage } = require('../pages/SitePage');
 const { MovieModalPage } = require('../pages/MovieModalPage');
 const { CatalogPage } = require('../pages/CatalogPage');
+const { baseUrl: BASE } = require('../support/base-url');
 const { When, Then } = createBdd(test);
 
-const BASE = () => process.env.BASE_URL || 'https://seenit-app.pages.dev/';
 const PAGES = ['main', 'stories', 'about', 'legal', 'terms', 'privacy', 'community', 'sources', 'contacts'];
 // Contacts live in the footer, not on the strip — no tab is lit there.
 const UNTABBED = ['contacts'];
