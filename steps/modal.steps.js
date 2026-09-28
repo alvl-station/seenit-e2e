@@ -158,7 +158,8 @@ Then('scroll is unlocked and the position is restored', async ({ catalog, ctx })
     .toBeLessThanOrEqual(2);
 });
 
-/* ---- add modal (open/close ONLY — saving is forbidden, REQ T-4) ---- */
+/* ---- adding: the search outside the app (open/close ONLY — saving is
+ * forbidden, REQ T-4). It was the «Додати» window until 2026-09-29. ---- */
 When('I open the add modal', async ({ ctx, page }) => {
   ctx.addModal = new AddModalPage(page);
   await ctx.addModal.open();

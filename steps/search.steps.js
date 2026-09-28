@@ -42,6 +42,36 @@ Then('the search page shows films and series', async ({ ctx, page, catalog: _ })
   await expect(s.count).toContainText('фільмів');
   await expect(s.count).toContainText('серіалів');
 });
+/* ---- where to look (2026-09-29) ---- */
+Then('the strip offers the three places to look', async ({ ctx, page, catalog: _ }) => {
+  await expect(searchOf(ctx, page).modeCells())
+    .toHaveText(['У застосунку', 'Поза застосунком', 'Скріншот']);
+});
+When('I look outside the app', async ({ ctx, page, catalog: _ }) => {
+  await searchOf(ctx, page).lookIn('Поза застосунком', 'web');
+});
+When('I look in a screenshot', async ({ ctx, page, catalog: _ }) => {
+  await searchOf(ctx, page).lookIn('Скріншот', 'shot');
+});
+When('I look in the app', async ({ ctx, page, catalog: _ }) => {
+  await searchOf(ctx, page).lookIn('У застосунку', 'app');
+});
+Then('the search looks outside the app for {string}', async ({ ctx, page, catalog: _ }, query) => {
+  const s = searchOf(ctx, page);
+  await expect(s.input).toHaveValue(query);
+  // Read-only: the answers are TMDb's, and only their arrival is asserted -
+  // a candidate is never opened, so nothing can be saved (REQ T-4).
+  await expect(page.locator('#addResults .candidate-item').first()).toBeVisible({ timeout: 20000 });
+});
+Then('a screenshot can be chosen', async ({ page, catalog: _ }) => {
+  await expect(page.locator('#searchPageBody #addFile')).toBeAttached();
+});
+Then('the search page shows results for {string}', async ({ ctx, page, catalog: _ }, query) => {
+  const s = searchOf(ctx, page);
+  await expect(s.input).toHaveValue(query);
+  await expect(s.cards.first()).toBeVisible();
+});
+
 When('I remember the search results', async ({ ctx, page, catalog: _ }) => {
   ctx.searchResults = (await searchOf(ctx, page).resultKeys()).sort();
 });

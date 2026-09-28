@@ -44,9 +44,7 @@ Then('no empty state is shown', async ({ catalog }) => {
 
 /* ---- add modal dead end ---- */
 When('I search there for {string}', async ({ ctx, page }, query) => {
-  const add = addModalOf(ctx, page);
-  await add.searchInput().fill(query);
-  await add.searchButton().click();
+  await addModalOf(ctx, page).search(query);
 });
 Then('the add modal reports that nothing was found', async ({ ctx, page }) => {
   const results = addModalOf(ctx, page).results();

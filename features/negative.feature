@@ -18,7 +18,7 @@ Feature: Negative paths — what a person sees when something finds nothing
     Then the catalog shows at least one movie
     And no empty state is shown
 
-  Scenario: Adding a title that finds nothing on TMDb reports it
+  Scenario: Looking outside the app for a title TMDb does not have reports it
     When I open the add modal
     And I search there for "qzxjkvbqzxjkvbqzxjkvb"
     Then the add modal reports that nothing was found

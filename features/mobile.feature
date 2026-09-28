@@ -1,8 +1,9 @@
 Feature: Phone behaviour — portrait and landscape
   Covers BUGS #8: scroll-lock under modals with exact position restore,
   the add form fitting a 390px screen, the lock refcount, and landscape
-  without sideways scroll. The add modal is only ever opened and closed —
-  saving is forbidden (REQ T-4).
+  without sideways scroll. Adding lives in the search page, looking outside
+  the app, since 2026-09-29; it is only ever opened and closed — saving is
+  forbidden (REQ T-4).
 
   @phone-portrait
   Scenario: The movie modal locks background scroll and restores the position
@@ -13,10 +14,9 @@ Feature: Phone behaviour — portrait and landscape
     Then scroll is unlocked and the position is restored
 
   @phone-portrait
-  Scenario: The add modal locks scroll and its form fits the screen
+  Scenario: The search outside the app fits the screen and leaves scroll free
     When I open the add modal
-    Then background scroll is locked
-    And the page has no sideways scroll
+    Then the page has no sideways scroll
     And the add modal is no wider than the screen
     When I close the add modal
     Then background scroll is unlocked
