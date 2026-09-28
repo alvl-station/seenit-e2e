@@ -11,6 +11,13 @@ class SearchPage {
     this.count = page.locator('#searchPageBody .search-page-count');
   }
   tab() { return this.page.locator('#tabbarScroll .tabbar-tab[data-tab="search"]'); }
+  /** The places to look, as the strip wears them (the page's own row hides). */
+  modeCells() { return this.page.locator('#tabbarWindowRow .tabbar-tab--window'); }
+  /** Turn the page to another place to look, by its word in the strip. */
+  async lookIn(word, mode) {
+    await this.modeCells().filter({ hasText: word }).click();
+    await this.page.locator(`#searchModes [data-search-mode="${mode}"].active`).waitFor({ state: 'attached' });
+  }
   async isOpen() { return this.sheet.evaluate(el => el.classList.contains('open')); }
   async open() {
     if (await this.isOpen()) return;

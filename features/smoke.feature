@@ -36,6 +36,18 @@ Feature: Core smoke — login, search, movie modal
     Then the search page is closed
     And the catalog shows at least one movie
 
+  # «Додати» moved into the search (2026-09-29): three places to look, lent
+  # to the strip, and the words carried from one to the next.
+  Scenario: The search offers the app, outside the app and a screenshot
+    When I search for "Дюна"
+    Then the strip offers the three places to look
+    When I look outside the app
+    Then the search looks outside the app for "Дюна"
+    When I look in a screenshot
+    Then a screenshot can be chosen
+    When I look in the app
+    Then the search page shows results for "Дюна"
+
   # One person, one spelling in the titles; the Ukrainian one comes from the
   # people store. Both spellings must find the same films and series.
   Scenario: A person is found under either spelling, films and series together
