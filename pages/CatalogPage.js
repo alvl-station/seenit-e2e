@@ -472,8 +472,9 @@ class CatalogPage {
   async accountUsername() {
     return (await this.page.locator('#accountBox .acc-name').innerText()).trim();
   }
-  /* The account's pages (2026-09-24; the swipe made five on 2026-09-25). Their tabs are the row the
-   * window lends the strip; the window's own copy is hidden while it does. */
+  /* The account's pages (2026-09-24; the swipe made five on 2026-09-25 and
+   * «Вигляд» six). Their tabs are the row the window lends the strip; the
+   * window's own copy is hidden while it does. */
   async accountPageNames() {
     return (await this.page.locator('.tabbar-window-row .tabbar-tab--window').allTextContents())
       .map(t => t.trim());
@@ -502,6 +503,9 @@ class CatalogPage {
   }
   get accountServices() { return this.page.locator('#accServices input[data-service]'); }
   get accountAchievements() { return this.page.locator('#accountBox .ach'); }
+  /* «Вигляд»: the ground the two bars stand on, one look chosen of several. */
+  get accountLooks() { return this.page.locator('#accLook .look-opt'); }
+  get accountChosenLook() { return this.page.locator('#accLook .look-opt.active'); }
   get accountAvatar() { return this.page.locator('#accAvatarBtn .acc-avatar'); }
   /** The lit tab closes its page. */
   async closeAccountPanel() {

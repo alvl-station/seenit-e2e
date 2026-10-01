@@ -261,6 +261,10 @@ Then('the services are listed', async ({ catalog }) => {
 Then('the achievements are listed', async ({ catalog }) => {
   await expect.poll(() => catalog.accountAchievements.count()).toBeGreaterThan(0);
 });
+Then('the looks are offered, one of them chosen', async ({ catalog }) => {
+  await expect.poll(() => catalog.accountLooks.count()).toBeGreaterThan(1);
+  await expect(catalog.accountChosenLook).toHaveCount(1);
+});
 Then('the account panel offers a password change', async ({ page }) => {
   const toggle = page.locator('#accPassToggle');
   await expect(toggle).toBeVisible();
