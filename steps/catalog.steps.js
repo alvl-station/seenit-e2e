@@ -399,3 +399,18 @@ Then('the new collection window is closed', async ({ ctx }) => {
 When('I switch the shelf to {string}', async ({ catalog }, id) => {
   await catalog.showShelf(id);
 });
+
+Then("the header's words are out", async ({ catalog }) => {
+  await expect(catalog.headerWordsOut).toHaveCount(1);
+  await expect(catalog.headerHandle).toHaveAttribute('aria-expanded', 'true');
+});
+Then("the header's words are tucked in", async ({ catalog }) => {
+  await expect(catalog.headerWordsTucked).toHaveCount(1);
+  await expect(catalog.headerHandle).toHaveAttribute('aria-expanded', 'false');
+});
+When("I press the header's handle", async ({ catalog }) => {
+  await catalog.pressHeaderHandle();
+});
+When('I scroll the shelf down', async ({ catalog }) => {
+  await catalog.scrollTo(600);
+});

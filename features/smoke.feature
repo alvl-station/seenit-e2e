@@ -68,3 +68,14 @@ Feature: Core smoke — login, search, movie modal
     And the modal shows either an autoplaying trailer or a poster
     When I close the modal
     Then the modal is closed
+
+  Scenario: The header's words tuck in under it and come back by the handle
+    # Owner's design, 2026-10-01: the words are a pane of glass that slides
+    # out from under the header. Read-only.
+    Then the header's words are out
+    When I press the header's handle
+    Then the header's words are tucked in
+    When I press the header's handle
+    Then the header's words are out
+    When I scroll the shelf down
+    Then the header's words are out
