@@ -1,5 +1,7 @@
 # CLAUDE.md — seenit-e2e
 
+**Writing or changing code here? Follow @CODE_STRUCTURE.md** — where features, steps and page objects go, the OOP rules for page objects, the 1000-line limit, the safety rules of a public repo, and how a change proves itself.
+
 ## What this is
 The Playwright smoke suite for **SeenIt** (a personal Ukrainian-language
 movie/TV tracker). This repo is stage 2 of the event-driven deploy chain:
