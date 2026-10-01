@@ -519,9 +519,6 @@ class CatalogPage {
   }
   get accountServices() { return this.page.locator('#accServices input[data-service]'); }
   get accountAchievements() { return this.page.locator('#accountBox .ach'); }
-  /* «Вигляд»: the ground the two bars stand on, one look chosen of several. */
-  get accountLooks() { return this.page.locator('#accLook .look-opt'); }
-  get accountChosenLook() { return this.page.locator('#accLook .look-opt.active'); }
   get accountAvatar() { return this.page.locator('#accAvatarBtn .acc-avatar'); }
   /** The lit tab closes its page. */
   async closeAccountPanel() {
