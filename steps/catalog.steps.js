@@ -197,56 +197,6 @@ Then('the movie modal is not open', async ({ catalog }) => {
   expect(await catalog.modalIsOpen()).toBe(false);
 });
 
-/* ---- marks (these write, into the test account's own lists) ---- */
-const countFor = async (catalog, tab) =>
-  tab === 'Дивився' ? await catalog.watchedTabCount() : await catalog.likedTabCount();
-
-Then('the {string} tab count matches the films it lists', async ({ catalog }, tab) => {
-  // The shelf is films or series, so the archive lists the mark's films of this shelf.
-  const count = await countFor(catalog, tab);
-  skipWithoutData(count === null, `nothing marked as "${tab}" right now`);
-  const expected = await catalog.archiveExpected(tab === 'Дивився' ? 'watched' : 'liked');
-  expect(expected).toBeGreaterThan(0);
-  await expect.poll(() => catalog.listedCount()).toBe(expected);
-});
-Given('I remember the {string} count', async ({ catalog, ctx }, tab) => {
-  ctx.counts = ctx.counts || {};
-  ctx.counts[tab] = await countFor(catalog, tab);
-});
-Given('I remember the title of the first card', async ({ catalog, ctx }) => {
-  ctx.title = await catalog.cardTitleText(0);
-});
-When('I toggle {string} on the first card', async ({ catalog, ctx }, which) => {
-  ctx.title = await catalog.cardTitleText(0);
-  ctx.marked.push({ title: ctx.title, which });
-  if (which === 'переглянуто') await catalog.toggleWatchedOnCard(0);
-  else await catalog.toggleLikedOnCard(0);
-});
-When('I toggle {string} on that film', async ({ catalog, ctx }, which) => {
-  ctx.marked = (ctx.marked || []).filter(m => !(m.title === ctx.title && m.which === which));
-  if (which === 'переглянуто') await catalog.toggleWatchedOnCardTitled(ctx.title);
-  else await catalog.toggleLikedOnCardTitled(ctx.title);
-});
-Then('that film is shown as watched', async ({ catalog, ctx }) => {
-  expect(await catalog.cardTitledIsWatched(ctx.title)).toBe(true);
-});
-When('I reload the catalog', async ({ catalog, page }) => {
-  await page.reload();
-  await catalog.waitForCatalogLoaded();
-});
-Then('the {string} count is one higher than remembered', async ({ catalog, ctx }, tab) => {
-  await expect.poll(() => countFor(catalog, tab)).toBe(((ctx.counts || {})[tab] || 0) + 1);
-});
-Then('the {string} count is still one higher than remembered', async ({ catalog, ctx }, tab) => {
-  await expect.poll(() => countFor(catalog, tab)).toBe(((ctx.counts || {})[tab] || 0) + 1);
-});
-Then('the {string} count is back to what I remembered', async ({ catalog, ctx }, tab) => {
-  await expect.poll(() => countFor(catalog, tab)).toBe((ctx.counts || {})[tab]);
-});
-Then('that title is listed', async ({ catalog, ctx }) => {
-  await expect.poll(() => catalog.indexOfCardTitled(ctx.title)).toBeGreaterThanOrEqual(0);
-});
-
 /* ---- account ---- */
 When('I open the account panel', async ({ catalog }) => {
   await catalog.openAccountPanel();

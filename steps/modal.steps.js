@@ -2,7 +2,7 @@
 // popovers, scroll-lock assertions. Selectors live in pages/ only.
 const { createBdd } = require('playwright-bdd');
 const { test, expect } = require('../support/fixtures');
-const { MovieModalPage } = require('../pages/MovieModalPage');
+const { modalOf } = require('../support/modal-of');
 const { AddModalPage } = require('../pages/AddModalPage');
 const { skipWithoutData } = require('../support/skips');
 const { Given, When, Then } = createBdd(test);
@@ -35,10 +35,6 @@ const pillPattern = names => new RegExp('^(' +
        .map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') +
   ')( \\(\\d+\\))?$');
 
-function modalOf(ctx, page) {
-  if (!ctx.modal) ctx.modal = new MovieModalPage(page);
-  return ctx.modal;
-}
 async function assertAnchored(pop, anchor) {
   const covers = !(pop.x + pop.width <= anchor.x || anchor.x + anchor.width <= pop.x ||
                    pop.y + pop.height <= anchor.y || anchor.y + anchor.height <= pop.y);

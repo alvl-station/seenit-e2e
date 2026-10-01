@@ -2,6 +2,8 @@
 // openModal()/closeModal() in src/app.js). The overlay is display:none by
 // default and only display:flex once `.open` is added, so visible/hidden
 // waits track that directly.
+const { MoviemeterPanel } = require('./MoviemeterPanel');
+
 class MovieModalPage {
   constructor(page) {
     this.page = page;
@@ -12,6 +14,8 @@ class MovieModalPage {
     // nothing at all, so the modal reads as opening empty.
     this.title = page.locator('#modalOverlay .film-title-text h2');
     this.closeButton = page.locator('.modal-close');
+    // The score under the tabs: how a film is marked since 2026-09-20.
+    this.meter = new MoviemeterPanel(page, '#modalOverlay');
   }
 
   async waitUntilOpen(timeout = 10000) {

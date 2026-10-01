@@ -1,10 +1,18 @@
 @marks
-Feature: Marking a film watched or recommended
+Feature: Marking a film by its score
+  A film is marked by the score given in its card (owner's ask,
+  2026-09-20): the shelf's cards carry no eye and no heart any more. The
+  meter under the card's tabs sets a number from 1.0 to 10.0, «Оцінити»
+  saves it, and the marks follow from it: any score means watched, 6.0 and
+  up also «Рекомендую», 8.0 and up also «Обовʼязково». «Не дивився» takes
+  the number and the marks off again.
+
   These scenarios write, into the test account's own lists only; the
   catalogue stays shared, so adding or deleting a film stays forbidden.
-  Every scenario removes its own mark again, by title: a watched film
-  leaves the default shelf at once, so "the first card" is another film
-  right after.
+  Every scenario clears its own score with «Не дивився», and the ctx
+  fixture clears it as well if a step fails first. The film is followed
+  by its key: a scored film leaves the default shelf at once, so "the
+  first film" is another film right after.
 
   The counts are read the way the account screen counts them; the archive
   («Архів» in the strip) is where a marked film is listed, and its three
@@ -15,52 +23,66 @@ Feature: Marking a film watched or recommended
   the @marks tag puts this file in its own Playwright project, which runs
   alone before the read-only projects start (playwright.config.js). Two of
   these running side by side made their counts race — one scenario's
-  toggle landing between another's "remember" and "compare" reads — and
-  a count scenario in another file raced the same way against a mark
-  being set here. A new scenario that marks, or counts, goes in this file.
+  mark landing between another's "remember" and "compare" reads — and a
+  count scenario in another file raced the same way against a mark being
+  set here. A new scenario that marks, or counts, goes in this file.
 
-  Scenario: Marking a film watched raises the count and keeps it reachable
+  Scenario: Scoring a film marks it watched, and «Не дивився» takes it back
     Given I remember the "Дивився" count
-    When I toggle "переглянуто" on the first card
-    Then the "Дивився" count is one higher than remembered
-    When I isolate the catalog to watched films
+    When I give the first film a score of "5.0"
+    Then the card shows the score "5.0"
+    And the "Дивився" count is one higher than remembered
+    When I close the modal
+    And I isolate the catalog to watched films
     Then that title is listed
     And that film is shown as watched
-    When I toggle "переглянуто" on that film
-    Then the "Дивився" count is back to what I remembered
+    When I open that film's card from the shelf
+    Then the card shows the score "5.0"
+    When I say I have not seen it
+    Then the card shows no score
+    And the "Дивився" count is back to what I remembered
 
-  Scenario: The heart turns the eye on — recommending also marks watched
+  Scenario: A recommending score also marks watched, and a lower one keeps only watched
     Given I remember the "Рекомендую" count
     And I remember the "Дивився" count
-    When I toggle "рекомендую" on the first card
-    Then the "Рекомендую" count is one higher than remembered
+    When I give the first film a score of "7.0"
+    Then the meter lights the "Рекомендую" badge
+    And the "Рекомендую" count is one higher than remembered
     And the "Дивився" count is one higher than remembered
-    When I isolate the catalog to watched films
+    When I close the modal
+    And I isolate the catalog to watched films
     And I narrow the archive to "Рекомендую"
     Then that title is listed
     And that film is shown as watched
-    When I toggle "рекомендую" on that film
+    When I open that film's card from the shelf
+    And I give that film a score of "5.0"
     Then the "Рекомендую" count is back to what I remembered
     And the "Дивився" count is still one higher than remembered
-    When I narrow the archive to "Усі"
-    And I toggle "переглянуто" on that film
+    When I say I have not seen it
     Then the "Дивився" count is back to what I remembered
+    When I close the modal
+    Then that title is not listed
 
   Scenario: The archive lists exactly what the watched count claims
     Given I remember the "Дивився" count
-    When I toggle "переглянуто" on the first card
+    When I give the first film a score of "5.0"
+    And I close the modal
     And I isolate the catalog to watched films
     Then the "Дивився" tab count matches the films it lists
-    When I toggle "переглянуто" on that film
+    When I open that film's card from the shelf
+    And I say I have not seen it
     Then the "Дивився" count is back to what I remembered
 
-  Scenario: A mark survives a page reload
+  Scenario: A score, and taking it off, both survive a page reload
     Given I remember the "Дивився" count
-    When I toggle "переглянуто" on the first card
+    When I give the first film a score of "5.0"
     And I reload the catalog
     Then the "Дивився" count is one higher than remembered
     When I isolate the catalog to watched films
-    And I toggle "переглянуто" on that film
+    And I open that film's card from the shelf
+    Then the card shows the score "5.0"
+    When I say I have not seen it
+    And I reload the catalog
     Then the "Дивився" count is back to what I remembered
 
   # Moved from toggles.feature (2026-09-27): these read the counts, so they
