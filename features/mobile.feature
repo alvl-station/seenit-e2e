@@ -5,13 +5,22 @@ Feature: Phone behaviour — portrait and landscape
   the app, since 2026-09-29; it is only ever opened and closed — saving is
   forbidden (REQ T-4).
 
+  The lock HOLDS the page, it does not pin it (seenit-frontend #526,
+  2026-09-27): the root is overflow hidden and the body stays in the flow.
+  Pinning the body with position: fixed laid the home-screen app out short
+  (a grey band under the strip), and overflow on the body as well made it a
+  scroller of its own and took the sticky header off the top.
+
   @phone-portrait
-  Scenario: The movie modal locks background scroll and restores the position
+  Scenario: The movie modal holds the page still and gives the position back
     Given I scroll the catalog to offset 400
     When I open a card visible at the current offset
-    Then background scroll is locked via position fixed
+    Then the page is held by its root, and the body is not pinned
+    When I drag the page up with a finger
+    Then the page behind the card has not moved
     When I close the modal
     Then scroll is unlocked and the position is restored
+    And the page scrolls again under a finger
 
   @phone-portrait
   Scenario: The search outside the app fits the screen and leaves scroll free

@@ -2,7 +2,7 @@
 // popovers, scroll-lock assertions. Selectors live in pages/ only.
 const { createBdd } = require('playwright-bdd');
 const { test, expect } = require('../support/fixtures');
-const { MovieModalPage } = require('../pages/MovieModalPage');
+const { modalOf } = require('../support/modal-of');
 const { AddModalPage } = require('../pages/AddModalPage');
 const { skipWithoutData } = require('../support/skips');
 const { Given, When, Then } = createBdd(test);
@@ -35,10 +35,6 @@ const pillPattern = names => new RegExp('^(' +
        .map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') +
   ')( \\(\\d+\\))?$');
 
-function modalOf(ctx, page) {
-  if (!ctx.modal) ctx.modal = new MovieModalPage(page);
-  return ctx.modal;
-}
 async function assertAnchored(pop, anchor) {
   const covers = !(pop.x + pop.width <= anchor.x || anchor.x + anchor.width <= pop.x ||
                    pop.y + pop.height <= anchor.y || anchor.y + anchor.height <= pop.y);
@@ -55,6 +51,10 @@ When('I open the first card', async ({ catalog, ctx, page }) => {
   await modalOf(ctx, page).waitUntilOpen();
 });
 When('I open a card visible at the current offset', async ({ catalog, ctx, page }) => {
+  // Where the page stands the moment the card opens: what closing it must
+  // give back. Read here rather than when the offset was set, because the
+  // shelf may still be settling (a late batch, scroll anchoring) in between.
+  ctx.scrollBefore = await catalog.scrollY();
   const clicked = await catalog.openVisibleCard();
   test.skip(!clicked, 'no card fully visible at this scroll offset');
   await modalOf(ctx, page).waitUntilOpen();
@@ -140,9 +140,24 @@ Then('the popover disappears', async ({ ctx, page }) => {
 });
 
 /* ---- scroll lock ---- */
-Then('background scroll is locked via position fixed', async ({ catalog, page }) => {
+Then('the page is held by its root, and the body is not pinned', async ({ catalog, ctx }) => {
   expect(await catalog.bodyIsScrollLocked()).toBe(true);
-  expect(await page.evaluate(() => getComputedStyle(document.body).position)).toBe('fixed');
+  ctx.scrollHeld = await catalog.scrollY();
+  const hold = await catalog.scrollHold();
+  expect(hold.rootHeld, 'the root is not overflow hidden under the open card').toBe(true);
+  expect(hold.bodyPosition, 'the body is pinned again').not.toBe('fixed');
+  expect(hold.bodyOverflowY, 'the body holds its own overflow: it becomes a scroller').not.toBe('hidden');
+});
+When('I drag the page up with a finger', async ({ catalog }) => {
+  await catalog.dragPageUp();
+});
+Then('the page behind the card has not moved', async ({ catalog, ctx }) => {
+  expect(Math.abs(await catalog.scrollY() - ctx.scrollHeld)).toBeLessThanOrEqual(2);
+});
+Then('the page scrolls again under a finger', async ({ catalog, ctx }) => {
+  await catalog.dragPageUp();
+  // Up the screen is down the page: the free page moves on past where it was.
+  await expect.poll(() => catalog.scrollY()).toBeGreaterThan(ctx.scrollBefore + 50);
 });
 Then('background scroll is locked', async ({ catalog }) => {
   expect(await catalog.bodyIsScrollLocked()).toBe(true);
@@ -302,13 +317,32 @@ Given('a series card with seasons is open', async ({ catalog, ctx, page }) => {
   expect(await modal.waitForSeasons(), 'the series has seasons on file but the card drew none').toBe(true);
 });
 Then('the seasons tab counts the seasons in square brackets', async ({ ctx, page }) => {
-  await expect(modalOf(ctx, page).tabButton('seasons')).toHaveText(/^Сезони \[\d+\]$/);
-});
-Then('every season is shown with its episodes, without pressing anything', async ({ ctx, page }) => {
   const modal = modalOf(ctx, page);
-  const blocks = modal.seasonBlocks();
-  expect(await blocks.count(), 'no season drawn').toBeGreaterThan(0);
-  await expect(modal.seasonEpisodes().first()).toBeVisible();
-  // Nothing to open or choose: every season is laid out already.
-  await expect(modal.seasonsBlock().locator('.season-drop, [aria-haspopup]')).toHaveCount(0);
+  await expect(modal.tabButton('seasons')).toHaveText(/^Сезони \[\d+\]$/);
+  // The number is the numbered seasons the tab lists, the specials not among them.
+  const label = await modal.tabButton('seasons').textContent();
+  expect(Number(/\[(\d+)\]/.exec(label)[1])).toBe(await modal.numberedSeasonBlocks().count());
+});
+Then('every season is listed by name, shut', async ({ ctx, page }) => {
+  const modal = modalOf(ctx, page);
+  const n = await modal.seasonBlocks().count();
+  expect(n, 'no season drawn').toBeGreaterThan(0);
+  for (let i = 0; i < n; i++) await expect(modal.seasonName(i)).not.toBeEmpty();
+  expect(await modal.openSeasonCount(), 'a season stands open before anything was pressed').toBe(0);
+});
+When('I open a season', async ({ ctx, page }) => {
+  const modal = modalOf(ctx, page);
+  ctx.season = await modal.firstSeasonWithEpisodes();
+  skipWithoutData(ctx.season === -1, 'the series has seasons on file but no episodes listed yet');
+  await modal.pressSeasonOpener(ctx.season);
+});
+Then('that season\'s episodes are shown, and only that season\'s', async ({ ctx, page }) => {
+  const modal = modalOf(ctx, page);
+  await expect(modal.seasonEpisodes(ctx.season)).toBeVisible();
+  await expect(modal.seasonEpisodeRows(ctx.season).first()).toBeVisible();
+  await expect(modal.seasonOpener(ctx.season)).toHaveAttribute('aria-expanded', 'true');
+  expect(await modal.openSeasonCount()).toBe(1);
+});
+When('I shut that season', async ({ ctx, page }) => {
+  await modalOf(ctx, page).pressSeasonOpener(ctx.season);
 });

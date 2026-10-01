@@ -11,14 +11,15 @@
 // What may be changed, and what may not: kino/movies is one catalog shared
 // by every account, so adding, editing and deleting films stay forbidden
 // (seenit-frontend REQUIREMENTS T-4). Marks are per-account now, so
-// toggling "переглянуто"/"рекомендую" is allowed — CI writes into its own
-// uid's subtree and the database rules refuse anything else.
+// scoring a film (which is what marks it since 2026-09-20) is allowed — CI
+// writes into its own account and the Worker refuses anything else.
 // The base `test` comes from playwright-bdd (its bdd-enabled extension of
 // Playwright's), so createBdd() in steps/ accepts our extended version.
 const { test: bddBase } = require('playwright-bdd');
 const { expect } = require('@playwright/test');
 const { LoginPage } = require('../pages/LoginPage');
 const { CatalogPage } = require('../pages/CatalogPage');
+const { MovieModalPage } = require('../pages/MovieModalPage');
 
 const test = bddBase.extend({
   catalog: async ({ page }, use) => {
@@ -43,6 +44,7 @@ const test = bddBase.extend({
     });
     // Already authenticated: the 'setup' project signed in once and saved
     // the session (support/auth.setup.js), so this just opens the catalog.
+    const account = catalog.accountAnswered();
     await catalog.goto();
     // #loginOverlay is visible on load by DESIGN and only hides once
     // Firebase's onAuthStateChanged fires with the restored user — an
@@ -55,11 +57,8 @@ const test = bddBase.extend({
       throw new Error('Not authenticated — the setup project should have signed in. Session expired, TEST_USER is wrong, or Firebase is throttling the account.');
     }
     await catalog.waitForCatalogLoaded();
-    // Marks arrive on their own listener, later than the catalog. Without
-    // this wait a scenario's first "remember the count" read races them —
-    // it remembers null against a chip that fills in a moment later.
-    await page.waitForFunction(() => (window.__marksLoadedCount || 0) >= 2, null, { timeout: 10000 })
-      .catch(() => { /* older bundle without the beacon: proceed as before */ });
+    await catalog.waitForMarksLoaded();
+    await account;
     await use(catalog);
   },
 
@@ -74,32 +73,35 @@ const test = bddBase.extend({
   // means and turns into flakiness nobody can trace back. Two such marks
   // had already accumulated from one failing run.
   //
-  // So anything a step marked is recorded here and undone whatever happens.
+  // So every film a step scored is recorded here ({ key, title }) and
+  // cleared whatever happens, the way a person clears it: the page loaded
+  // afresh (whatever overlay the failure left open), the film found in the
+  // archive, its card opened and «Не дивився» pressed — the number and the
+  // marks both go — and the marks batch sent before the page is let go.
   ctx: async ({ page }, use) => {
     const ctx = { marked: [] };
     await use(ctx);
-    for (const { title, which } of ctx.marked) {
+    for (const { key, title } of ctx.marked) {
       try {
         const catalog = new CatalogPage(page);
-        // The film may be hidden by the watched filter — isolate first, and
-        // only unmark if it is genuinely still marked.
-        if (await catalog.indexOfCardTitled(title) === -1) await catalog.tapWatchedToggle();
-        if (await catalog.indexOfCardTitled(title) === -1) continue;
-        if (which === 'переглянуто' && !(await catalog.cardTitledIsWatched(title))) continue;
-        if (which === 'переглянуто') await catalog.toggleWatchedOnCardTitled(title);
-        else {
-          await catalog.toggleLikedOnCardTitled(title);
-          // The heart turned the eye on when this mark was made — taking
-          // the heart off leaves watched behind, so clear that too.
-          if (await catalog.cardTitledIsWatched(title)) await catalog.toggleWatchedOnCardTitled(title);
-        }
+        const modal = new MovieModalPage(page);
+        await catalog.open();
+        // A batch the failure left on the device is replayed on load; send
+        // it before deciding the film is clear.
+        await catalog.saveMarks();
+        if (!(await catalog.filmIsMarked(key))) continue;
+        await catalog.openWholeArchive();
+        if (!(await catalog.openCardWithKey(key))) throw new Error('the archive does not list it');
+        await modal.waitUntilOpen();
+        await modal.meter.clear();
+        await catalog.saveMarks();
       } catch (err) {
         // Best-effort: a teardown failure must not mask the real one — but
         // it must not vanish either, or a mark left behind is traced to
         // nothing. The annotation shows on the test in the report.
         test.info().annotations.push({
           type: 'teardown-failed',
-          description: `could not unmark "${title}" (${which}): ${String(err && err.message || err).split('\n')[0]}`,
+          description: `could not clear "${title}" (${key}): ${String(err && err.message || err).split('\n')[0]}`,
         });
       }
     }

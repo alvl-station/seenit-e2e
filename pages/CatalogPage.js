@@ -8,7 +8,10 @@ class CatalogPage {
   constructor(page) {
     this.page = page;
     this.main = page.locator('#main');
-    this.cards = page.locator('.card');
+    // The SHELF's cards. Rails, the franchise row and search results wear
+    // the same `.card` since 2026-09-30 (seenit-frontend #543), so a bare
+    // `.card` would count a collection rail as the shelf.
+    this.cards = page.locator('#main .card');
     this.emptyMessage = page.locator('#main .empty-msg');
   }
 
@@ -28,6 +31,54 @@ class CatalogPage {
     );
     await this.page.waitForFunction(() => window.__catalogueLoaded === true, null, { timeout })
       .catch(() => { /* older bundle without the beacon */ });
+    // The boot mark lifts once the first screen's posters are drawn
+    // (finishBoot in 02-auth.js), and until it does it stands over the
+    // shelf: a tap on a card lands on the splash, and the header has not
+    // taken its height yet.
+    await this.page.waitForFunction(() => {
+      const splash = document.getElementById('bootSplash');
+      return !splash || splash.hidden || splash.classList.contains('out');
+    }, null, { timeout });
+  }
+  /**
+   * Resolves once the account's own answer (/library/me) has landed. It
+   * re-draws a film card that is open at that moment (loadMe in
+   * 06-overlays.js), and the meter in it starts over at 5.5, dropping a
+   * number dialled and not yet saved — seen on the live app as a 5.0 that
+   * went in as 5.5. Start it BEFORE the page loads, await it after.
+   */
+  accountAnswered(timeout = 20000) {
+    return this.page.waitForResponse(res => res.request().method() === 'GET'
+      && new URL(res.url()).pathname.endsWith('/library/me'), { timeout })
+      .then(res => res.finished())
+      // The answer is applied a task after its body lands.
+      .then(() => this.page.evaluate(() => new Promise(done => setTimeout(done, 50))))
+      .catch(() => { /* no answer: nothing will re-draw the card either */ });
+  }
+  /** The page loaded again, and waited for until it has stopped arriving. */
+  async reload() {
+    const account = this.accountAnswered();
+    await this.page.reload();
+    await this.waitForCatalogLoaded();
+    await this.waitForMarksLoaded();
+    await account;
+  }
+  /** The app opened afresh at the shelf, waited for the same way. */
+  async open(path = '') {
+    const account = this.accountAnswered();
+    await this.goto(path);
+    await this.waitForCatalogLoaded();
+    await this.waitForMarksLoaded();
+    await account;
+  }
+  /**
+   * Marks arrive on their own listener, later than the catalog. Without this
+   * wait a first "remember the count" read races them — it remembers null
+   * against a chip that fills in a moment later.
+   */
+  async waitForMarksLoaded(timeout = 10000) {
+    await this.page.waitForFunction(() => (window.__marksLoadedCount || 0) >= 2, null, { timeout })
+      .catch(() => { /* older bundle without the beacon: proceed as before */ });
   }
 
   async cardCount() {
@@ -158,7 +209,7 @@ class CatalogPage {
     return this.yearOption(key).evaluate(el => el.classList.contains('active'));
   }
   async visibleCardYears() {
-    return this.page.locator('.card .card-meta-row .year').evaluateAll(els =>
+    return this.cards.locator('.card-meta-row .year').evaluateAll(els =>
       els.map(el => Number((/(\d{4})/.exec(el.textContent || '') || [])[1])).filter(Boolean));
   }
   async providerFilterOffered() {
@@ -181,11 +232,27 @@ class CatalogPage {
     for (let i = 0; i < n; i++) {
       const box = await this.cards.nth(i).boundingBox();
       if (box && box.y >= top && box.y + box.height <= bottom) {
-        await this.cards.nth(i).click();
+        await this.pressAt(box);
         return true;
       }
     }
     return false;
+  }
+  /** A touch device: what the phone projects emulate (hover: none). */
+  async isTouch() {
+    return this.page.evaluate(() => matchMedia('(hover: none)').matches);
+  }
+  /**
+   * A tap (a click without touch) at the middle of a box, where it stands.
+   * Not locator.click(): its actionability scroll obeys the root's
+   * scroll-behavior: smooth and was seen gliding the page 231px before the
+   * card opened — the very position a lock scenario then measures.
+   */
+  async pressAt(box) {
+    const x = box.x + box.width / 2;
+    const y = box.y + box.height / 2;
+    if (await this.isTouch()) await this.page.touchscreen.tap(x, y);
+    else await this.page.mouse.click(x, y);
   }
   cardPoster(index = 0) { return this.cards.nth(index).locator('.poster'); }
   cardTitle(index = 0) { return this.cards.nth(index).locator('h3'); }
@@ -227,7 +294,7 @@ class CatalogPage {
   async revealCardWhere(predicate, drawnSelector) {
     if (drawnSelector) {
       const drawn = await this.page.evaluate(sel => {
-        const cards = [...document.querySelectorAll('.card')];
+        const cards = [...document.querySelectorAll('#main .card')];
         return cards.findIndex(c => c.querySelector(sel));
       }, drawnSelector);
       if (drawn !== -1) return drawn;
@@ -256,7 +323,7 @@ class CatalogPage {
     if (!found) return -1;
     const drawnMatch = () => this.page.evaluate(([sel, ids]) => {
       const want = new Set(ids);
-      const cards = [...document.querySelectorAll('.card')];
+      const cards = [...document.querySelectorAll('#main .card')];
       if (sel) return cards.findIndex(c => c.querySelector(sel));
       return cards.findIndex(c => want.has(c.getAttribute('data-id')));
     }, [drawnSelector, found.ids]);
@@ -297,7 +364,7 @@ class CatalogPage {
   get deleteConfirmButton() { return this.page.locator('#deleteConfirmBtn'); }
   get deleteCancelButton() { return this.page.locator('#deleteCancelBtn'); }
   async deleteBarIsVisible() { return this.deleteBar.isVisible(); }
-  async selectedCount() { return this.page.locator('.card.is-selected').count(); }
+  async selectedCount() { return this.page.locator('#main .card.is-selected').count(); }
   async modalIsOpen() {
     return this.page.locator('#modalOverlay.open').isVisible().catch(() => false);
   }
@@ -313,6 +380,13 @@ class CatalogPage {
     await this.page.waitForFunction(was => document.getElementById('watchedToggle').classList.contains('active') !== was, before);
   }
   async openArchive() { if (!(await this.archiveIsOpen())) await this.tapWatchedToggle(); }
+  /** The archive with nothing narrowed: «Усі» lit. */
+  async openWholeArchive() {
+    await this.openArchive();
+    if (await this.markWordActive('all')) return;
+    await this.tapMarkWord('all');
+    await expect.poll(() => this.markWordActive('all')).toBe(true);
+  }
   /** One of «Усі», «Рекомендую», «Обовʼязково»: the row the archive lends the strip. */
   markWord(mark) {
     const text = { all: 'Усі', liked: 'Рекомендую', must: 'Обовʼязково' }[mark];
@@ -326,35 +400,62 @@ class CatalogPage {
     return this.page.locator(`.mark-word[data-mark="${mark}"]`).evaluate(el => el.classList.contains('active'));
   }
 
-  /* ---- per-card marks ---- */
-  cardWatchedToggle(index = 0) { return this.cards.nth(index).locator('[data-act="watch"]'); }
-  cardLikedToggle(index = 0) { return this.cards.nth(index).locator('[data-act="like"]'); }
-  async toggleWatchedOnCard(index = 0) { await this.cardWatchedToggle(index).click(); }
-  async toggleLikedOnCard(index = 0) { await this.cardLikedToggle(index).click(); }
-  async cardIsWatched(index = 0) {
-    return this.cards.nth(index).evaluate(el => el.classList.contains('is-watched'));
-  }
+  /* ---- one film on the shelf, by its key ----
+   * A film is followed by its key (data-key, «movie:603»), not its place: a
+   * scored film leaves the default shelf at once, and the archive orders by
+   * its own rules. The marks themselves are given in the film card's meter
+   * (MovieModalPage.meter) — the shelf's cards carry no toggles since
+   * 2026-09-20. */
   async cardTitleText(index = 0) {
     return (await this.cardTitle(index).textContent()).trim();
   }
-  // By title, not index: a marked film leaves the default view at once.
-  cardTitled(title) {
-    return this.cards.filter({ has: this.page.locator('h3', { hasText: title }) }).first();
+  async cardKey(index = 0) {
+    return this.cards.nth(index).getAttribute('data-key');
   }
-  async toggleWatchedOnCardTitled(title) {
-    await this.cardTitled(title).locator('[data-act="watch"]').click();
+  cardWithKey(key) { return this.page.locator(`#main .card[data-key="${key}"]`); }
+  /**
+   * Lets the shelf draw batches until the film's card is drawn; its index,
+   * or -1 when the shelf runs out (or time does) without it.
+   */
+  async revealCardWithKey(key, timeout = 12_000) {
+    const index = () => this.page.evaluate(
+      k => [...document.querySelectorAll('#main .card')].findIndex(c => c.getAttribute('data-key') === k), key);
+    let idx = -1;
+    await expect(async () => {
+      idx = await index();
+      if (idx !== -1) return;
+      const sentinel = this.page.locator('#renderSentinel');
+      if (!(await sentinel.count())) return; // nothing left to draw
+      await sentinel.scrollIntoViewIfNeeded();
+      throw new Error('the card is not drawn yet');
+    }).toPass({ intervals: [150], timeout }).catch(() => { /* ran out of time: -1 */ });
+    return idx;
   }
-  async toggleLikedOnCardTitled(title) {
-    await this.cardTitled(title).locator('[data-act="like"]').click();
+  /** Opens the film's card from the shelf; false when the shelf does not list it. */
+  async openCardWithKey(key) {
+    if (await this.revealCardWithKey(key) === -1) return false;
+    await this.cardWithKey(key).click();
+    return true;
   }
-  async cardTitledIsWatched(title) {
-    return this.cardTitled(title).evaluate(el => el.classList.contains('is-watched'));
+  async cardWithKeyIsWatched(key) {
+    return this.cardWithKey(key).evaluate(el => el.classList.contains('is-watched'));
   }
-  async indexOfCardTitled(title) {
-    return this.page.evaluate(
-      t => [...document.querySelectorAll('.card')].findIndex(c => c.querySelector('h3').textContent.trim() === t),
-      title,
-    );
+  /** Whether the account still holds anything on the film: a mark or a score. */
+  async filmIsMarked(key) {
+    return this.page.evaluate(k => watched.has(k) || liked.has(k) || must.has(k)
+      || (typeof scores === 'object' && scores !== null && scores[k] != null), key);
+  }
+  /**
+   * Sends the marks the app is holding. «Не дивився» queues its marks in a
+   * batch that leaves after five idle minutes or when the page is hidden
+   * (flushMarks in 10-marks-and-events.js); a scenario that ends sooner
+   * would leave them on the device and the mark on the server. This is the
+   * flush leaving the page performs, done now: flushMarks answers true once
+   * nothing is held any more, and is asked again until it does.
+   */
+  async saveMarks() {
+    await expect.poll(() => this.page.evaluate(() => flushMarks()),
+      { message: 'the marks batch did not leave the device', intervals: [500, 1000, 2000] }).toBe(true);
   }
   /** The counts live on the account screen now; read the way the app counts them. */
   async markCount(which) {
@@ -387,8 +488,9 @@ class CatalogPage {
   async accountUsername() {
     return (await this.page.locator('#accountBox .acc-name').innerText()).trim();
   }
-  /* The account's pages (2026-09-24; the swipe made five on 2026-09-25). Their tabs are the row the
-   * window lends the strip; the window's own copy is hidden while it does. */
+  /* The account's pages (2026-09-24; the swipe made five on 2026-09-25 and
+   * «Вигляд» six). Their tabs are the row the window lends the strip; the
+   * window's own copy is hidden while it does. */
   async accountPageNames() {
     return (await this.page.locator('.tabbar-window-row .tabbar-tab--window').allTextContents())
       .map(t => t.trim());
@@ -417,6 +519,9 @@ class CatalogPage {
   }
   get accountServices() { return this.page.locator('#accServices input[data-service]'); }
   get accountAchievements() { return this.page.locator('#accountBox .ach'); }
+  /* «Вигляд»: the ground the two bars stand on, one look chosen of several. */
+  get accountLooks() { return this.page.locator('#accLook .look-opt'); }
+  get accountChosenLook() { return this.page.locator('#accLook .look-opt.active'); }
   get accountAvatar() { return this.page.locator('#accAvatarBtn .acc-avatar'); }
   /** The lit tab closes its page. */
   async closeAccountPanel() {
@@ -456,14 +561,65 @@ class CatalogPage {
   }
 
   /* ---- page scroll state ---- */
+  /** Instantly: the root's scroll-behavior: smooth would otherwise still be travelling when read. */
   async scrollTo(y) {
-    await this.page.evaluate(v => window.scrollTo(0, v), y);
+    await this.page.evaluate(v => window.scrollTo({ top: v, left: 0, behavior: 'instant' }), y);
   }
   async scrollY() {
     return this.page.evaluate(() => window.scrollY);
   }
+  /** The app's own word for «something holds the page»: on the body and the root. */
   async bodyIsScrollLocked() {
     return this.page.evaluate(() => document.body.classList.contains('scroll-locked'));
+  }
+  /**
+   * How the lock holds the page (PR #526, 2026-09-27): the ROOT is held with
+   * overflow hidden and the body stays in the flow — never pinned with
+   * position: fixed, which laid the home-screen app out short, and never
+   * overflow-hidden itself, which made the body a scroller of its own and
+   * took the sticky header off the top.
+   */
+  async scrollHold() {
+    return this.page.evaluate(() => {
+      const root = getComputedStyle(document.documentElement);
+      const body = getComputedStyle(document.body);
+      return {
+        rootHeld: document.documentElement.classList.contains('scroll-locked')
+          && root.overflowY === 'hidden',
+        bodyPosition: body.position,
+        bodyOverflowY: body.overflowY,
+      };
+    });
+  }
+  /**
+   * Tries to scroll the page the way a person does: a finger dragged up the
+   * tab strip (the wheel over it where there is no touch). Real input on
+   * purpose — the lock is overflow hidden, which stops a person and never a
+   * script's scrollTo.
+   *
+   * The strip, because it is the part of the page that stays on screen under
+   * an open card, and a drag on it reaches the document: measured on the
+   * live app, the same drag moved an unheld page by 300px and a held one by
+   * none. A drag on the card itself proves nothing — the card scrolls its
+   * own content and contains the rest (overscroll-behavior: contain), held
+   * root or not.
+   */
+  async dragPageUp(distance = 300) {
+    const strip = await this.page.locator('#tabbar').boundingBox();
+    const x = Math.round(strip.x + strip.width / 2);
+    const y = Math.round(strip.y + strip.height / 2);
+    if (await this.isTouch()) {
+      const cdp = await this.page.context().newCDPSession(this.page);
+      await cdp.send('Input.synthesizeScrollGesture', {
+        x, y, yDistance: -distance, gestureSourceType: 'touch', speed: 1200,
+      });
+      await cdp.detach();
+    } else {
+      await this.page.mouse.move(x, y);
+      await this.page.mouse.wheel(0, distance);
+    }
+    // Let any momentum land before the position is read.
+    await this.page.waitForTimeout(300);
   }
   async hasHorizontalOverflow() {
     return this.page.evaluate(() =>
