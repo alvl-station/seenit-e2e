@@ -109,11 +109,28 @@ class MovieModalPage {
   }
 
   /* ---- a series' seasons ----
-   * Filled by a request after the card opens, and left hidden when the
-   * series has no season data on file. Read-only here: nothing is marked. */
+   * On a tab of their own («Сезони [N]»), filled by a request after the card
+   * opens and left hidden when the series has no season data on file. Every
+   * season is a row that names itself and comes SHUT (owner's ask,
+   * 2026-09-21): its caret opens the episodes. Read-only here: the caret
+   * only unfolds; the season's eye and the episodes are never pressed. */
   seasonsBlock() { return this.page.locator('#modalOverlay #filmSeasons'); }
   seasonBlocks() { return this.seasonsBlock().locator('.season-now'); }
-  seasonEpisodes() { return this.seasonsBlock().locator('.season-eps'); }
+  /** The numbered seasons, the specials (season 0) not among them. */
+  numberedSeasonBlocks() { return this.seasonsBlock().locator('.season-now:not([data-season="0"])'); }
+  seasonOpener(i) { return this.seasonBlocks().nth(i).locator('[data-season-open]'); }
+  seasonName(i) { return this.seasonBlocks().nth(i).locator('.season-name'); }
+  seasonEpisodes(i) { return this.seasonBlocks().nth(i).locator('.season-eps'); }
+  seasonEpisodeRows(i) { return this.seasonEpisodes(i).locator('.season-ep'); }
+  /** How many seasons stand open, their episodes in sight. */
+  async openSeasonCount() {
+    return this.seasonsBlock().locator('.season-eps:not([hidden])').count();
+  }
+  /** Index of the first season that has episodes to show, or -1. */
+  async firstSeasonWithEpisodes() {
+    return this.seasonBlocks().evaluateAll(els => els.findIndex(el => el.querySelector('.season-eps')));
+  }
+  async pressSeasonOpener(i) { await this.seasonOpener(i).click(); }
   /** True once the block is shown; false when it stays hidden past `timeout`. */
   async waitForSeasons(timeout = 8000) {
     await this.openTab('seasons');

@@ -298,13 +298,32 @@ Given('a series card with seasons is open', async ({ catalog, ctx, page }) => {
   expect(await modal.waitForSeasons(), 'the series has seasons on file but the card drew none').toBe(true);
 });
 Then('the seasons tab counts the seasons in square brackets', async ({ ctx, page }) => {
-  await expect(modalOf(ctx, page).tabButton('seasons')).toHaveText(/^Сезони \[\d+\]$/);
-});
-Then('every season is shown with its episodes, without pressing anything', async ({ ctx, page }) => {
   const modal = modalOf(ctx, page);
-  const blocks = modal.seasonBlocks();
-  expect(await blocks.count(), 'no season drawn').toBeGreaterThan(0);
-  await expect(modal.seasonEpisodes().first()).toBeVisible();
-  // Nothing to open or choose: every season is laid out already.
-  await expect(modal.seasonsBlock().locator('.season-drop, [aria-haspopup]')).toHaveCount(0);
+  await expect(modal.tabButton('seasons')).toHaveText(/^Сезони \[\d+\]$/);
+  // The number is the numbered seasons the tab lists, the specials not among them.
+  const label = await modal.tabButton('seasons').textContent();
+  expect(Number(/\[(\d+)\]/.exec(label)[1])).toBe(await modal.numberedSeasonBlocks().count());
+});
+Then('every season is listed by name, shut', async ({ ctx, page }) => {
+  const modal = modalOf(ctx, page);
+  const n = await modal.seasonBlocks().count();
+  expect(n, 'no season drawn').toBeGreaterThan(0);
+  for (let i = 0; i < n; i++) await expect(modal.seasonName(i)).not.toBeEmpty();
+  expect(await modal.openSeasonCount(), 'a season stands open before anything was pressed').toBe(0);
+});
+When('I open a season', async ({ ctx, page }) => {
+  const modal = modalOf(ctx, page);
+  ctx.season = await modal.firstSeasonWithEpisodes();
+  skipWithoutData(ctx.season === -1, 'the series has seasons on file but no episodes listed yet');
+  await modal.pressSeasonOpener(ctx.season);
+});
+Then('that season\'s episodes are shown, and only that season\'s', async ({ ctx, page }) => {
+  const modal = modalOf(ctx, page);
+  await expect(modal.seasonEpisodes(ctx.season)).toBeVisible();
+  await expect(modal.seasonEpisodeRows(ctx.season).first()).toBeVisible();
+  await expect(modal.seasonOpener(ctx.season)).toHaveAttribute('aria-expanded', 'true');
+  expect(await modal.openSeasonCount()).toBe(1);
+});
+When('I shut that season', async ({ ctx, page }) => {
+  await modalOf(ctx, page).pressSeasonOpener(ctx.season);
 });
