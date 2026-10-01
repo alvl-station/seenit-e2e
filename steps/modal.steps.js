@@ -51,6 +51,10 @@ When('I open the first card', async ({ catalog, ctx, page }) => {
   await modalOf(ctx, page).waitUntilOpen();
 });
 When('I open a card visible at the current offset', async ({ catalog, ctx, page }) => {
+  // Where the page stands the moment the card opens: what closing it must
+  // give back. Read here rather than when the offset was set, because the
+  // shelf may still be settling (a late batch, scroll anchoring) in between.
+  ctx.scrollBefore = await catalog.scrollY();
   const clicked = await catalog.openVisibleCard();
   test.skip(!clicked, 'no card fully visible at this scroll offset');
   await modalOf(ctx, page).waitUntilOpen();
@@ -136,9 +140,24 @@ Then('the popover disappears', async ({ ctx, page }) => {
 });
 
 /* ---- scroll lock ---- */
-Then('background scroll is locked via position fixed', async ({ catalog, page }) => {
+Then('the page is held by its root, and the body is not pinned', async ({ catalog, ctx }) => {
   expect(await catalog.bodyIsScrollLocked()).toBe(true);
-  expect(await page.evaluate(() => getComputedStyle(document.body).position)).toBe('fixed');
+  ctx.scrollHeld = await catalog.scrollY();
+  const hold = await catalog.scrollHold();
+  expect(hold.rootHeld, 'the root is not overflow hidden under the open card').toBe(true);
+  expect(hold.bodyPosition, 'the body is pinned again').not.toBe('fixed');
+  expect(hold.bodyOverflowY, 'the body holds its own overflow: it becomes a scroller').not.toBe('hidden');
+});
+When('I drag the page up with a finger', async ({ catalog }) => {
+  await catalog.dragPageUp();
+});
+Then('the page behind the card has not moved', async ({ catalog, ctx }) => {
+  expect(Math.abs(await catalog.scrollY() - ctx.scrollHeld)).toBeLessThanOrEqual(2);
+});
+Then('the page scrolls again under a finger', async ({ catalog, ctx }) => {
+  await catalog.dragPageUp();
+  // Up the screen is down the page: the free page moves on past where it was.
+  await expect.poll(() => catalog.scrollY()).toBeGreaterThan(ctx.scrollBefore + 50);
 });
 Then('background scroll is locked', async ({ catalog }) => {
   expect(await catalog.bodyIsScrollLocked()).toBe(true);
