@@ -511,6 +511,13 @@ class CatalogPage {
   get accountSwipeDeck() { return this.page.locator('#accountBox #swipeDeck'); }
   get watchingPage() { return this.page.locator('#watchingSheet'); }
   /** A word in the header's row, pressed by what it says. */
+  /* The tabs pane under the header: out, or tucked in behind it. A row that
+   * the handle opened stays out while the shelf scrolls. */
+  get headerHandle() { return this.page.locator('#tabsToggle'); }
+  get headerWordsOut() { return this.page.locator('header:not(.tabs-tucked) #topbarTabs'); }
+  get headerWordsTucked() { return this.page.locator('header.tabs-tucked #topbarTabs'); }
+  async pressHeaderHandle() { await this.headerHandle.click(); }
+
   async pressHeaderWord(word) {
     await this.page.locator('#topbarTabs .topbar-tab', { hasText: word }).click();
   }
