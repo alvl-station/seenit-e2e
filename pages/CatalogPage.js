@@ -527,6 +527,12 @@ class CatalogPage {
   get accountServices() { return this.page.locator('#accServices input[data-service]'); }
   get accountAchievements() { return this.page.locator('#accountBox .ach'); }
   get accountAvatar() { return this.page.locator('#accAvatarBtn .acc-avatar'); }
+  /* «Друзі» is a page of the account since 2026-10-02: its box stands in the
+   * account's pane and its two lists are the bar's second row. */
+  get accountFriends() { return this.page.locator('#accountBox #friendsBox'); }
+  async friendsLists() {
+    return (await this.page.locator('#tabbarSubRow .tabbar-tab--window').allTextContents()).map(t => t.trim().replace(/\s*\(\d+\)$/, ''));
+  }
   /** The lit tab closes its page. */
   async closeAccountPanel() {
     await this.pressStripTab('account');
@@ -549,7 +555,7 @@ class CatalogPage {
     return (await this.page.locator('#recsBox [data-recs-src]').allTextContents()).map(t => t.trim());
   }
   async switchRecsSource(id) {
-    const label = { top: 'Топ', friends: 'Від друзів', mine: 'Мої', seenit: 'SeenIt' }[id];
+    const label = { top: 'Топ', friends: 'Від друзів', mine: 'Мої', seenit: 'SeenIt', trash: 'Кошик' }[id];
     await this.windowTab(label).click();
     await this.page.waitForFunction(src => {
       const el = document.querySelector(`[data-recs-src="${src}"]`);
@@ -557,6 +563,8 @@ class CatalogPage {
     }, id);
   }
   async recsBodyText() { return (await this.page.locator('#recsbody').textContent()).trim(); }
+  /* The trash is a pane of the collections page since 2026-10-02. */
+  get trashList() { return this.page.locator('#recsbody #trashList'); }
   async recsCollectionNames() {
     return (await this.page.locator('#recsbody .col-block-name').allTextContents()).map(t => t.trim());
   }

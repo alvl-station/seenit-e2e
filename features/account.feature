@@ -18,19 +18,22 @@ Feature: Account panel
     When I close the account panel
     Then the account panel is closed
 
-  Scenario: The account is five pages, and statistics is PRO's
+  Scenario: The account is six pages, and statistics is PRO's
     # REQUIREMENTS PR-9. Read-only: the tabs switch pages, nothing is saved.
     # The lock is asserted against the account's own tier, so the scenario
     # holds whether or not the test account has PRO.
     # «Свайп» joined the row on 2026-09-25, when its header cell went to
     # «Дивлюся». «Вигляд» was taken out on 2026-10-01: one look for all.
     When I open the account panel
-    Then the account's pages are: "Мої дані, Сервіси, Статистика, Досягнення, Свайп"
+    Then the account's pages are: "Мої дані, Сервіси, Статистика, Досягнення, Друзі, Свайп"
     And the statistics page opens only with PRO
     When I open the account's "Сервіси" page
     Then the services are listed
     When I open the account's "Досягнення" page
     Then the achievements are listed
+    # «Друзі» moved in from the bottom bar on 2026-10-02.
+    When I open the account's "Друзі" page
+    Then the friends' two lists stand in the account, in the bar's second row
 
   Scenario: The swipe is a page of the account, and «Дивлюся» has its header cell
     # Owner's ask, 2026-09-25. Read-only: the deck is looked at, not swiped —

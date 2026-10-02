@@ -323,8 +323,16 @@ Then('the recommendations flow is open', async ({ catalog }) => {
 Then('the recommendations flow is closed', async ({ catalog }) => {
   expect(await catalog.recsIsOpen()).toBe(false);
 });
-Then('the recommendation sources are {string}, {string}, {string} and {string}', async ({ catalog }, a, b, c, d) => {
-  expect(await catalog.recsSourceTabs()).toEqual([a, b, c, d]);
+Then('the recommendation sources are: {string}', async ({ catalog }, list) => {
+  expect(await catalog.recsSourceTabs()).toEqual(list.split(', '));
+});
+Then("the friends' two lists stand in the account, in the bar's second row", async ({ catalog }) => {
+  await expect(catalog.accountFriends).toBeVisible();
+  await expect.poll(() => catalog.friendsLists()).toEqual(['Підписки', 'Підписники']);
+});
+Then('the trash lists what was removed or says it is empty', async ({ catalog }) => {
+  await expect(catalog.trashList).toBeVisible();
+  expect((await catalog.recsBodyText()).length, 'an empty panel reads as broken').toBeGreaterThan(0);
 });
 When('I switch the recommendations source to {string}', async ({ catalog }, id) => {
   await catalog.switchRecsSource(id);

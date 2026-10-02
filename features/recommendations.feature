@@ -1,14 +1,16 @@
-Feature: The collections page — top, friends, mine and the SeenIt lists
-  One page, four sources. "Від друзів" lists the people followed, or says
+Feature: The collections page — top, friends, mine, the SeenIt lists and the trash
+  One page, five sources (the trash moved in on 2026-10-02). "Від друзів" lists the people followed, or says
   where to find one; "Мої" holds the account's own lists; "SeenIt" the
   shared ones. Read-only: browsing only.
 
-  Scenario: The page opens with its four sources, and the friends source is never empty
+  Scenario: The page opens with its five sources, and the friends source is never empty
     When I open the recommendations flow
     Then the recommendations flow is open
-    And the recommendation sources are "Топ", "Від друзів", "Мої" and "SeenIt"
+    And the recommendation sources are: "Топ, Від друзів, Мої, SeenIt, Кошик"
     When I switch the recommendations source to "friends"
     Then the friends source lists people or says where to find them
+    When I switch the recommendations source to "trash"
+    Then the trash lists what was removed or says it is empty
     When I close the recommendations flow
     Then the recommendations flow is closed
 
