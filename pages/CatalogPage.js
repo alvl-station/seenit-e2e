@@ -617,9 +617,21 @@ class CatalogPage {
    * root or not.
    */
   async dragPageUp(distance = 300) {
-    const strip = await this.page.locator('#tabbar').boundingBox();
-    const x = Math.round(strip.x + strip.width / 2);
-    const y = Math.round(strip.y + strip.height / 2);
+    /* The bar steps away under an open card and slides back after it
+     * (seenit-frontend, 2026-10-03). Under a card the finger goes where the
+     * bar was, the bottom of the screen; otherwise on the settled bar. */
+    let x;
+    let y;
+    if (await this.page.evaluate(() => document.body.classList.contains('film-open'))) {
+      const vp = this.page.viewportSize();
+      x = Math.round(vp.width / 2);
+      y = vp.height - 40;
+    } else {
+      await this.page.waitForFunction(() => getComputedStyle(document.getElementById('tabbar')).transform === 'none');
+      const strip = await this.page.locator('#tabbar').boundingBox();
+      x = Math.round(strip.x + strip.width / 2);
+      y = Math.round(strip.y + strip.height / 2);
+    }
     if (await this.isTouch()) {
       const cdp = await this.page.context().newCDPSession(this.page);
       await cdp.send('Input.synthesizeScrollGesture', {
