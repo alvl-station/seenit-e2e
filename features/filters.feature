@@ -37,3 +37,17 @@ Feature: The filter sheet — years and providers
     Then the catalogue has stopped arriving
     When I open the filter sheet
     Then the provider filter, when offered, narrows the shelf without emptying it
+
+  Scenario: The panel names what is chosen, counts it on «Показати», and the strip wears a badge
+    # The filter is a pane of glass over the shelf since 2026-10-03 (owner's design).
+    Then the catalogue has stopped arriving
+    When I open the filter sheet
+    And I choose the year option "1990s"
+    Then the filter panel shows a chip "1990–1999"
+    And the panel's main key offers to show some films
+    When I apply the filters
+    Then the strip's filter tab wears the badge "1"
+    When I open the filter sheet
+    And I take the chip "1990–1999" off
+    And I apply the filters
+    Then the strip's filter tab wears no badge
