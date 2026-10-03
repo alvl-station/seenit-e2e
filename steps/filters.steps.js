@@ -68,7 +68,7 @@ Then('the filter panel shows a chip {string}', async ({ catalog }, label) => {
 });
 
 Then('the panel\'s main key offers to show some films', async ({ catalog }) => {
-  await expect(catalog.filterApplyKey).toHaveText(/^Показати \d+ (фільм|фільми|фільмів)$/);
+  await expect(catalog.filterApplyKey).toHaveText(/^Показати [\d\s]+ (фільм|фільми|фільмів)$/);
 });
 
 When('I take the chip {string} off', async ({ catalog }, label) => {
