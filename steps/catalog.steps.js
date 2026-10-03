@@ -1,5 +1,5 @@
 // Steps over CatalogPage: the bars, search, views, the filter window's
-// options, the archive and its words, marks, the account and the
+// options, the archive in the account, marks, the account and the
 // collections page. Thin wrappers; every selector lives in pages/.
 const { createBdd } = require('playwright-bdd');
 const { test, expect } = require('../support/fixtures');
@@ -148,29 +148,29 @@ Then('the option is inactive and its border color matches the remembered one', a
   expect(await catalog.optionBorderColor(opt)).toBe(ctx.restingBorder);
 });
 
-/* ---- the archive and its words ---- */
+/* ---- the archive: the account's statistics and its figures ---- */
+const ARCHIVE_LIST = { 'Усі': 'watched', 'Переглянуто': 'watched', 'Рекомендую': 'liked', 'Обовʼязково': 'must', 'Фільмів': 'films', 'Серіалів': 'series' };
 When('I isolate the catalog to watched films', async ({ catalog }) => {
-  await catalog.openArchive();
+  await catalog.openArchive('watched');
 });
 When('I narrow the archive to {string}', async ({ catalog }, word) => {
-  const mark = { 'Усі': 'all', 'Рекомендую': 'liked', 'Обовʼязково': 'must' }[word];
-  await catalog.tapMarkWord(mark);
-  await expect.poll(() => catalog.markWordActive(mark)).toBe(true);
+  await catalog.openArchive(ARCHIVE_LIST[word]);
 });
-When('I tap the {string} word', async ({ catalog }, word) => {
-  const mark = { 'Усі': 'all', 'Рекомендую': 'liked', 'Обовʼязково': 'must' }[word];
-  await catalog.tapMarkWord(mark);
+When('I press the {string} figure', async ({ catalog }, word) => {
+  await catalog.archiveFigure(ARCHIVE_LIST[word]).click();
 });
-Then('the {string} word is active', async ({ catalog }, word) => {
-  const mark = { 'Усі': 'all', 'Рекомендую': 'liked', 'Обовʼязково': 'must' }[word];
-  await expect.poll(() => catalog.markWordActive(mark)).toBe(true);
+Then('the {string} figure is lit, and its films stand under it', async ({ catalog }, word) => {
+  const list = ARCHIVE_LIST[word];
+  await expect.poll(() => catalog.archiveFigureActive(list)).toBe(true);
+  await expect(catalog.archiveList).toHaveAttribute('data-list', list);
 });
-Then('the {string} word is inactive', async ({ catalog }, word) => {
-  const mark = { 'Усі': 'all', 'Рекомендую': 'liked', 'Обовʼязково': 'must' }[word];
-  await expect.poll(() => catalog.markWordActive(mark)).toBe(false);
+Then('the {string} figure is not lit', async ({ catalog }, word) => {
+  await expect.poll(() => catalog.archiveFigureActive(ARCHIVE_LIST[word])).toBe(false);
 });
-Then('the archive shows everything', async ({ catalog }) => {
-  await expect.poll(() => catalog.markWordActive('all')).toBe(true);
+Then('the strip offers no archive tab', async ({ catalog }) => {
+  // The strip must be drawn first, or the check would pass on an empty bar.
+  await expect.poll(() => catalog.stripTabCount()).toBeGreaterThan(0);
+  await expect(catalog.stripTab('seen')).toHaveCount(0);
 });
 
 /* ---- page scroll state ---- */
@@ -245,12 +245,12 @@ Then('the swipe deck stands in the account with one film on it', async ({ catalo
   await expect(catalog.accountSwipeDeck).toBeVisible();
   await expect.poll(() => catalog.accountSwipeDeck.locator('.card').count()).toBe(1);
 });
-Then('the statistics page opens only with PRO', async ({ catalog }) => {
+Then('the statistics page is open to everybody, and its pages past the first are PRO\'s', async ({ catalog }) => {
+  await catalog.openAccountPage('Статистика');
+  await expect(catalog.accountStats).toBeVisible();
+  await expect(catalog.archiveFigure('watched')).toBeVisible();
   const { locked, pro } = await catalog.statisticsLock();
   expect(locked).toBe(!pro);
-  await catalog.openAccountPage('Статистика');
-  if (pro) await expect(catalog.accountStats).toBeVisible();
-  else await expect(catalog.accountStats).toHaveCount(0);
 });
 When('I open the account\'s {string} page', async ({ catalog }, name) => {
   await catalog.openAccountPage(name);

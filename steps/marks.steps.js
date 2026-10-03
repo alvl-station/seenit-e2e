@@ -13,12 +13,11 @@ const countFor = async (catalog, tab) =>
   tab === 'Дивився' ? await catalog.watchedTabCount() : await catalog.likedTabCount();
 
 Then('the {string} tab count matches the films it lists', async ({ catalog }, tab) => {
-  // The shelf is films or series, so the archive lists the mark's films of this shelf.
-  const count = await countFor(catalog, tab);
-  skipWithoutData(count === null, `nothing marked as "${tab}" right now`);
-  const expected = await catalog.archiveExpected(tab === 'Дивився' ? 'watched' : 'liked');
-  expect(expected).toBeGreaterThan(0);
-  await expect.poll(() => catalog.listedCount()).toBe(expected);
+  // The figure on the account's statistics and the films under it are one count (2026-10-03).
+  const list = tab === 'Дивився' ? 'watched' : 'liked';
+  const figure = await catalog.archiveFigureCount(list);
+  skipWithoutData(figure === 0, `nothing marked as "${tab}" right now`);
+  expect(await catalog.archiveListedCount()).toBe(figure);
 });
 Given('I remember the {string} count', async ({ catalog, ctx }, tab) => {
   ctx.counts = ctx.counts || {};

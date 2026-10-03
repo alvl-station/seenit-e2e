@@ -15,8 +15,9 @@ Feature: Marking a film by its score
   first film" is another film right after.
 
   The counts are read the way the account screen counts them; the archive
-  («Архів» in the strip) is where a marked film is listed, and its three
-  words («Усі», «Рекомендую», «Обовʼязково») narrow it.
+  is the account's «Статистика» since 2026-10-03: its figures
+  («переглянуто», «рекомендую», «обовʼязково»…) are buttons, and the films
+  of the one pressed are listed under them.
 
   ONE account, ONE file, ONE worker. Every scenario that writes a mark or
   compares a count against the films listed lives here, and nowhere else:

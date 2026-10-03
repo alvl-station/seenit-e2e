@@ -90,7 +90,7 @@ const test = bddBase.extend({
         // it before deciding the film is clear.
         await catalog.saveMarks();
         if (!(await catalog.filmIsMarked(key))) continue;
-        await catalog.openWholeArchive();
+        await catalog.openArchive('watched');
         if (!(await catalog.openCardWithKey(key))) throw new Error('the archive does not list it');
         await modal.waitUntilOpen();
         await modal.meter.clear();
