@@ -62,3 +62,24 @@ Then('the provider filter, when offered, narrows the shelf without emptying it',
   await catalog.applyFilters();
   expect(await catalog.cardCount()).toBe(before);
 });
+
+Then('the filter panel shows a chip {string}', async ({ catalog }, label) => {
+  await expect(catalog.filterChip(label)).toBeVisible();
+});
+
+Then('the panel\'s main key offers to show some films', async ({ catalog }) => {
+  await expect(catalog.filterApplyKey).toHaveText(/^Показати [\d\s]+ (фільм|фільми|фільмів)$/);
+});
+
+When('I take the chip {string} off', async ({ catalog }, label) => {
+  await catalog.filterChip(label).click();
+  await expect(catalog.filterChip(label)).toHaveCount(0);
+});
+
+Then('the strip\'s filter tab wears the badge {string}', async ({ catalog }, n) => {
+  await expect(catalog.filterTabBadge).toHaveText(n);
+});
+
+Then('the strip\'s filter tab wears no badge', async ({ catalog }) => {
+  await expect(catalog.filterTabBadge).toHaveCount(0);
+});

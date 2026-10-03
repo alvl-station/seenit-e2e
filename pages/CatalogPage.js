@@ -167,11 +167,15 @@ class CatalogPage {
     await this.pressStripTab('filter');
     await this.page.locator('#filterSheet:not(.open)').waitFor({ state: 'attached' });
   }
-  // Choices reach the shelf only on «Застосувати», pressed in the strip.
+  // Choices reach the shelf only on the panel's own «Показати N» (owner's design, 2026-10-03).
   async applyFilters() {
-    await this.windowTab('Застосувати').click();
+    await this.page.locator('#filterApplyBtn').click();
     await this.page.locator('#filterSheet:not(.open)').waitFor({ state: 'attached' });
   }
+  /* The panel's own words (owner's design, 2026-10-03): the chosen chips, the main key, the strip's badge. */
+  filterChip(label) { return this.page.locator('#filterChosen [data-drop-key]', { hasText: label }); }
+  get filterApplyKey() { return this.page.locator('#filterApplyBtn'); }
+  get filterTabBadge() { return this.page.locator('#tabbarScroll .tabbar-tab[data-tab="filter"] .tabbar-badge'); }
   /* The genre is an option in the filter window; the options are in the
    * document whether the window is open or not. */
   genreOption(index = 0) {
