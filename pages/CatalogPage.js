@@ -369,35 +369,40 @@ class CatalogPage {
     return this.page.locator('#modalOverlay.open').isVisible().catch(() => false);
   }
 
-  /* ---- the archive and its three words ---- */
+  /* ---- the archive: the account's statistics and its five figures ----
+   * «Архів» left the strip on 2026-10-03: the figures переглянуто, рекомендую,
+   * обовʼязково, фільмів, серіалів are buttons, and the films of the one
+   * pressed stand under them, thirty at a time. */
+  archiveFigure(list) { return this.page.locator(`#accStats [data-stats-list="${list}"]`); }
+  get archiveList() { return this.page.locator('#accStatsFilms'); }
+  get archiveCards() { return this.page.locator('#accStatsFilms .card'); }
+  get archiveMore() { return this.page.locator('#accStatsFilms [data-stats-films-more]'); }
   async archiveIsOpen() {
-    return this.page.locator('#watchedToggle').evaluate(el => el.classList.contains('active'));
+    return (await this.page.locator('#accountOverlay.open #accStats').count()) > 0;
   }
-  /** «Архів» in the strip: a toggle, so it opens or closes the archive. */
-  async tapWatchedToggle() {
-    const before = await this.archiveIsOpen();
-    await this.pressStripTab('seen');
-    await this.page.waitForFunction(was => document.getElementById('watchedToggle').classList.contains('active') !== was, before);
+  /** The account on «Статистика», with the films of `list` under the figures. */
+  async openArchive(list = 'watched') {
+    if (!(await this.accountPanelIsOpen())) await this.openAccountPanel();
+    if (!(await this.archiveIsOpen())) await this.openAccountPage('Статистика');
+    await this.archiveFigure(list).waitFor();
+    if (!(await this.archiveFigureActive(list))) await this.archiveFigure(list).click();
+    await this.page.locator(`#accStatsFilms[data-list="${list}"]`).waitFor();
   }
-  async openArchive() { if (!(await this.archiveIsOpen())) await this.tapWatchedToggle(); }
-  /** The archive with nothing narrowed: «Усі» lit. */
-  async openWholeArchive() {
-    await this.openArchive();
-    if (await this.markWordActive('all')) return;
-    await this.tapMarkWord('all');
-    await expect.poll(() => this.markWordActive('all')).toBe(true);
+  async archiveFigureActive(list) {
+    return this.archiveFigure(list).evaluate(el => el.getAttribute('aria-pressed') === 'true');
   }
-  /** One of «Усі», «Рекомендую», «Обовʼязково»: the row the archive lends the strip. */
-  markWord(mark) {
-    const text = { all: 'Усі', liked: 'Рекомендую', must: 'Обовʼязково' }[mark];
-    return this.windowTab(text);
+  /** The number a figure shows. */
+  async archiveFigureCount(list) {
+    return Number((await this.archiveFigure(list).locator('b').innerText()).trim());
   }
-  async tapMarkWord(mark) {
-    await this.openArchive();
-    await this.markWord(mark).click();
-  }
-  async markWordActive(mark) {
-    return this.page.locator(`.mark-word[data-mark="${mark}"]`).evaluate(el => el.classList.contains('active'));
+  /** How many films the list holds once every «Показати ще» has been pressed. */
+  async archiveListedCount() {
+    await expect(async () => {
+      if (!(await this.archiveMore.count())) return;
+      await this.archiveMore.click();
+      throw new Error('more to draw');
+    }).toPass({ intervals: [100], timeout: 20_000 });
+    return this.archiveCards.count();
   }
 
   /* ---- one film on the shelf, by its key ----
@@ -412,21 +417,27 @@ class CatalogPage {
   async cardKey(index = 0) {
     return this.cards.nth(index).getAttribute('data-key');
   }
-  cardWithKey(key) { return this.page.locator(`#main .card[data-key="${key}"]`); }
+  /* On the shelf, or in the account's list when that is what is up: whichever is in sight. */
+  cardWithKey(key) {
+    return this.page.locator(`#main .card[data-key="${key}"]:visible, #accStatsFilms .card[data-key="${key}"]:visible`);
+  }
   /**
    * Lets the shelf draw batches until the film's card is drawn; its index,
    * or -1 when the shelf runs out (or time does) without it.
    */
   async revealCardWithKey(key, timeout = 12_000) {
+    const inArchive = await this.archiveIsOpen();
+    const root = inArchive ? '#accStatsFilms' : '#main';
     const index = () => this.page.evaluate(
-      k => [...document.querySelectorAll('#main .card')].findIndex(c => c.getAttribute('data-key') === k), key);
+      ([r, k]) => [...document.querySelectorAll(`${r} .card`)].findIndex(c => c.getAttribute('data-key') === k), [root, key]);
     let idx = -1;
     await expect(async () => {
       idx = await index();
       if (idx !== -1) return;
-      const sentinel = this.page.locator('#renderSentinel');
-      if (!(await sentinel.count())) return; // nothing left to draw
-      await sentinel.scrollIntoViewIfNeeded();
+      // The shelf draws on a sentinel coming into sight; the account's list on a press.
+      const more = inArchive ? this.archiveMore : this.page.locator('#renderSentinel');
+      if (!(await more.count())) return; // nothing left to draw
+      if (inArchive) await more.click(); else await more.scrollIntoViewIfNeeded();
       throw new Error('the card is not drawn yet');
     }).toPass({ intervals: [150], timeout }).catch(() => { /* ran out of time: -1 */ });
     return idx;
@@ -465,15 +476,6 @@ class CatalogPage {
   }
   async watchedTabCount() { return this.markCount('watched'); }
   async likedTabCount() { return this.markCount('liked'); }
-  /** How many films the archive should list on this shelf, for a mark. */
-  async archiveExpected(which) {
-    return this.page.evaluate(w => {
-      const onShelf = catalogSource().filter(m => matchesShelfType(m, state.type) && isMarked(watched, m));
-      // «Рекомендую» leaves out what is also «Обовʼязково» (filterCatalog).
-      return w === 'watched' ? onShelf.length
-        : onShelf.filter(m => isMarked(liked, m) && !isMarked(must, m)).length;
-    }, which);
-  }
 
   /* ---- account ---- */
   get accountOverlay() { return this.page.locator('#accountOverlay'); }
@@ -513,11 +515,11 @@ class CatalogPage {
     await this.page.locator('#accEditBtn').click();
     await this.page.locator('#accDisplayForm').waitFor();
   }
-  /** Whether the statistics tab is locked, and whether the account has PRO. */
+  /** Whether the statistics' pages past the first are locked, and whether the account has PRO. */
   async statisticsLock() {
-    const cell = this.accountTab('Статистика');
+    const chips = this.page.locator('#accStats [data-stats-tab]:not([data-stats-tab="general"])');
     return {
-      locked: await cell.evaluate(el => el.classList.contains('is-locked')),
+      locked: await chips.evaluateAll(els => els.length > 0 && els.every(el => el.classList.contains('is-locked'))),
       pro: await this.page.evaluate(() => isPro()),
     };
   }

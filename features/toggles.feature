@@ -1,7 +1,7 @@
 Feature: Toggle-off on second tap and hover on touch
   Covers REQ U-6 (a second tap returns the control to neutral) and the
   sticky :hover on touch devices. The genre is an option in the filter
-  window now; «Рекомендую» is a word inside the archive.
+  window now; the archive's lists are figures on the account's statistics.
 
   Read-only. The two count scenarios that used to close this file live in
   marks.feature now: a count read here raced a mark being set there.
@@ -14,13 +14,16 @@ Feature: Toggle-off on second tap and hover on touch
     Then that option is inactive
     And no genre option is chosen
 
-  Scenario: The "Рекомендую" word deselects to «Усі» on a second tap
+  Scenario: The archive is the account's statistics, one list at a time
+    # Owner's ask, 2026-10-03: «Архів» left the strip; each figure opens its films.
+    Then the strip offers no archive tab
     When I isolate the catalog to watched films
-    And I tap the "Рекомендую" word
-    Then the "Рекомендую" word is active
-    When I tap the "Рекомендую" word
-    Then the "Рекомендую" word is inactive
-    And the archive shows everything
+    Then the "Переглянуто" figure is lit, and its films stand under it
+    When I press the "Рекомендую" figure
+    Then the "Рекомендую" figure is lit, and its films stand under it
+    And the "Переглянуто" figure is not lit
+    When I press the "Серіалів" figure
+    Then the "Серіалів" figure is lit, and its films stand under it
 
   @phone-portrait
   Scenario: A tapped-then-deselected option keeps no sticky hover styling

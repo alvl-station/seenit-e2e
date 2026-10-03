@@ -19,7 +19,7 @@ Feature: Account panel
     When I close the account panel
     Then the account panel is closed
 
-  Scenario: The account is a profile with five icon tabs, and statistics is PRO's
+  Scenario: The account is a profile with five icon tabs, and statistics past its first page is PRO's
     # REQUIREMENTS PR-9. Read-only: the tabs switch pages, nothing is saved.
     # The lock is asserted against the account's own tier, so the scenario
     # holds whether or not the test account has PRO.
@@ -30,7 +30,8 @@ Feature: Account panel
     Then the profile head shows four numbers
     And the account's pages are: "Статистика, Досягнення, Друзі, Сервіси, Свайп"
     And the strip lends the account no row
-    And the statistics page opens only with PRO
+    # Open to everybody since 2026-10-03: its first page is the archive.
+    And the statistics page is open to everybody, and its pages past the first are PRO's
     When I open the account's "Сервіси" page
     Then the services are listed
     When I open the account's "Досягнення" page
