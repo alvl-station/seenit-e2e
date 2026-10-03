@@ -488,19 +488,34 @@ class CatalogPage {
   async accountUsername() {
     return (await this.page.locator('#accountBox .acc-name').innerText()).trim();
   }
-  /* The account's pages (2026-09-24; the swipe made five on 2026-09-25 and
-   * «Вигляд» six). Their tabs are the row the window lends the strip; the
-   * window's own copy is hidden while it does. */
+  /* The account's pages are icon tabs on the page itself since 2026-10-03
+   * (owner's design): a drawing each, the word in aria-label, nothing lent
+   * to the strip. «Мої дані» opens from the head's edit button. */
+  get accountTabs() { return this.page.locator('#accTabs .acc-tab'); }
+  accountTab(name) { return this.page.locator(`#accTabs .acc-tab[aria-label="${name}"]`); }
   async accountPageNames() {
-    return (await this.page.locator('.tabbar-window-row .tabbar-tab--window').allTextContents())
-      .map(t => t.trim());
+    return this.accountTabs.evaluateAll(els => els.map(el => el.getAttribute('aria-label')));
   }
   async openAccountPage(name) {
-    await this.windowTab(name).click();
+    const tab = this.accountTab(name);
+    // A locked tab is aria-disabled, which Playwright will not press unforced; the press is what the lock refuses.
+    const locked = await tab.evaluate(el => el.getAttribute('aria-disabled') === 'true');
+    await tab.click({ force: locked });
+  }
+  get profileHead() { return this.page.locator('#accHead'); }
+  get profileNumbers() { return this.page.locator('#accHead .acc-num'); }
+  /** The four figures on the head, as text. */
+  async profileFigures() { return this.page.locator('#accHead .acc-num b').allTextContents(); }
+  /* The two rows a page can lend the bar: the account lends neither. */
+  get stripWindowRow() { return this.page.locator('#tabbarWindowRow'); }
+  get stripSubRow() { return this.page.locator('#tabbarSubRow'); }
+  async openProfileEditor() {
+    await this.page.locator('#accEditBtn').click();
+    await this.page.locator('#accDisplayForm').waitFor();
   }
   /** Whether the statistics tab is locked, and whether the account has PRO. */
   async statisticsLock() {
-    const cell = this.windowTab('Статистика');
+    const cell = this.accountTab('Статистика');
     return {
       locked: await cell.evaluate(el => el.classList.contains('is-locked')),
       pro: await this.page.evaluate(() => isPro()),
@@ -528,10 +543,10 @@ class CatalogPage {
   get accountAchievements() { return this.page.locator('#accountBox .ach'); }
   get accountAvatar() { return this.page.locator('#accAvatarBtn .acc-avatar'); }
   /* «Друзі» is a page of the account since 2026-10-02: its box stands in the
-   * account's pane and its two lists are the bar's second row. */
+   * account's pane; its two lists are a switch on the page (2026-10-03). */
   get accountFriends() { return this.page.locator('#accountBox #friendsBox'); }
   async friendsLists() {
-    return (await this.page.locator('#tabbarSubRow .tabbar-tab--window').allTextContents()).map(t => t.trim().replace(/\s*\(\d+\)$/, ''));
+    return (await this.page.locator('#friendsBox [data-friends-tab]').allTextContents()).map(t => t.trim().replace(/\s*\(\d+\)$/, ''));
   }
   /** The lit tab closes its page. */
   async closeAccountPanel() {

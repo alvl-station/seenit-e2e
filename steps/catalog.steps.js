@@ -255,6 +255,20 @@ Then('the statistics page opens only with PRO', async ({ catalog }) => {
 When('I open the account\'s {string} page', async ({ catalog }, name) => {
   await catalog.openAccountPage(name);
 });
+When('I open the profile editor', async ({ catalog }) => {
+  await catalog.openProfileEditor();
+});
+Then('the profile head shows four numbers', async ({ catalog }) => {
+  await expect(catalog.profileHead).toBeVisible();
+  await expect(catalog.profileNumbers).toHaveCount(4);
+  // Each is a figure over a word, and the figure is a number.
+  const figures = await catalog.profileFigures();
+  for (const f of figures) expect(f, 'a figure that is not a number').toMatch(/^\d+$/);
+});
+Then('the strip lends the account no row', async ({ catalog }) => {
+  await expect(catalog.stripWindowRow).toBeHidden();
+  await expect(catalog.stripSubRow).toBeHidden();
+});
 Then('the services are listed', async ({ catalog }) => {
   await expect.poll(() => catalog.accountServices.count()).toBeGreaterThan(0);
 });
@@ -326,7 +340,7 @@ Then('the recommendations flow is closed', async ({ catalog }) => {
 Then('the recommendation sources are: {string}', async ({ catalog }, list) => {
   expect(await catalog.recsSourceTabs()).toEqual(list.split(', '));
 });
-Then("the friends' two lists stand in the account, in the bar's second row", async ({ catalog }) => {
+Then("the friends' two lists stand in the account, as a switch on the page", async ({ catalog }) => {
   await expect(catalog.accountFriends).toBeVisible();
   await expect.poll(() => catalog.friendsLists()).toEqual(['Підписки', 'Підписники']);
 });

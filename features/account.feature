@@ -8,32 +8,37 @@ Feature: Account panel
     When I open the account panel
     Then the account panel is open
     And the account panel shows the signed-in username
-    # Strengthened with the account's pages (2026-09-24): the picture in
-    # the circle stands at the top of «Мої дані».
+    # The picture in the circle stands in the profile head (2026-10-03).
     And the account panel shows my picture in a circle
+    # «Мої дані» opens from the head's «Редагувати профіль» (2026-10-03).
+    When I open the profile editor
     # Strengthened with the Google feature: a password account gets the
     # change-password form; a Google account (covered in unit tests — OAuth
     # cannot be driven from CI) gets a provider note instead.
-    And the account panel offers a password change
+    Then the account panel offers a password change
     When I close the account panel
     Then the account panel is closed
 
-  Scenario: The account is six pages, and statistics is PRO's
+  Scenario: The account is a profile with five icon tabs, and statistics is PRO's
     # REQUIREMENTS PR-9. Read-only: the tabs switch pages, nothing is saved.
     # The lock is asserted against the account's own tier, so the scenario
     # holds whether or not the test account has PRO.
-    # «Свайп» joined the row on 2026-09-25, when its header cell went to
-    # «Дивлюся». «Вигляд» was taken out on 2026-10-01: one look for all.
+    # A profile since 2026-10-03 (owner's design): the head carries four
+    # numbers, the tabs stand on the page, and «Мої дані» is behind the
+    # head's edit button rather than a tab.
     When I open the account panel
-    Then the account's pages are: "Мої дані, Сервіси, Статистика, Досягнення, Друзі, Свайп"
+    Then the profile head shows four numbers
+    And the account's pages are: "Статистика, Досягнення, Друзі, Сервіси, Свайп"
+    And the strip lends the account no row
     And the statistics page opens only with PRO
     When I open the account's "Сервіси" page
     Then the services are listed
     When I open the account's "Досягнення" page
     Then the achievements are listed
-    # «Друзі» moved in from the bottom bar on 2026-10-02.
+    # «Друзі» moved in from the bottom bar on 2026-10-02; its two lists are
+    # a switch on the page since 2026-10-03.
     When I open the account's "Друзі" page
-    Then the friends' two lists stand in the account, in the bar's second row
+    Then the friends' two lists stand in the account, as a switch on the page
 
   Scenario: The swipe is a page of the account, and «Дивлюся» has its header cell
     # Owner's ask, 2026-09-25. Read-only: the deck is looked at, not swiped —
