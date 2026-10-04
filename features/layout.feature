@@ -2,9 +2,9 @@ Feature: Card layout across view modes
   Two grids of posters (the list is gone, owner's ask 2026-09-15). Real
   browser only — jsdom does no layout.
 
-  Scenario: The shelf's switches ride in a drop on the bar
-    # They were a page — a tab and a window — until 2026-09-16. Now they
-    # stand on the bar wherever the library is, and nowhere else.
+  Scenario: The shelf's switches stand in the header's view control
+    # A page until 2026-09-16, a drop on the bar until 2026-10-04; now one key
+    # at the header's right that slides them out, wherever the library is.
     Then the shelf drop is shown with three keys
     When I open the recommendations flow
     Then the shelf drop is gone

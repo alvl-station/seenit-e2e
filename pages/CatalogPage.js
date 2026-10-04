@@ -139,11 +139,19 @@ class CatalogPage {
     }, selector, { timeout, polling: 100 }).catch(() => { /* best-effort */ });
   }
 
-  /* ---- the shelf's own switches, in the drop on the bar ---- */
+  /* ---- the shelf's own switches, in the header's view control since 2026-10-04 ---- */
   get shelfDrop() { return this.page.locator('#shelfDrop'); }
-  async shelfDropIsShown() { return this.shelfDrop.isVisible(); }
+  get viewControl() { return this.page.locator('#viewCtl'); }
+  get viewControlKey() { return this.page.locator('#viewCtlBtn'); }
+  async shelfDropIsShown() { return this.viewControl.isVisible(); }
+  /** Slides the switches out of the view key, if they are in. */
+  async openViewControl() {
+    if (await this.viewControlKey.getAttribute('aria-expanded') !== 'true') await this.viewControlKey.click();
+    await this.page.locator('header.view-ctl-open').waitFor();
+  }
   /** Two grids now (the list went on 2026-09-15). */
   async switchView(v) {
+    await this.openViewControl();
     await this.shelfDrop.locator(`[data-v="${v}"]`).click();
     await this.page.waitForFunction(view => document.body.dataset.view === view, v);
   }
