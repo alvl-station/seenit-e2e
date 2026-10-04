@@ -377,13 +377,6 @@ class CatalogPage {
     });
   }
 
-  /* ---- the bin bar (nothing here ever confirms) ---- */
-  get deleteBar() { return this.page.locator('#deleteBar'); }
-  get deleteBarCount() { return this.page.locator('#deleteCount'); }
-  get deleteConfirmButton() { return this.page.locator('#deleteConfirmBtn'); }
-  get deleteCancelButton() { return this.page.locator('#deleteCancelBtn'); }
-  async deleteBarIsVisible() { return this.deleteBar.isVisible(); }
-  async selectedCount() { return this.page.locator('#main .card.is-selected').count(); }
   async modalIsOpen() {
     return this.page.locator('#modalOverlay.open').isVisible().catch(() => false);
   }

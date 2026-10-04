@@ -190,12 +190,6 @@ Then('the page has no sideways scroll', async ({ catalog }) => {
 Then('the strip offers no way to delete films', async ({ catalog }) => {
   expect(await catalog.stripTab('delete').count()).toBe(0);
 });
-Then('the delete bar is hidden', async ({ catalog }) => {
-  expect(await catalog.deleteBarIsVisible()).toBe(false);
-});
-Then('no card is selected for deletion', async ({ catalog }) => {
-  expect(await catalog.selectedCount()).toBe(0);
-});
 Then('the movie modal is not open', async ({ catalog }) => {
   expect(await catalog.modalIsOpen()).toBe(false);
 });
