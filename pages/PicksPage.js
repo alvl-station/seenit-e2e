@@ -9,7 +9,10 @@ class PicksPage {
     this.chosen = page.locator('#picksChosen [data-pick-drop]');
     this.cooked = page.locator('#picksCooked .pick-chip');
     this.cards = page.locator('#picksBody [data-picks-grid] .card');
+    this.dishNote = page.locator('#picksBody .picks-dish-note');
   }
+  /** The «Фільми» or «Серіали» switch over the pot: `kind` is 'film' or 'series'. */
+  kindSwitch(kind) { return this.page.locator(`#picksTop [data-pick-kind="${kind}"]`); }
   /** A chip in the list that is up (a phone shows one list at a time). */
   chip(label) {
     return this.page.locator('#picksKitchen .pick-list:visible [data-pick-key]').filter({ hasText: label }).first();

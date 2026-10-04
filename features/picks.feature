@@ -9,7 +9,14 @@ Feature: Picks — the catalogue cooked in a cauldron
     Then the pot holds one thing, and its chip is lit
     When I go on to the second step
     And I ask the pot for its dish
-    Then the dish is at most twelve films, cooked from what was thrown in
+    Then the dish is at most ten films, cooked from what was thrown in
     And the address is "/picks"
     When I go back to change the criteria
     Then the pot is as I left it
+
+  Scenario: Films off — the dish is series only
+    When I open the address "picks"
+    And I switch off films
+    Then films are off and series stay on
+    When I ask the pot for its dish
+    Then every title in the dish is a series, and the dish says so
