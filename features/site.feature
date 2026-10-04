@@ -1,8 +1,8 @@
 Feature: The site — the pages read before sign-in
-  The front page shows this week's news from the catalogue, and every page
-  of the site wears the app's own header, tab strip and cards. The front
-  page's cards open the film in the app. Read-only (REQ T-4): nothing here
-  writes anything.
+  The front page shows this week's news from the catalogue as one strip of
+  posters under its own glass header (owner's design, 2026-10-05); every other
+  page of the site wears the app's own header and tab strip. The front page's
+  cards open the film in the app. Read-only (REQ T-4): nothing here writes anything.
 
   Scenario: A fresh visitor at the root meets the front page, with its news
     Then a fresh visitor at the root sees the front page with this week's news
@@ -29,5 +29,5 @@ Feature: The site — the pages read before sign-in
   Scenario: A story's trailer asks YouTube nothing until it is tapped
     Then a trailer loads only when it is tapped, from the no-cookie player
 
-  Scenario: The front page leads to the newest stories
+  Scenario: The front page leads to the newest story
     Then the front page leads to the newest stories

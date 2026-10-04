@@ -30,6 +30,26 @@ class SitePage {
     this.trailerButtons = page.locator('.story-video');
     this.trailerFrames = page.locator('iframe.story-frame');
     this.storyTeasers = page.locator('a.story-teaser');
+    // The front page since the owner's design of 2026-10-05: its own glass header, the week as one 3D strip, the newest story.
+    this.homeHeader = page.locator('#homeHdr');
+    this.homeSignIn = page.locator('#homeHdr [data-site-go]');
+    this.ctaRegister = page.locator('.home-cta [data-site-join]');
+    this.weekCards = page.locator('#homeRow .home-wc');
+    this.openableWeekCards = page.locator('#homeRow a.home-wc');
+    this.weekPanelTitle = page.locator('#homePanelTitle');
+    this.homeStoryLink = page.locator('#homeStory a.home-read');
+  }
+
+  /** Brings a week card to the middle of the strip (focusing it scrolls it there) and returns the title the panel shows. */
+  async centreWeekCard(card) {
+    const index = await card.getAttribute('data-index');
+    await card.focus();
+    await this.page.waitForFunction(i => {
+      const row = document.getElementById('homeRow');
+      const c = row && row.children[Number(i)];
+      return !!c && Number(c.style.zIndex) === 100;
+    }, index, { timeout: 15000 });
+    return (await this.weekPanelTitle.textContent()).trim();
   }
 
   async goto(name, base) {
