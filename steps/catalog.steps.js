@@ -363,8 +363,8 @@ Then('the friends source lists collections or says where to find them', async ({
   expect(body).not.toMatch(/в планах|поки не можна/,
     'the feature shipped — the placeholder must not outlive it');
 });
-Then('at least {int} collections are listed', async ({ catalog, page }, n) => {
-  await page.locator('#recsbody .col-tile-name, #recsbody .col-row-name, #recsbody .col-rail-name').first().waitFor({ timeout: 10000 });
+Then('at least {int} collections are listed', async ({ catalog }, n) => {
+  await catalog.waitForCollectionNames();
   expect((await catalog.recsCollectionNames()).length).toBeGreaterThanOrEqual(n);
 });
 When('I open the first listed collection', async ({ catalog, ctx }) => {
@@ -373,16 +373,15 @@ When('I open the first listed collection', async ({ catalog, ctx }) => {
   ctx.collectionName = names[0];
   await catalog.openRecsCollection(names[0]);
 });
-Then("the collection's head reads that collection's name", async ({ page, ctx }) => {
-  const head = page.locator('#collectionHero');
-  await expect(head).toBeVisible();
-  await expect(head.locator('.col-hero-title')).toHaveText(ctx.collectionName);
+Then("the collection's head reads that collection's name", async ({ catalog, ctx }) => {
+  await expect(catalog.collectionHead).toBeVisible();
+  await expect(catalog.collectionHeadTitle).toHaveText(ctx.collectionName);
 });
-When('I go back from the collection', async ({ page }) => {
-  await page.locator('#collectionPlateClose').click();
+When('I go back from the collection', async ({ catalog }) => {
+  await catalog.leaveCollection();
 });
-Then("the collection's head is gone", async ({ page }) => {
-  await expect(page.locator('#collectionHero')).toBeHidden();
+Then("the collection's head is gone", async ({ catalog }) => {
+  await expect(catalog.collectionHead).toBeHidden();
 });
 When('I draw the collections as {string}', async ({ catalog }, shape) => {
   await catalog.drawCollectionsAs(shape);
@@ -390,20 +389,19 @@ When('I draw the collections as {string}', async ({ catalog }, shape) => {
 Then('the collections are drawn as {string}', async ({ catalog }, shape) => {
   await expect.poll(() => catalog.collectionsShape()).toBe(shape);
 });
-When('I press «Поділитися» on the collection', async ({ page }) => {
-  await page.locator('#collectionHero [data-col-hero="share"]').click();
+When('I press «Поділитися» on the collection', async ({ catalog }) => {
+  await catalog.shareCollection();
 });
-Then("the share window shows a QR code and the collection's name", async ({ page, ctx }) => {
-  const sheet = page.locator('#colShareSheet.open');
-  await expect(sheet).toBeVisible();
-  await expect(sheet.locator('.col-qr-code path')).toHaveAttribute('d', /^M\d/);
-  await expect(sheet.locator('.col-share-cap b')).toHaveText(ctx.collectionName);
+Then("the share window shows a QR code and the collection's name", async ({ catalog, ctx }) => {
+  await expect(catalog.shareWindow).toBeVisible();
+  await expect(catalog.shareQrPath).toHaveAttribute('d', /^M\d/);
+  await expect(catalog.shareCardName).toHaveText(ctx.collectionName);
 });
-When('I close the share window', async ({ page }) => {
-  await page.locator('#colShareClose').click();
+When('I close the share window', async ({ catalog }) => {
+  await catalog.closeShareWindow();
 });
-Then('the share window is closed', async ({ page }) => {
-  await page.locator('#colShareSheet:not(.open)').waitFor({ state: 'attached' });
+Then('the share window is closed', async ({ catalog }) => {
+  await catalog.waitShareWindowClosed();
 });
 Then('the catalog shows between {int} and {int} films', async ({ catalog, page }, lo, hi) => {
   await page.locator('#main .card').first().waitFor({ state: 'attached', timeout: 10000 });

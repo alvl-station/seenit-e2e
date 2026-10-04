@@ -622,6 +622,19 @@ class CatalogPage {
   async openRecsCollection(title) {
     await this.page.locator('#recsbody [data-col-open]', { hasText: title }).first().click();
   }
+  async waitForCollectionNames() {
+    await this.page.locator('#recsbody .col-tile-name, #recsbody .col-row-name, #recsbody .col-rail-name').first().waitFor({ timeout: 10000 });
+  }
+  /* An open collection's head (owner's design, 2026-10-04), its way back, and its share window. */
+  get collectionHead() { return this.page.locator('#collectionHero'); }
+  get collectionHeadTitle() { return this.collectionHead.locator('.col-hero-title'); }
+  async leaveCollection() { await this.page.locator('#collectionPlateClose').click(); }
+  async shareCollection() { await this.collectionHead.locator('[data-col-hero="share"]').click(); }
+  get shareWindow() { return this.page.locator('#colShareSheet.open'); }
+  get shareQrPath() { return this.shareWindow.locator('.col-qr-code path'); }
+  get shareCardName() { return this.shareWindow.locator('.col-share-cap b'); }
+  async closeShareWindow() { await this.page.locator('#colShareClose').click(); }
+  async waitShareWindowClosed() { await this.page.locator('#colShareSheet:not(.open)').waitFor({ state: 'attached' }); }
 
   /* ---- page scroll state ---- */
   /** Instantly: the root's scroll-behavior: smooth would otherwise still be travelling when read. */
