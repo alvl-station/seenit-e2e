@@ -70,16 +70,19 @@ Given('the catalog has a movie with awards', async ({ catalog, ctx }) => {
 Then('that card shows the award row with no ceremony names', async ({ catalog, ctx }) => {
   const row = catalog.cardAwardsRow(ctx.awardCardIndex);
   await expect(row).toBeVisible();
-  // Two labels since 2026-09-25: the cup counts wins, the ring beside it
-  // nominations. Each is a bare number; the ceremonies stay behind the tap.
+  // A laurel wreath since 2026-10-05 (owner's design): wins in gold, nominations in silver, each a bare number;
+  // under 200px the wreath holds the wins alone, so a half may show no number. The ceremonies stay behind the tap.
   const labels = catalog.cardAwardLabels(ctx.awardCardIndex);
   const n = await labels.count();
   expect(n).toBeGreaterThan(0);
   expect(n).toBeLessThanOrEqual(2);
+  let numbers = 0;
   for (let i = 0; i < n; i++) {
-    expect((await labels.nth(i).innerText()).trim()).toMatch(/^\d+$/);
+    const text = (await labels.nth(i).innerText()).trim();
+    if (text) { expect(text).toMatch(/^\d+$/); numbers++; }
     expect(await labels.nth(i).getAttribute('title')).toMatch(/^(Нагороди|Номінації)$/);
   }
+  expect(numbers).toBeGreaterThan(0);
 });
 When("I tap that card's award row", async ({ catalog, ctx }) => {
   await catalog.cardAwardLabels(ctx.awardCardIndex).first().click();
