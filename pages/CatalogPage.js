@@ -139,6 +139,12 @@ class CatalogPage {
     }, selector, { timeout, polling: 100 }).catch(() => { /* best-effort */ });
   }
 
+  /* ---- «To the top», the strip's last item since 2026-10-04 ---- */
+  get toTopSlot() { return this.page.locator('#toTopSlot'); }
+  get toTopKey() { return this.page.locator('#toTopBtn'); }
+  async scrollScreens(n) { await this.page.evaluate(k => window.scrollTo({ top: window.innerHeight * k, behavior: 'instant' }), n); }
+  async scrollY() { return this.page.evaluate(() => window.scrollY); }
+
   /* ---- the shelf's own switches, in the header's view control since 2026-10-04 ---- */
   get shelfDrop() { return this.page.locator('#shelfDrop'); }
   get viewControl() { return this.page.locator('#viewCtl'); }
