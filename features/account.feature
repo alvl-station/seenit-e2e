@@ -64,3 +64,7 @@ Feature: Account panel
     # cannot be automated — Google's page is out of reach — but the entry
     # point going missing is exactly the regression worth catching.
     Then a fresh visitor sees the password form and the Google button
+
+  Scenario: Registering asks for an address and shows the four conditions
+    # The owner's auth design (2026-10-04). Nothing is submitted: the suite never makes accounts.
+    Then registering asks a fresh visitor for an address and lights the four conditions
