@@ -26,20 +26,20 @@ Then("a fresh visitor at the root sees the front page with this week's news", as
   await asStranger(browser, async (site, page) => {
     await page.goto(BASE(), { waitUntil: 'domcontentloaded' });
     await expect(page).toHaveURL(/\/main$/, { timeout: 15000 });
-    await expect(site.header).toBeVisible();
+    await expect(site.homeHeader).toBeVisible();
     await expect(site.tabbar).toHaveCount(0);
-    // The news comes from the Worker's /public/home after the page paints.
-    await expect(site.newsSections.first()).toBeVisible({ timeout: 15000 });
-    expect(await site.newsCards.count()).toBeGreaterThan(0);
+    // The news comes from the Worker's /public/home after the page paints, as one strip of posters.
+    await expect(site.weekCards.first()).toBeAttached({ timeout: 15000 });
+    expect(await site.weekCards.count()).toBeGreaterThan(0);
   });
 });
 
 Then('the front page offers a stranger a way in and an account', async ({ browser }) => {
   await asStranger(browser, async (site) => {
     await site.goto('main', BASE());
-    await expect(site.signInIcon).toHaveAttribute('href', 'login');
-    await expect(site.signInButton).toHaveAttribute('href', 'login');
-    await expect(site.registerButton).toHaveAttribute('href', 'registrations');
+    await expect(site.homeSignIn).toHaveAttribute('href', 'login');
+    await expect(site.signInButton.first()).toHaveAttribute('href', 'login');
+    await expect(site.ctaRegister.first()).toHaveAttribute('href', 'registrations');
   });
 });
 
@@ -47,8 +47,10 @@ Then("every page of the site shows the tab strip and TMDB's notice", async ({ br
   await asStranger(browser, async (site) => {
     for (const name of PAGES) {
       await site.goto(name, BASE());
-      await expect(site.tabs, name).toHaveCount(4);
-      await expect(site.activeTab, name).toHaveCount(UNTABBED.includes(name) ? 0 : 1);
+      // The front page wears its own glass header (owner's design, 2026-10-05); every other page the app's tab strip.
+      if (name === 'main') await expect(site.homeHeader, name).toBeVisible();
+      else await expect(site.tabs, name).toHaveCount(4);
+      if (name !== 'main') await expect(site.activeTab, name).toHaveCount(UNTABBED.includes(name) ? 0 : 1);
       await expect(site.footerNote, name).toHaveText(TMDB_NOTICE);
       await expect(site.footerContacts, name).toHaveCount(1);
     }
@@ -76,13 +78,13 @@ When("I press the word in the app's header", async ({ catalog, page }) => {
 
 Then('the front page offers the way back into the app', async ({ page }) => {
   const site = new SitePage(page);
-  await expect(site.signInIcon).toHaveAttribute('href', 'films');
-  await expect(site.signInIcon).toHaveAttribute('aria-label', 'До застосунку');
-  await expect(site.registerButton).toHaveCount(0);
+  await expect(site.homeSignIn).toHaveAttribute('href', 'films');
+  await expect(site.homeSignIn).toHaveText('До застосунку');
+  await expect(site.ctaRegister).toHaveCount(0);
 });
 
 Then('I am still signed in', async ({ page }) => {
-  await new SitePage(page).signInIcon.click();
+  await new SitePage(page).homeSignIn.click();
   await expect(page).toHaveURL(/\/films$/);
   const catalog = new CatalogPage(page);
   await catalog.waitForCatalogLoaded();
@@ -93,9 +95,10 @@ When('I open the first film on the front page', async ({ catalog, page, ctx }) =
   await catalog.waitForCatalogLoaded();
   const site = new SitePage(page);
   await site.goto('main', BASE());
-  const first = site.openableCards.first();
-  await expect(first).toBeVisible({ timeout: 15000 });
-  ctx.frontPageTitle = await first.getAttribute('aria-label');
+  const first = site.openableWeekCards.first();
+  await expect(first).toBeAttached({ timeout: 15000 });
+  // A card leads to its film from the middle of the strip; anywhere else a press only brings it there.
+  ctx.frontPageTitle = await site.centreWeekCard(first);
   await first.click();
 });
 
@@ -133,7 +136,7 @@ Then('a trailer loads only when it is tapped, from the no-cookie player', async 
 Then("the front page leads to the newest stories", async ({ browser }) => {
   await asStranger(browser, async (site, page) => {
     await site.goto('main', BASE());
-    const first = site.storyTeasers.first();
+    const first = site.homeStoryLink;
     await expect(first).toHaveAttribute('href', /^stories#[a-z0-9-]+$/);
     const anchor = (await first.getAttribute('href')).split('#')[1];
     await first.click();
