@@ -103,12 +103,15 @@ Then('no rating badge intersects the type and year text', async ({ catalog }) =>
 });
 
 Then('the shelf drop is shown with three keys', async ({ catalog, page }) => {
-  await expect(catalog.shelfDrop).toBeVisible();
-  expect(await page.locator('#shelfDrop .shelf-drop-key').count()).toBe(3);
-  // Centred on the screen, which is what makes it read as the shelf's own.
-  const box = await catalog.shelfDrop.boundingBox();
-  const width = page.viewportSize().width;
-  expect(Math.abs((box.x + box.width / 2) - width / 2)).toBeLessThan(2);
+  // In the header's right since 2026-10-04 (owner's design): one key, the switches slide out of it.
+  await expect(catalog.viewControl).toBeVisible();
+  const key = await catalog.viewControlKey.boundingBox();
+  expect(key.y, 'the key stands in the header').toBeLessThan(120);
+  expect(key.x + key.width, 'at its right').toBeGreaterThan(page.viewportSize().width * 0.75);
+  await catalog.openViewControl();
+  await expect(page.locator('#shelfDrop .view-key')).toHaveCount(3);
+  for (const k of await page.locator('#shelfDrop .view-key').all()) await expect(k).toBeVisible();
+  await catalog.viewControlKey.click();
 });
 Then('the shelf drop is gone', async ({ catalog }) => {
   await expect(catalog.shelfDrop).toBeHidden();
