@@ -337,7 +337,8 @@ Then('registering asks a fresh visitor for an address and lights the four condit
   try {
     await page.goto(baseUrl() + 'registrations', { waitUntil: 'domcontentloaded' });
     const door = new LoginPage(page);
-    await expect(door.emailInput).toBeVisible({ timeout: 15000 });
+    await expect(door.registerMode).toBeAttached({ timeout: 15000 });
+    await expect(door.emailInput).toBeVisible();
     await door.emailInput.fill('nobody@example.com');
     await expect(door.addressTick).toBeVisible();
     await door.passwordInput.fill('Kino2026!');

@@ -15,6 +15,7 @@ class LoginPage {
     this.emailInput = page.locator('#loginEmail');
     this.addressTick = page.locator('#authMailOk.on');
     this.metRules = page.locator('#authRules .auth-rule.ok');
+    this.registerMode = page.locator('#loginOverlay[data-mode="register"]');
   }
 
   async toRegister() {
