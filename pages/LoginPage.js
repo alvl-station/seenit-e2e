@@ -9,6 +9,18 @@ class LoginPage {
     this.passwordInput = page.locator('#loginPass');
     this.submitButton = page.locator('#loginBtn');
     this.errorText = page.locator('#loginError');
+    // The door of the owner's auth design (2026-10-04): two keys, an address, four conditions.
+    this.googleButton = page.locator('#googleBtn');
+    this.registerTab = page.locator('#authTabRegister');
+    this.emailInput = page.locator('#loginEmail');
+    this.addressTick = page.locator('#authMailOk.on');
+    this.metRules = page.locator('#authRules .auth-rule.ok');
+    this.registerMode = page.locator('#loginOverlay[data-mode="register"]');
+  }
+
+  async toRegister() {
+    await this.registerTab.click();
+    await this.page.locator('#loginOverlay[data-mode="register"]').waitFor();
   }
 
   async isShown() {

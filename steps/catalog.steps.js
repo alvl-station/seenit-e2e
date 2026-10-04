@@ -1,6 +1,7 @@
 // Steps over CatalogPage: the bars, search, views, the filter window's
 // options, the archive in the account, marks, the account and the
 // collections page. Thin wrappers; every selector lives in pages/.
+const { LoginPage } = require('../pages/LoginPage');
 const { createBdd } = require('playwright-bdd');
 const { test, expect } = require('../support/fixtures');
 const { NewCollectionPage } = require('../pages/NewCollectionPage');
@@ -314,8 +315,28 @@ Then('a fresh visitor sees the password form and the Google button', async ({ br
       throw new Error(`the login screen never showed. Page state: ${JSON.stringify(state)}; `
         + `problems: ${pageProblems.slice(0, 5).join(' | ') || 'none reported'}\n${lastErr.message}`);
     }
-    await expect(page.locator('#googleBtn')).toBeVisible();
-    await expect(page.locator('#registerToggle')).toBeVisible();
+    const door = new LoginPage(page);
+    await expect(door.googleButton).toBeVisible();
+    await expect(door.registerTab).toBeVisible();
+  } finally {
+    await ctx.close();
+  }
+});
+
+// The owner's auth design (2026-10-04): registration shows the address and lights the four conditions.
+Then('registering asks a fresh visitor for an address and lights the four conditions', async ({ browser }) => {
+  test.info().setTimeout(60_000);
+  const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+  const page = await ctx.newPage();
+  try {
+    await page.goto(baseUrl() + 'registrations', { waitUntil: 'domcontentloaded' });
+    const door = new LoginPage(page);
+    await expect(door.registerMode).toBeAttached({ timeout: 15000 });
+    await expect(door.emailInput).toBeVisible();
+    await door.emailInput.fill('nobody@example.com');
+    await expect(door.addressTick).toBeVisible();
+    await door.passwordInput.fill('Kino2026!');
+    await expect(door.metRules).toHaveCount(4);
   } finally {
     await ctx.close();
   }
