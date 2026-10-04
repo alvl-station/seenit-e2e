@@ -590,22 +590,37 @@ class CatalogPage {
   async recsSourceTabs() {
     return (await this.page.locator('#recsBox [data-recs-src]').allTextContents()).map(t => t.trim());
   }
+  /* The four sources are a key on the page itself since the owner's design of 2026-10-04. */
   async switchRecsSource(id) {
-    const label = { top: 'Топ', friends: 'Від друзів', mine: 'Мої', seenit: 'SeenIt', trash: 'Кошик' }[id];
-    await this.windowTab(label).click();
+    await this.page.locator(`#recsBox [data-recs-src="${id}"]`).click();
     await this.page.waitForFunction(src => {
       const el = document.querySelector(`[data-recs-src="${src}"]`);
       return !!el && el.classList.contains('active');
     }, id);
   }
+  /** The trash is the key in the corner of «Мої». */
+  async openTrash() {
+    await this.switchRecsSource('mine');
+    await this.page.locator('#recsBox [data-recs-trash]').click();
+    await this.page.locator('#recsBox [data-recs-trash][aria-pressed="true"]').waitFor();
+  }
+  /** The header's switch: list, rail or cards. */
+  async drawCollectionsAs(shape) {
+    await this.openViewControl();
+    await this.page.locator(`#colViewToggle [data-col-shape="${shape}"]`).click();
+  }
+  async collectionsShape() {
+    return this.page.evaluate(() => (document.querySelector('#recsbody .col-rows') ? 'list'
+      : document.querySelector('#recsbody .col-rails') ? 'rail' : document.querySelector('#recsbody .col-tiles') ? 'cards' : null));
+  }
   async recsBodyText() { return (await this.page.locator('#recsbody').textContent()).trim(); }
-  /* The trash is a pane of the collections page since 2026-10-02. */
+  /* The trash is a pane of the collections page since 2026-10-02, behind the corner key of «Мої». */
   get trashList() { return this.page.locator('#recsbody #trashList'); }
   async recsCollectionNames() {
-    return (await this.page.locator('#recsbody .col-block-name').allTextContents()).map(t => t.trim());
+    return (await this.page.locator('#recsbody .col-tile-name, #recsbody .col-row-name, #recsbody .col-rail-name').allTextContents()).map(t => t.trim());
   }
   async openRecsCollection(title) {
-    await this.page.locator('#recsbody .col-block-open[data-key]', { hasText: title }).first().click();
+    await this.page.locator('#recsbody [data-col-open]', { hasText: title }).first().click();
   }
 
   /* ---- page scroll state ---- */
