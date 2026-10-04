@@ -45,3 +45,12 @@ Feature: Card layout across view modes
     # strip's last tab and the sheet it opened went with it.
     Then the strip offers no arrange tab
     And the arrange sheet does not exist
+
+  Scenario: «To the top» grows into the strip once there is a way back, and takes you there
+    # The strip's last item since 2026-10-04 (owner's design): a ring round a chevron.
+    Then the catalogue has stopped arriving
+    Then the strip offers no way to the top
+    When I scroll three screens down the shelf
+    Then the strip offers the way to the top
+    When I press the way to the top
+    Then the shelf is back at its top

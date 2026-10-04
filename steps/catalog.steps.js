@@ -439,3 +439,20 @@ When("I press the header's handle", async ({ catalog }) => {
 When('I scroll the shelf down', async ({ catalog }) => {
   await catalog.scrollTo(600);
 });
+
+Then('the strip offers no way to the top', async ({ catalog }) => {
+  await expect(catalog.toTopSlot).not.toHaveClass(/is-shown/);
+});
+When('I scroll three screens down the shelf', async ({ catalog }) => {
+  await catalog.scrollScreens(3);
+});
+Then('the strip offers the way to the top', async ({ catalog }) => {
+  await expect(catalog.toTopSlot).toHaveClass(/is-shown/);
+  await expect(catalog.toTopKey).toBeVisible();
+});
+When('I press the way to the top', async ({ catalog }) => {
+  await catalog.toTopKey.click();
+});
+Then('the shelf is back at its top', async ({ catalog }) => {
+  await expect.poll(() => catalog.scrollY(), { timeout: 5000 }).toBeLessThan(5);
+});
