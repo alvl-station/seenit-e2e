@@ -181,6 +181,7 @@ class CatalogPage {
   genreOption(index = 0) {
     return this.page.locator('#genreOpts .opt[data-g]:not([data-g="all"])').nth(index);
   }
+  genreOptionNamed(group) { return this.page.locator(`#genreOpts .opt[data-g="${group}"]`); }
   async genreOptionCount() {
     return this.page.locator('#genreOpts .opt[data-g]:not([data-g="all"])').count();
   }

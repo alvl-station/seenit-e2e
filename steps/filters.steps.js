@@ -83,3 +83,7 @@ Then('the strip\'s filter tab wears the badge {string}', async ({ catalog }, n) 
 Then('the strip\'s filter tab wears no badge', async ({ catalog }) => {
   await expect(catalog.filterTabBadge).toHaveCount(0);
 });
+
+When('I choose the genre option {string}', async ({ catalog }, group) => {
+  await catalog.genreOptionNamed(group).click();
+});
