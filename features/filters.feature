@@ -51,3 +51,18 @@ Feature: The filter sheet — years and providers
     And I take the chip "1990–1999" off
     And I apply the filters
     Then the strip's filter tab wears no badge
+
+  Scenario: Several genres at once, each its own chip
+    # Owner's ask, 2026-10-04: the filter takes several genres, as it takes several decades.
+    Then the catalogue has stopped arriving
+    When I open the filter sheet
+    And I choose the genre option "Комедії"
+    And I choose the genre option "Жахи"
+    Then the filter panel shows a chip "Комедії"
+    And the filter panel shows a chip "Жахи"
+    When I apply the filters
+    Then the strip's filter tab wears the badge "2"
+    When I open the filter sheet
+    And I choose the genre option "all"
+    And I apply the filters
+    Then the strip's filter tab wears no badge
