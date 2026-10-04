@@ -354,14 +354,17 @@ Then('the trash lists what was removed or says it is empty', async ({ catalog })
 When('I switch the recommendations source to {string}', async ({ catalog }, id) => {
   await catalog.switchRecsSource(id);
 });
-Then('the friends source lists people or says where to find them', async ({ catalog }) => {
+When('I open the trash from «Мої»', async ({ catalog }) => {
+  await catalog.openTrash();
+});
+Then('the friends source lists collections or says where to find them', async ({ catalog }) => {
   const body = await catalog.recsBodyText();
   expect(body.length, 'an empty panel reads as broken').toBeGreaterThan(0);
   expect(body).not.toMatch(/в планах|поки не можна/,
     'the feature shipped — the placeholder must not outlive it');
 });
-Then('at least {int} collections are listed', async ({ catalog, page }, n) => {
-  await page.locator('#recsbody .col-block-name').first().waitFor({ timeout: 10000 });
+Then('at least {int} collections are listed', async ({ catalog }, n) => {
+  await catalog.waitForCollectionNames();
   expect((await catalog.recsCollectionNames()).length).toBeGreaterThanOrEqual(n);
 });
 When('I open the first listed collection', async ({ catalog, ctx }) => {
@@ -370,16 +373,35 @@ When('I open the first listed collection', async ({ catalog, ctx }) => {
   ctx.collectionName = names[0];
   await catalog.openRecsCollection(names[0]);
 });
-Then("the state plate reads that collection's name", async ({ page, ctx }) => {
-  const plate = page.locator('#collectionPlate');
-  await expect(plate).toBeVisible();
-  await expect(plate).toContainText(ctx.collectionName);
+Then("the collection's head reads that collection's name", async ({ catalog, ctx }) => {
+  await expect(catalog.collectionHead).toBeVisible();
+  await expect(catalog.collectionHeadTitle).toHaveText(ctx.collectionName);
 });
-When('I close the state plate', async ({ page }) => {
-  await page.locator('#collectionPlateClose').click();
+When('I go back from the collection', async ({ catalog }) => {
+  await catalog.leaveCollection();
 });
-Then('the state plate is gone', async ({ page }) => {
-  await expect(page.locator('#collectionPlate')).toBeHidden();
+Then("the collection's head is gone", async ({ catalog }) => {
+  await expect(catalog.collectionHead).toBeHidden();
+});
+When('I draw the collections as {string}', async ({ catalog }, shape) => {
+  await catalog.drawCollectionsAs(shape);
+});
+Then('the collections are drawn as {string}', async ({ catalog }, shape) => {
+  await expect.poll(() => catalog.collectionsShape()).toBe(shape);
+});
+When('I press «Поділитися» on the collection', async ({ catalog }) => {
+  await catalog.shareCollection();
+});
+Then("the share window shows a QR code and the collection's name", async ({ catalog, ctx }) => {
+  await expect(catalog.shareWindow).toBeVisible();
+  await expect(catalog.shareQrPath).toHaveAttribute('d', /^M\d/);
+  await expect(catalog.shareCardName).toHaveText(ctx.collectionName);
+});
+When('I close the share window', async ({ catalog }) => {
+  await catalog.closeShareWindow();
+});
+Then('the share window is closed', async ({ catalog }) => {
+  await catalog.waitShareWindowClosed();
 });
 Then('the catalog shows between {int} and {int} films', async ({ catalog, page }, lo, hi) => {
   await page.locator('#main .card').first().waitFor({ state: 'attached', timeout: 10000 });
@@ -402,7 +424,7 @@ Then('the arrange sheet does not exist', async ({ catalog }) => {
 });
 
 /* ---- «Нова добірка» (opened and closed only — never created) ---- */
-When('I press «Створити» on the collections page', async ({ ctx, page }) => {
+When('I press «Нова добірка» on the collections page', async ({ ctx, page }) => {
   ctx.newCollection = new NewCollectionPage(page);
   await ctx.newCollection.open();
 });

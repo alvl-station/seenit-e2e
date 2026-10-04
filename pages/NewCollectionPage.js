@@ -1,21 +1,18 @@
-// Page object for the «Нова добірка» window (#newColSheet), opened by
-// «Створити» on the collections page. Only ever opened and closed here:
-// «Створити» inside the window (#createColBtn) is never pressed, so no
+// Page object for the «Нова добірка» window (#colFormSheet), opened by «Нова добірка» in the corner of «Мої».
+// Only ever opened and closed here: «Створити» inside the window (#colFormSave) is never pressed, so no
 // collection is ever made by the suite.
 class NewCollectionPage {
   constructor(page) {
     this.page = page;
-    this.sheet = page.locator('#newColSheet');
-    this.nameField = page.locator('#newColName');
-    this.closeButton = page.locator('#newColCloseBtn');
-    // «Створити» is mirrored into the strip while the collections page is
-    // open; the strip's copy is the one a finger can reach.
-    this.createTab = page.locator('.tabbar-window-row .tabbar-tab--window', { hasText: 'Створити' });
+    this.sheet = page.locator('#colFormSheet');
+    this.nameField = page.locator('#colFormName');
+    this.closeButton = page.locator('#colFormClose');
+    this.createKey = page.locator('#recsBox [data-recs-new]');
   }
 
   async open() {
-    await this.createTab.click();
-    await this.page.locator('#newColSheet.open').waitFor();
+    await this.createKey.click();
+    await this.page.locator('#colFormSheet.open').waitFor();
   }
 
   async isOpen() {
@@ -37,7 +34,7 @@ class NewCollectionPage {
 
   async close() {
     await this.closeButton.click();
-    await this.page.locator('#newColSheet:not(.open)').waitFor({ state: 'attached' });
+    await this.page.locator('#colFormSheet:not(.open)').waitFor({ state: 'attached' });
   }
 }
 
