@@ -50,9 +50,16 @@ Then('the rating scene answers a hand on its tape', async ({ browser }) => {
     await site.goto('main', BASE());
     await site.scrollToScene('rate', 0.05);
     await expect(site.rateBand).toHaveText('Ніколи мені такого не раджу', { timeout: 15000 });
-    await site.dragTape(-1800);
+    await site.dragTapeUp(3);
     await expect(site.rateBand).toHaveText('Обовʼязково до перегляду', { timeout: 15000 });
   });
+});
+
+Then("the projector stands inside its scene on a phone", async ({ page }) => {
+  const site = new SitePage(page);
+  await site.goto('main', BASE());
+  await site.scrollToScene('pot', 0.1);
+  await expect.poll(() => site.gateInsideScene(), { timeout: 15000 }).toBe(true);
 });
 
 Then('the projector scene plays through on the scroll alone', async ({ browser }) => {

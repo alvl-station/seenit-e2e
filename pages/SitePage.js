@@ -56,26 +56,25 @@ class SitePage {
     }, [track, p]);
   }
 
-  /** Drags the rating's tape sideways by `dx` pixels with the mouse (negative is up the scale). */
-  async dragTape(dx) {
+  /** Drags the rating's tape up the scale in `times` strokes, each within the tape, so no move leaves the window. */
+  async dragTapeUp(times) {
     const box = await this.rateTape.boundingBox();
-    const x = box.x + box.width / 2, y = box.y + box.height / 2;
-    await this.page.mouse.move(x, y);
-    await this.page.mouse.down();
-    for (let i = 1; i <= 10; i++) await this.page.mouse.move(x + dx * i / 10, y);
-    await this.page.mouse.up();
+    const y = box.y + box.height / 2, from = box.x + box.width * 0.9, to = box.x + box.width * 0.1;
+    for (let n = 0; n < times; n++) {
+      await this.page.mouse.move(from, y);
+      await this.page.mouse.down();
+      for (let i = 1; i <= 8; i++) await this.page.mouse.move(from + (to - from) * i / 8, y);
+      await this.page.mouse.up();
+    }
   }
 
-  /** Brings a week card to the middle of the strip (focusing it scrolls it there) and returns the title the panel shows. */
-  async centreWeekCard(card) {
-    const index = await card.getAttribute('data-index');
-    await card.focus();
-    await this.page.waitForFunction(i => {
-      const row = document.getElementById('homeRow');
-      const c = row && row.children[Number(i)];
-      return !!c && Number(c.style.zIndex) === 100;
-    }, index, { timeout: 15000 });
-    return (await this.weekPanelTitle.textContent()).trim();
+  /** Whether the projector's gate, where the beam starts, lies inside its scene on this screen. */
+  async gateInsideScene() {
+    return this.page.evaluate(() => {
+      const pin = document.getElementById('homePj').getBoundingClientRect();
+      const gate = document.getElementById('homePjGate').getBoundingClientRect();
+      return gate.top >= pin.top && gate.bottom <= pin.bottom && gate.left >= pin.left && gate.right <= pin.right;
+    });
   }
 
   async goto(name, base) {

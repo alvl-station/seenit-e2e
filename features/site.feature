@@ -18,6 +18,10 @@ Feature: The site — the pages read before sign-in
   Scenario: The projector scene plays through on the scroll
     Then the projector scene plays through on the scroll alone
 
+  @phone-portrait
+  Scenario: On a phone the projector stands inside its scene
+    Then the projector stands inside its scene on a phone
+
   Scenario: Every page of the site carries its tabs and TMDB's notice
     Then every page of the site shows the tab strip and TMDB's notice
 
