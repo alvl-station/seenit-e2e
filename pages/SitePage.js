@@ -77,6 +77,18 @@ class SitePage {
     });
   }
 
+  /** Brings a week card to the middle of the strip (focusing it scrolls it there) and returns the title the panel shows. */
+  async centreWeekCard(card) {
+    const index = await card.getAttribute('data-index');
+    await card.focus();
+    await this.page.waitForFunction(i => {
+      const row = document.getElementById('homeRow');
+      const c = row && row.children[Number(i)];
+      return !!c && Number(c.style.zIndex) === 100;
+    }, index, { timeout: 15000 });
+    return (await this.weekPanelTitle.textContent()).trim();
+  }
+
   async goto(name, base) {
     await this.page.goto(new URL(name, base).toString(), { waitUntil: 'domcontentloaded' });
   }
