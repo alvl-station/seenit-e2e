@@ -83,10 +83,7 @@ const test = bddBase.extend({
     await use(ctx);
     // Every collection a step made is deleted again, through the app's own request, whatever happened.
     for (const id of ctx.collections) {
-      const gone = await page.evaluate(async (cid) => {
-        const res = await api.request(`/library/collections/${encodeURIComponent(cid)}`, { method: 'DELETE', headers: { accept: 'application/json' } });
-        return res.ok;
-      }, id).catch(() => false);
+      const gone = await new CatalogPage(page).deleteOwnCollection(id).catch(() => false);
       if (!gone) test.info().annotations.push({ type: 'teardown-failed', description: `could not delete the collection ${id}` });
     }
     for (const { key, title } of ctx.marked) {

@@ -55,8 +55,9 @@ Then('the screen shows at most eight films, made from the strip', async ({ ctx, 
   const picks = picksOf(ctx, page);
   await expect.poll(() => picks.cards.count(), POLL).toBeGreaterThan(0);
   expect(await picks.cards.count()).toBeLessThanOrEqual(8);
-  await expect(picks.madeFrom.first()).toContainText(ctx.pickedGenre);
-  if (ctx.cutGenre) await expect(picks.madeFrom.filter({ hasText: ctx.cutGenre })).toHaveClass(/is-cut/);
+  await expect(picks.madeFromChip(ctx.pickedGenre)).toHaveCount(1);
+  await expect(picks.madeFromChip(ctx.pickedGenre)).not.toHaveClass(/is-cut/);
+  if (ctx.cutGenre) await expect(picks.madeFromChip(ctx.cutGenre)).toHaveClass(/is-cut/);
 });
 When('I stop the projector', async ({ ctx, page, catalog: _ }) => {
   await picksOf(ctx, page).press('stop');

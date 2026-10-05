@@ -618,6 +618,24 @@ class CatalogPage {
   async waitForCollectionNames() {
     await this.page.locator('#recsbody .col-tile-name, #recsbody .col-row-name, #recsbody .col-rail-name').first().waitFor({ timeout: 10000 });
   }
+  /** Makes an empty collection of the account's own through the app's request, then reloads the shelf. */
+  async createOwnCollection(id, name) {
+    await this.page.evaluate(async ([cid, title]) => {
+      const res = await api.request(`/library/collections/${encodeURIComponent(cid)}`, {
+        method: 'PUT', headers: { accept: 'application/json', 'content-type': 'application/json' },
+        body: JSON.stringify({ name: title, film_ids: [], about: '', numbered: false }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await loadShelf();
+    }, [id, name]);
+  }
+  /** Deletes it again; true when it is gone, a 404 included (the PUT may never have landed). */
+  async deleteOwnCollection(id) {
+    return this.page.evaluate(async (cid) => {
+      const res = await api.request(`/library/collections/${encodeURIComponent(cid)}`, { method: 'DELETE', headers: { accept: 'application/json' } });
+      return res.ok || res.status === 404;
+    }, id);
+  }
   /* An open collection's head (owner's design, 2026-10-04), its way back, and its share window. */
   get collectionHead() { return this.page.locator('#collectionHero'); }
   get collectionHeadTitle() { return this.collectionHead.locator('.col-hero-title'); }

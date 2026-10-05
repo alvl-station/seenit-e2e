@@ -1,5 +1,9 @@
 // The picks page (seenit-frontend, 2026-10-06): an editing bench and a projector in three steps.
 // Frames are edited onto a strip, others are cut, and the projector shows the films on a screen.
+// A label is matched whole and case-sensitively: a substring would take one genre for a longer one.
+const exactly = (label, prefix = '') =>
+  new RegExp(`^\\s*${prefix}${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`);
+
 class PicksPage {
   constructor(page) {
     this.page = page;
@@ -16,8 +20,11 @@ class PicksPage {
   kindSwitch(kind) { return this.page.locator(`#picksTop [data-pick-kind="${kind}"]`); }
   /** A frame in the list that is up (one list at a time). */
   frame(label) {
-    return this.page.locator('#picksKitchen .pick-list:visible [data-pick-key]').filter({ hasText: label }).first();
+    return this.page.locator('#picksKitchen .pick-list:visible [data-pick-key]')
+      .filter({ has: this.page.locator('.pick-lbl', { hasText: exactly(label) }) }).first();
   }
+  /** A frame's chip under the screen: "+ label" when it went on the strip, "minus label" when it was cut. */
+  madeFromChip(label) { return this.madeFrom.filter({ hasText: exactly(label, '[+\u2212-]\\s*') }); }
   /** A key of the transport deck, wherever it stands (the library's foot, or under the screen). */
   key(act) { return this.page.locator(`#picksSheet [data-pick-act="${act}"]`); }
   async step() { return this.sheet.getAttribute('data-step'); }
