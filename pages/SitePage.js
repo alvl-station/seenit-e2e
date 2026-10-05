@@ -1,5 +1,5 @@
-// Page object for the SITE: the pages read before sign-in — /main (this
-// week's news), /about, the documents (/legal, /terms, /privacy,
+// Page object for the SITE: the pages read before sign-in — /main (the
+// scenes about the app), /week (this week's news), /about, the documents (/legal, /terms, /privacy,
 // /community, /sources) and /contacts. Built by seenit-frontend from
 // src/site/ and dressed in the app's own pieces: the header on the bar
 // ground, the tab strip, the shelf's cards, the chips.
@@ -38,6 +38,32 @@ class SitePage {
     this.openableWeekCards = page.locator('#homeRow a.home-wc');
     this.weekPanelTitle = page.locator('#homePanelTitle');
     this.homeStoryLink = page.locator('#homeStory a.home-read');
+    this.homeTabs = page.locator('#homePlaces a.topbar-tab');
+    // The two scenes a hand can drive (owner's design, 2026-10-06): the rating's tape and the projector.
+    this.rateBand = page.locator('#homeRState');
+    this.rateTape = page.locator('#homeTape');
+    this.projectorLead = page.locator('#homePjLead');
+    this.projectorChosen = page.locator('#homePjChosen span');
+    this.tunnelPosters = page.locator('#homeTunnel .home-tp img');
+  }
+
+  /** Scrolls the front page to `p` (0..1) of a scene's track, at once. */
+  async scrollToScene(track, p) {
+    await this.page.evaluate(([t, at]) => {
+      const el = document.querySelector(`[data-track="${t}"]`);
+      document.documentElement.style.scrollBehavior = 'auto';
+      window.scrollTo(0, el.offsetTop + (el.offsetHeight - window.innerHeight) * at);
+    }, [track, p]);
+  }
+
+  /** Drags the rating's tape sideways by `dx` pixels with the mouse (negative is up the scale). */
+  async dragTape(dx) {
+    const box = await this.rateTape.boundingBox();
+    const x = box.x + box.width / 2, y = box.y + box.height / 2;
+    await this.page.mouse.move(x, y);
+    await this.page.mouse.down();
+    for (let i = 1; i <= 10; i++) await this.page.mouse.move(x + dx * i / 10, y);
+    await this.page.mouse.up();
   }
 
   /** Brings a week card to the middle of the strip (focusing it scrolls it there) and returns the title the panel shows. */
