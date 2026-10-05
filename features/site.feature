@@ -1,12 +1,26 @@
 Feature: The site — the pages read before sign-in
-  The front page shows this week's news from the catalogue as one strip of
-  posters under its own glass header (owner's design, 2026-10-05); every other
-  page of the site wears the app's own header and tab strip. The front page's
-  cards open the film in the app. Read-only (REQ T-4): nothing here writes anything.
+  The front page tells what the app does in scenes under its own glass header
+  (owner's designs, 2026-10-05 and 2026-10-06); this week's news is a tab of its
+  own, one strip of posters in the same dark frame, whose cards open the film in
+  the app. Every other page of the site wears the app's own header and tab strip.
+  Read-only (REQ T-4): nothing here writes anything.
 
-  Scenario: A fresh visitor at the root meets the front page, with its news
-    Then a fresh visitor at the root sees the front page with this week's news
+  Scenario: A fresh visitor at the root meets the front page
+    Then a fresh visitor at the root meets the front page
     And the front page offers a stranger a way in and an account
+
+  Scenario: This week's news has a tab of its own
+    Then the week's tab shows this week's news
+
+  Scenario: The rating scene answers a hand
+    Then the rating scene answers a hand on its tape
+
+  Scenario: The projector scene plays through on the scroll
+    Then the projector scene plays through on the scroll alone
+
+  @phone-portrait
+  Scenario: On a phone the projector stands inside its scene
+    Then the projector stands inside its scene on a phone
 
   Scenario: Every page of the site carries its tabs and TMDB's notice
     Then every page of the site shows the tab strip and TMDB's notice
@@ -19,8 +33,8 @@ Feature: The site — the pages read before sign-in
     Then the front page offers the way back into the app
     And I am still signed in
 
-  Scenario: A card on the front page opens that film in the app
-    When I open the first film on the front page
+  Scenario: A card of the week opens that film in the app
+    When I open the first film on the week's tab
     Then that film's card is open in the app
 
   Scenario: Stories name their sources and credit their photos

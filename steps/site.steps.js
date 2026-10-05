@@ -8,9 +8,11 @@ const { CatalogPage } = require('../pages/CatalogPage');
 const { baseUrl: BASE } = require('../support/base-url');
 const { When, Then } = createBdd(test);
 
-const PAGES = ['main', 'stories', 'about', 'legal', 'terms', 'privacy', 'community', 'sources', 'contacts'];
-// Contacts live in the footer, not on the strip — no tab is lit there.
-const UNTABBED = ['contacts'];
+const PAGES = ['main', 'week', 'stories', 'about', 'legal', 'terms', 'privacy', 'community', 'sources', 'contacts'];
+// Contacts live in the footer, not on the strip, and the front page is the logo's — no tab is lit there.
+const UNTABBED = ['contacts', 'main'];
+// The dark pages wear the front page's own glass header (owner's designs, 2026-10-05 and 2026-10-06).
+const DARK = ['main', 'week'];
 const DOCUMENTS = ['terms', 'privacy', 'community', 'sources'];
 const DRAFTS = ['terms', 'privacy', 'community'];
 const TMDB_NOTICE = /This product uses the TMDB API but is not endorsed or certified by TMDB\./;
@@ -22,15 +24,52 @@ async function asStranger(browser, fn) {
   try { await fn(new SitePage(page), page); } finally { await ctx.close(); }
 }
 
-Then("a fresh visitor at the root sees the front page with this week's news", async ({ browser }) => {
+Then('a fresh visitor at the root meets the front page', async ({ browser }) => {
   await asStranger(browser, async (site, page) => {
     await page.goto(BASE(), { waitUntil: 'domcontentloaded' });
     await expect(page).toHaveURL(/\/main$/, { timeout: 15000 });
     await expect(site.homeHeader).toBeVisible();
     await expect(site.tabbar).toHaveCount(0);
+    await expect(site.tunnelPosters.first()).toBeAttached({ timeout: 15000 });
+  });
+});
+
+Then("the week's tab shows this week's news", async ({ browser }) => {
+  await asStranger(browser, async (site, page) => {
+    await site.goto('main', BASE());
+    await site.homeTabs.filter({ hasText: /^Цього тижня$/ }).click();
+    await expect(page).toHaveURL(/\/week$/, { timeout: 15000 });
     // The news comes from the Worker's /public/home after the page paints, as one strip of posters.
     await expect(site.weekCards.first()).toBeAttached({ timeout: 15000 });
     expect(await site.weekCards.count()).toBeGreaterThan(0);
+  });
+});
+
+Then('the rating scene answers a hand on its tape', async ({ browser }) => {
+  await asStranger(browser, async (site) => {
+    await site.goto('main', BASE());
+    await site.scrollToScene('rate', 0.05);
+    await expect(site.rateBand).toHaveText('Ніколи мені такого не раджу', { timeout: 15000 });
+    await site.dragTapeUp(3);
+    await expect(site.rateBand).toHaveText('Обовʼязково до перегляду', { timeout: 15000 });
+  });
+});
+
+Then("the projector stands inside its scene on a phone", async ({ page }) => {
+  const site = new SitePage(page);
+  await site.goto('main', BASE());
+  await site.scrollToScene('pot', 0.1);
+  await expect.poll(() => site.gateInsideScene(), { timeout: 15000 }).toBe(true);
+});
+
+Then('the projector scene plays through on the scroll alone', async ({ browser }) => {
+  await asStranger(browser, async (site, page) => {
+    await site.goto('main', BASE());
+    // Through the track in steps, as a reader scrolls: a frame at .17, .30 and .42, the lamp after .60.
+    for (const p of [0.05, 0.2, 0.33, 0.45, 0.55]) { await site.scrollToScene('pot', p); await page.waitForTimeout(400); }
+    await expect(site.projectorChosen).toHaveCount(3, { timeout: 15000 });
+    await site.scrollToScene('pot', 0.7);
+    await expect(site.projectorLead).toHaveText(/Сеанс почався/, { timeout: 15000 });
   });
 });
 
@@ -47,10 +86,9 @@ Then("every page of the site shows the tab strip and TMDB's notice", async ({ br
   await asStranger(browser, async (site) => {
     for (const name of PAGES) {
       await site.goto(name, BASE());
-      // The front page wears its own glass header (owner's design, 2026-10-05); every other page the app's tab strip.
-      if (name === 'main') await expect(site.homeHeader, name).toBeVisible();
-      else await expect(site.tabs, name).toHaveCount(4);
-      if (name !== 'main') await expect(site.activeTab, name).toHaveCount(UNTABBED.includes(name) ? 0 : 1);
+      if (DARK.includes(name)) await expect(site.homeHeader, name).toBeVisible();
+      await expect(site.tabs, name).toHaveCount(4);
+      await expect(site.activeTab, name).toHaveCount(UNTABBED.includes(name) ? 0 : 1);
       await expect(site.footerNote, name).toHaveText(TMDB_NOTICE);
       await expect(site.footerContacts, name).toHaveCount(1);
     }
@@ -91,10 +129,10 @@ Then('I am still signed in', async ({ page }) => {
   expect(await catalog.cardCount()).toBeGreaterThan(0);
 });
 
-When('I open the first film on the front page', async ({ catalog, page, ctx }) => {
+When("I open the first film on the week's tab", async ({ catalog, page, ctx }) => {
   await catalog.waitForCatalogLoaded();
   const site = new SitePage(page);
-  await site.goto('main', BASE());
+  await site.goto('week', BASE());
   const first = site.openableWeekCards.first();
   await expect(first).toBeAttached({ timeout: 15000 });
   // A card leads to its film from the middle of the strip; anywhere else a press only brings it there.
