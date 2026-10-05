@@ -1,8 +1,8 @@
 Feature: The site — the pages read before sign-in
   The front page tells what the app does in scenes under its own glass header
-  (owner's designs, 2026-10-05 and 2026-10-06); this week's news is a tab of its
-  own, one strip of posters in the same dark frame, whose cards open the film in
-  the app. Every other page of the site wears the app's own header and tab strip.
+  (owner's designs, 2026-10-05 and 2026-10-06); every other page wears one calm
+  frame with five tabs (design/site-pages); this week's news is a page of days,
+  filters and the shelf's cards, which open the film in the app.
   Read-only (REQ T-4): nothing here writes anything.
 
   Scenario: A fresh visitor at the root meets the front page
@@ -11,6 +11,9 @@ Feature: The site — the pages read before sign-in
 
   Scenario: This week's news has a tab of its own
     Then the week's tab shows this week's news
+
+  Scenario: The week's page filters by section, and the address keeps it
+    Then the week's section filter narrows the page and stays in the address
 
   Scenario: The rating scene answers a hand
     Then the rating scene answers a hand on its tape

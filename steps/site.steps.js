@@ -9,10 +9,6 @@ const { baseUrl: BASE } = require('../support/base-url');
 const { When, Then } = createBdd(test);
 
 const PAGES = ['main', 'week', 'stories', 'about', 'legal', 'terms', 'privacy', 'community', 'sources', 'contacts'];
-// Contacts live in the footer, not on the strip, and the front page is the logo's — no tab is lit there.
-const UNTABBED = ['contacts', 'main'];
-// The dark pages wear the front page's own glass header (owner's designs, 2026-10-05 and 2026-10-06).
-const DARK = ['main', 'week'];
 const DOCUMENTS = ['terms', 'privacy', 'community', 'sources'];
 const DRAFTS = ['terms', 'privacy', 'community'];
 const TMDB_NOTICE = /This product uses the TMDB API but is not endorsed or certified by TMDB\./;
@@ -39,9 +35,24 @@ Then("the week's tab shows this week's news", async ({ browser }) => {
     await site.goto('main', BASE());
     await site.homeTabs.filter({ hasText: /^Цього тижня$/ }).click();
     await expect(page).toHaveURL(/\/week$/, { timeout: 15000 });
-    // The news comes from the Worker's /public/home after the page paints, as one strip of posters.
+    // The news comes from the Worker's /public/home after the page paints: the days, the filter, the shelf's cards.
     await expect(site.weekCards.first()).toBeAttached({ timeout: 15000 });
     expect(await site.weekCards.count()).toBeGreaterThan(0);
+    await expect(site.weekDays).toHaveCount(7);
+    await expect(site.activeTab).toHaveText('Цього тижня');
+  });
+});
+
+Then("the week's section filter narrows the page and stays in the address", async ({ browser }) => {
+  await asStranger(browser, async (site, page) => {
+    await site.goto('week', BASE());
+    await expect(site.weekFilter.nth(1)).toBeVisible({ timeout: 15000 });
+    const section = await site.weekFilter.nth(1).getAttribute('data-section');
+    await site.weekFilter.nth(1).click();
+    await expect(page).toHaveURL(new RegExp(`[?&]s=${section}`));
+    await expect(site.weekFilter.nth(1)).toHaveAttribute('aria-pressed', 'true');
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(site.weekFilter.nth(1)).toHaveAttribute('aria-pressed', 'true', { timeout: 15000 });
   });
 });
 
@@ -86,9 +97,16 @@ Then("every page of the site shows the tab strip and TMDB's notice", async ({ br
   await asStranger(browser, async (site) => {
     for (const name of PAGES) {
       await site.goto(name, BASE());
-      if (DARK.includes(name)) await expect(site.homeHeader, name).toBeVisible();
-      await expect(site.tabs, name).toHaveCount(4);
-      await expect(site.activeTab, name).toHaveCount(UNTABBED.includes(name) ? 0 : 1);
+      // The front page keeps its own folding header with the four others (design/home); every other page the calm
+      // frame's five tabs with the current one lit (design/site-pages, 2026-10-06).
+      if (name === 'main') {
+        await expect(site.homeHeader, name).toBeVisible();
+        await expect(site.homeTabs, name).toHaveCount(4);
+      } else {
+        await expect(site.tabs, name).toHaveCount(5);
+        // Contacts is a document since 2026-10-06, so it lights «Документи» like the rest.
+        await expect(site.activeTab, name).toHaveCount(1);
+      }
       await expect(site.footerNote, name).toHaveText(TMDB_NOTICE);
       await expect(site.footerContacts, name).toHaveCount(1);
     }
@@ -101,8 +119,8 @@ Then("each document opens at its own address with the section's menu", async ({ 
       await site.goto(name, BASE());
       await expect(page, name).toHaveURL(new RegExp(`/${name}$`));
       await expect(site.title, name).toBeVisible();
-      await expect(site.sectionMenu, name).toHaveCount(4);
-      await expect(site.sectionMenu.and(page.locator('.active')), name).toHaveCount(1);
+      await expect(site.sectionMenu, name).toHaveCount(5);
+      await expect(site.sectionMenu.and(page.locator('[aria-current="page"]')), name).toHaveCount(1);
       await expect(site.draftStamp, name).toHaveCount(DRAFTS.includes(name) ? 1 : 0);
     }
   });
@@ -135,8 +153,7 @@ When("I open the first film on the week's tab", async ({ catalog, page, ctx }) =
   await site.goto('week', BASE());
   const first = site.openableWeekCards.first();
   await expect(first).toBeAttached({ timeout: 15000 });
-  // A card leads to its film from the middle of the strip; anywhere else a press only brings it there.
-  ctx.frontPageTitle = await site.centreWeekCard(first);
+  ctx.frontPageTitle = await site.weekCardTitle(first);
   await first.click();
 });
 
@@ -153,7 +170,7 @@ Then('the stories page shows sourced stories with credited photos', async ({ bro
     expect(await site.stories.count()).toBeGreaterThan(0);
     // Every story names where it came from; every photo, whose it is.
     for (const story of await site.stories.all()) {
-      expect(await story.locator('.story-sources li').count()).toBeGreaterThan(0);
+      expect(await story.locator('.st-src li').count()).toBeGreaterThan(0);
     }
     for (const credit of await site.storyPhotoCredits.all()) {
       await expect(credit).toContainText('Wikimedia Commons');
@@ -164,6 +181,9 @@ Then('the stories page shows sourced stories with credited photos', async ({ bro
 Then('a trailer loads only when it is tapped, from the no-cookie player', async ({ browser }) => {
   await asStranger(browser, async (site) => {
     await site.goto('stories', BASE());
+    expect(await site.storyCards.count()).toBeGreaterThan(0);
+    // A story opens at its own address; its trailer is a button until it is tapped.
+    await site.goto('stories#' + await site.storyWithTrailer(), BASE());
     await expect(site.trailerFrames).toHaveCount(0);
     await site.trailerButtons.first().click();
     await expect(site.trailerFrames).toHaveCount(1);
@@ -179,6 +199,6 @@ Then("the front page leads to the newest stories", async ({ browser }) => {
     const anchor = (await first.getAttribute('href')).split('#')[1];
     await first.click();
     await expect(page).toHaveURL(new RegExp(`/stories#${anchor}$`));
-    await expect(page.locator(`article.story#${anchor}`)).toBeVisible();
+    await expect(page.locator(`article.st-read#${anchor}`)).toBeVisible();
   });
 });

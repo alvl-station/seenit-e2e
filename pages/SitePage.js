@@ -7,8 +7,9 @@ class SitePage {
   constructor(page) {
     this.page = page;
     this.header = page.locator('header[data-surface="bar"]');
-    this.tabs = page.locator('.topbar-tabs a.topbar-tab');
-    this.activeTab = page.locator('.topbar-tabs a.topbar-tab.active');
+    // The calm pages' header (design/site-pages, 2026-10-06): five tabs on a groove, the current one on the thumb.
+    this.tabs = page.locator('#spHdr a.sp-tab');
+    this.activeTab = page.locator('#spHdr a.sp-tab.on');
     // The way in: the icon at the side of the header, and the hero's button.
     this.signInIcon = page.locator('#siteGo');
     this.signInButton = page.locator('[data-site-go]');
@@ -19,24 +20,29 @@ class SitePage {
     this.newsCards = page.locator('#siteNews .card');
     this.openableCards = page.locator('#siteNews a.card');
     this.title = page.locator('.site-text h1');
-    this.sectionMenu = page.locator('.site-subnav .opt');
+    // A document's rail (design/site-pages, 2026-10-06): the five documents, the current one marked.
+    this.sectionMenu = page.locator('#dcList a');
     this.draftStamp = page.locator('.site-draft');
     this.footerNote = page.locator('.site-foot-note');
     this.footerContacts = page.locator('.site-foot-links a[href="contacts"]');
     // Stories: the page, and the front page's strip of the newest.
-    this.stories = page.locator('article.story');
-    this.storySources = page.locator('article.story .story-sources li');
-    this.storyPhotoCredits = page.locator('article.story .story-photo figcaption');
-    this.trailerButtons = page.locator('.story-video');
-    this.trailerFrames = page.locator('iframe.story-frame');
+    // Stories (design/site-pages, 2026-10-06): an index, and each story a reader at stories#<slug>.
+    this.stories = page.locator('article.st-read');
+    this.storySources = page.locator('article.st-read .st-src li');
+    this.storyPhotoCredits = page.locator('article.st-read .st-fig figcaption');
+    this.storyCards = page.locator('.st-index a.st-card, .st-index a.st-feat');
+    this.trailerButtons = page.locator('article.st-read:target .st-video');
+    this.trailerFrames = page.locator('iframe.st-frame');
     this.storyTeasers = page.locator('a.story-teaser');
     // The front page since the owner's design of 2026-10-05: its own glass header, the week as one 3D strip, the newest story.
     this.homeHeader = page.locator('#homeHdr');
     this.homeSignIn = page.locator('#homeHdr [data-site-go]');
     this.ctaRegister = page.locator('.home-cta [data-site-join]');
-    this.weekCards = page.locator('#homeRow .home-wc');
-    this.openableWeekCards = page.locator('#homeRow a.home-wc');
-    this.weekPanelTitle = page.locator('#homePanelTitle');
+    // The week's page: sections of the shelf's cards, the day keys and the section filter.
+    this.weekCards = page.locator('#siteNews .wk-card');
+    this.openableWeekCards = page.locator('#siteNews a.wk-card');
+    this.weekDays = page.locator('#wkDays .wk-day');
+    this.weekFilter = page.locator('#wkFilter .sp-seg-key');
     this.homeStoryLink = page.locator('#homeStory a.home-read');
     this.homeTabs = page.locator('#homePlaces a.topbar-tab');
     // The two scenes a hand can drive (owner's design, 2026-10-06): the rating's tape and the projector.
@@ -77,16 +83,14 @@ class SitePage {
     });
   }
 
-  /** Brings a week card to the middle of the strip (focusing it scrolls it there) and returns the title the panel shows. */
-  async centreWeekCard(card) {
-    const index = await card.getAttribute('data-index');
-    await card.focus();
-    await this.page.waitForFunction(i => {
-      const row = document.getElementById('homeRow');
-      const c = row && row.children[Number(i)];
-      return !!c && Number(c.style.zIndex) === 100;
-    }, index, { timeout: 15000 });
-    return (await this.weekPanelTitle.textContent()).trim();
+  /** The address of the first story that has a trailer. */
+  async storyWithTrailer() {
+    return this.page.locator('article.st-read:has(.st-video)').first().getAttribute('id');
+  }
+
+  /** The title a week card shows. */
+  async weekCardTitle(card) {
+    return (await card.locator('h3').textContent()).trim();
   }
 
   async goto(name, base) {
