@@ -385,6 +385,27 @@ Then('at least {int} collections are listed', async ({ catalog }, n) => {
   await catalog.waitForCollectionNames();
   expect((await catalog.recsCollectionNames()).length).toBeGreaterThanOrEqual(n);
 });
+/* Tests make the data they read (owner's ask, 2026-10-06): a collection of the test account's own, made through
+ * the app's own request and deleted again by the fixture's teardown. */
+Given('I have a collection of my own', async ({ catalog, ctx, page }) => {
+  ctx.collectionName = `E2E добірка ${Date.now() % 100000}`;
+  const id = await page.evaluate(async (name) => {
+    const cid = `e2e-${Date.now()}`;
+    const res = await api.request(`/library/collections/${encodeURIComponent(cid)}`, {
+      method: 'PUT', headers: { accept: 'application/json', 'content-type': 'application/json' },
+      body: JSON.stringify({ name, film_ids: [], about: '', numbered: false }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    await loadShelf();
+    return cid;
+  }, ctx.collectionName);
+  ctx.collections.push(id);
+});
+When('I open the collection I made', async ({ catalog, ctx }) => {
+  await catalog.waitForCollectionNames();
+  await expect.poll(() => catalog.recsCollectionNames()).toContain(ctx.collectionName);
+  await catalog.openRecsCollection(ctx.collectionName);
+});
 When('I open the first listed collection', async ({ catalog, ctx }) => {
   const names = await catalog.recsCollectionNames();
   expect(names.length).toBeGreaterThan(0);

@@ -79,8 +79,16 @@ const test = bddBase.extend({
   // archive, its card opened and «Не дивився» pressed — the number and the
   // marks both go — and the marks batch sent before the page is let go.
   ctx: async ({ page }, use) => {
-    const ctx = { marked: [] };
+    const ctx = { marked: [], collections: [] };
     await use(ctx);
+    // Every collection a step made is deleted again, through the app's own request, whatever happened.
+    for (const id of ctx.collections) {
+      const gone = await page.evaluate(async (cid) => {
+        const res = await api.request(`/library/collections/${encodeURIComponent(cid)}`, { method: 'DELETE', headers: { accept: 'application/json' } });
+        return res.ok;
+      }, id).catch(() => false);
+      if (!gone) test.info().annotations.push({ type: 'teardown-failed', description: `could not delete the collection ${id}` });
+    }
     for (const { key, title } of ctx.marked) {
       try {
         const catalog = new CatalogPage(page);

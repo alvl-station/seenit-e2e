@@ -3,8 +3,9 @@ Feature: Toggle-off on second tap and hover on touch
   sticky :hover on touch devices. The genre is an option in the filter
   window now; the archive's lists are figures on the account's statistics.
 
-  Read-only. The two count scenarios that used to close this file live in
-  marks.feature now: a count read here raced a mark being set there.
+  The archive scenario scores a film for its lists to hold, and the teardown
+  clears it (owner's ask, 2026-10-06: tests make the data they read). The two
+  count scenarios live in marks.feature: a count read here raced a mark there.
 
   Scenario: A genre option deselects on a second tap
     Given the catalog has more than one genre
@@ -17,7 +18,9 @@ Feature: Toggle-off on second tap and hover on touch
   Scenario: The archive is the account's statistics, one list at a time
     # Owner's ask, 2026-10-03: «Архів» left the strip; each figure opens its films.
     Then the strip offers no archive tab
-    When I isolate the catalog to watched films
+    When I give the first film a score of "8.0"
+    And I close the modal
+    And I isolate the catalog to watched films
     Then the "Переглянуто" figure is lit, and its films stand under it
     When I press the "Рекомендую" figure
     Then the "Рекомендую" figure is lit, and its films stand under it
