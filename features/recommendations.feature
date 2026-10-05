@@ -51,9 +51,10 @@ Feature: The collections page — top, friends, mine and the SeenIt lists
     And the recommendations flow is open
 
   Scenario: Sharing a collection of mine shows its QR code and its card
+    Given I have a collection of my own
     When I open the recommendations flow
     And I switch the recommendations source to "mine"
-    And I open the first listed collection
+    And I open the collection I made
     And I press «Поділитися» on the collection
     Then the share window shows a QR code and the collection's name
     When I close the share window

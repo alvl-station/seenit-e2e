@@ -385,6 +385,20 @@ Then('at least {int} collections are listed', async ({ catalog }, n) => {
   await catalog.waitForCollectionNames();
   expect((await catalog.recsCollectionNames()).length).toBeGreaterThanOrEqual(n);
 });
+/* Tests make the data they read (owner's ask, 2026-10-06): a collection of the test account's own, made through
+ * the app's own request and deleted again by the fixture's teardown. */
+Given('I have a collection of my own', async ({ catalog, ctx }) => {
+  ctx.collectionName = `E2E добірка ${Date.now() % 100000}`;
+  // Recorded before the PUT, so a request that fails halfway is still cleaned up.
+  const id = `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  ctx.collections.push(id);
+  await catalog.createOwnCollection(id, ctx.collectionName);
+});
+When('I open the collection I made', async ({ catalog, ctx }) => {
+  await catalog.waitForCollectionNames();
+  await expect.poll(() => catalog.recsCollectionNames()).toContain(ctx.collectionName);
+  await catalog.openRecsCollection(ctx.collectionName);
+});
 When('I open the first listed collection', async ({ catalog, ctx }) => {
   const names = await catalog.recsCollectionNames();
   expect(names.length).toBeGreaterThan(0);

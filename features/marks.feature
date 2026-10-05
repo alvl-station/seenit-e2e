@@ -89,10 +89,29 @@ Feature: Marking a film by its score
   # Moved from toggles.feature (2026-09-27): these read the counts, so they
   # race any mark being set in parallel and belong in the serial project.
   Scenario: The "Дивився" count matches the films the archive lists
-    When I isolate the catalog to watched films
+    # The film it counts is scored here, and cleared by the teardown (owner's ask, 2026-10-06: tests make their data).
+    When I give the first film a score of "8.0"
+    And I close the modal
+    And I isolate the catalog to watched films
     Then the "Дивився" tab count matches the films it lists
 
   Scenario: The "Рекомендую" count matches the films the archive lists under it
-    When I isolate the catalog to watched films
+    When I give the first film a score of "8.0"
+    And I close the modal
+    And I isolate the catalog to watched films
     And I narrow the archive to "Рекомендую"
     Then the "Рекомендую" tab count matches the films it lists
+
+  Scenario: The archive is the account's statistics, one list at a time
+    # Moved from toggles.feature (2026-10-06): it scores a film, so it writes a mark.
+    # Owner's ask, 2026-10-03: «Архів» left the strip; each figure opens its films.
+    Then the strip offers no archive tab
+    When I give the first film a score of "8.0"
+    And I close the modal
+    And I isolate the catalog to watched films
+    Then the "Переглянуто" figure is lit, and its films stand under it
+    When I press the "Рекомендую" figure
+    Then the "Рекомендую" figure is lit, and its films stand under it
+    And the "Переглянуто" figure is not lit
+    When I press the "Серіалів" figure
+    Then the "Серіалів" figure is lit, and its films stand under it

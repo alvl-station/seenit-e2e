@@ -1,4 +1,4 @@
-// Steps over PicksPage: the cauldron. Thin wrappers; the selectors live in pages/.
+// Steps over PicksPage: the editing bench and the projector. Thin wrappers; the selectors live in pages/.
 const { createBdd } = require('playwright-bdd');
 const { test, expect } = require('../support/fixtures');
 const { PicksPage } = require('../pages/PicksPage');
@@ -12,47 +12,60 @@ function picksOf(ctx, page) {
   return ctx.picks;
 }
 
-Then('the cauldron stands on the first step with an empty pot', async ({ ctx, page, catalog: _ }) => {
+Then('the bench stands on the first step with an empty strip', async ({ ctx, page, catalog: _ }) => {
   const picks = picksOf(ctx, page);
-  await expect(picks.pot).toBeVisible();
+  await expect(picks.projector).toBeVisible();
   await expect.poll(() => picks.step(), POLL).toBe('add');
-  await expect(picks.chosen).toHaveCount(0);
+  await expect(picks.onStrip).toHaveCount(0);
+  await expect(picks.stripTitle).toHaveText('Стрічка порожня');
 });
-When('I throw the first genre into the pot', async ({ ctx, page, catalog: _ }) => {
+When('I edit the first genre onto the strip', async ({ ctx, page, catalog: _ }) => {
   const picks = picksOf(ctx, page);
-  ctx.pickedGenre = await picks.firstChipLabel();
+  ctx.pickedGenre = await picks.frameLabel(0);
   await picks.tap(ctx.pickedGenre);
 });
-Then('the pot holds one thing, and its chip is lit', async ({ ctx, page, catalog: _ }) => {
+Then('the strip holds one frame, and its frame is lit', async ({ ctx, page, catalog: _ }) => {
   const picks = picksOf(ctx, page);
-  await expect(picks.chosen).toHaveCount(1);
-  await expect(picks.potTitle).toHaveText('У казані 1');
-  await expect.poll(() => picks.chipState(ctx.pickedGenre), POLL).toBe('in');
+  await expect(picks.onStrip).toHaveCount(1);
+  await expect(picks.stripTitle).toHaveText('У стрічці 1');
+  await expect.poll(() => picks.frameState(ctx.pickedGenre), POLL).toBe('in');
 });
-When('I go on to the second step', async ({ ctx, page, catalog: _ }) => {
+When('I go on to the cut', async ({ ctx, page, catalog: _ }) => {
   const picks = picksOf(ctx, page);
   await picks.press('next');
   await expect.poll(() => picks.step(), POLL).toBe('remove');
 });
-When('I ask the pot for its dish', async ({ ctx, page, catalog: _ }) => {
+When('I cut the second genre', async ({ ctx, page, catalog: _ }) => {
+  const picks = picksOf(ctx, page);
+  ctx.cutGenre = await picks.frameLabel(1);
+  await picks.tap(ctx.cutGenre);
+});
+Then('a struck-through frame is spliced into the strip', async ({ ctx, page, catalog: _ }) => {
+  const picks = picksOf(ctx, page);
+  await expect(picks.cutOnStrip).toHaveCount(1);
+  await expect(picks.stripTitle).toHaveText('У стрічці 1 · вирізано 1');
+  await expect.poll(() => picks.frameState(ctx.cutGenre), POLL).toBe('cut');
+});
+When('I start the show', async ({ ctx, page, catalog: _ }) => {
   const picks = picksOf(ctx, page);
   await picks.press('cook');
-  await picks.waitForDish();
+  await picks.waitForShow();
 });
-Then('the dish is at most ten films, cooked from what was thrown in', async ({ ctx, page, catalog: _ }) => {
+Then('the screen shows at most eight films, made from the strip', async ({ ctx, page, catalog: _ }) => {
   const picks = picksOf(ctx, page);
   await expect.poll(() => picks.cards.count(), POLL).toBeGreaterThan(0);
-  expect(await picks.cards.count()).toBeLessThanOrEqual(10);
-  await expect(picks.cooked).toHaveCount(1);
-  await expect(picks.cooked.first()).toContainText(ctx.pickedGenre);
+  expect(await picks.cards.count()).toBeLessThanOrEqual(8);
+  await expect(picks.madeFromChip(ctx.pickedGenre)).toHaveCount(1);
+  await expect(picks.madeFromChip(ctx.pickedGenre)).not.toHaveClass(/is-cut/);
+  if (ctx.cutGenre) await expect(picks.madeFromChip(ctx.cutGenre)).toHaveClass(/is-cut/);
 });
-When('I go back to change the criteria', async ({ ctx, page, catalog: _ }) => {
-  await picksOf(ctx, page).press('edit');
+When('I stop the projector', async ({ ctx, page, catalog: _ }) => {
+  await picksOf(ctx, page).press('stop');
 });
-Then('the pot is as I left it', async ({ ctx, page, catalog: _ }) => {
+Then('the strip is as I left it', async ({ ctx, page, catalog: _ }) => {
   const picks = picksOf(ctx, page);
   await expect.poll(() => picks.step(), POLL).toBe('add');
-  await expect.poll(() => picks.chipState(ctx.pickedGenre), POLL).toBe('in');
+  await expect.poll(() => picks.frameState(ctx.pickedGenre), POLL).toBe('in');
 });
 When('I switch off films', async ({ ctx, page, catalog: _ }) => {
   await picksOf(ctx, page).kindSwitch('film').click();
@@ -62,11 +75,11 @@ Then('films are off and series stay on', async ({ ctx, page, catalog: _ }) => {
   await expect(picks.kindSwitch('film')).toHaveAttribute('aria-checked', 'false');
   await expect(picks.kindSwitch('series')).toHaveAttribute('aria-checked', 'true');
 });
-Then('every title in the dish is a series, and the dish says so', async ({ ctx, page, catalog: _ }) => {
+Then('every title on the screen is a series, and the show says so', async ({ ctx, page, catalog: _ }) => {
   const picks = picksOf(ctx, page);
   await expect.poll(() => picks.cards.count(), POLL).toBeGreaterThan(0);
-  expect(await picks.cards.count()).toBeLessThanOrEqual(10);
+  expect(await picks.cards.count()).toBeLessThanOrEqual(8);
   const keys = await picks.cards.evaluateAll(cards => cards.map(c => c.dataset.key || ''));
-  for (const key of keys) expect(key, 'a film in a series-only dish').toMatch(/^tv:/);
+  for (const key of keys) expect(key, 'a film in a series-only show').toMatch(/^tv:/);
   await expect(picks.dishNote).toContainText('серіали');
 });
