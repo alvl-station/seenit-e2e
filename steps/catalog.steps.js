@@ -266,6 +266,30 @@ Then('the profile head shows four numbers', async ({ catalog }) => {
   const figures = await catalog.profileFigures();
   for (const f of figures) expect(f, 'a figure that is not a number').toMatch(/^\d+$/);
 });
+Then("the head's numbers are: {string}", async ({ catalog }, words) => {
+  const list = await catalog.profileNumberList();
+  expect(list.map(n => n.word)).toEqual(words.split(',').map(w => w.trim()));
+  for (const n of list) expect(Number.isInteger(n.figure), `the "${n.word}" figure is not a number`).toBe(true);
+});
+When("I press the head's number {string}", async ({ catalog }, word) => {
+  await catalog.pressProfileNumber(word);
+});
+Then('only the open tab {string} says its word', async ({ catalog }, name) => {
+  await expect.poll(async () => (await catalog.accountTabStates()).filter(t => t.open).map(t => t.name)).toEqual([name]);
+  for (const t of await catalog.accountTabStates()) {
+    expect(t.wordShown, `the "${t.name}" tab ${t.open ? 'hides' : 'shows'} its word`).toBe(t.open);
+  }
+});
+Then('the friends page is open on {string}, counting what the head counts', async ({ catalog }, word) => {
+  await expect(catalog.accountFriends).toBeVisible();
+  await expect.poll(async () => (await catalog.friendsListKeys()).filter(k => k.open).map(k => k.word)).toEqual([word]);
+  // The head's figure and the switch's count are two views of one list; both follow its late answer.
+  await expect.poll(async () => {
+    const head = (await catalog.profileNumberList()).find(n => n.word === word.toLowerCase());
+    const key = (await catalog.friendsListKeys()).find(k => k.word === word);
+    return key.count - head.figure;
+  }).toBe(0);
+});
 Then('the strip lends the account no row', async ({ catalog }) => {
   await expect(catalog.stripWindowRow).toBeHidden();
   await expect(catalog.stripSubRow).toBeHidden();
