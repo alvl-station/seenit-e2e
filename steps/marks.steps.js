@@ -1,5 +1,5 @@
 // Steps for marking a film (features/marks.feature): the score given in the
-// film card's meter, «Не дивився», the counts and what the archive lists.
+// film card's meter, its remove-score key, the counts and what the archive lists.
 // These WRITE, into the test account's own lists only, and every film a step
 // scores is recorded in ctx.marked so the fixture's teardown clears it.
 // Thin wrappers; every selector lives in pages/.

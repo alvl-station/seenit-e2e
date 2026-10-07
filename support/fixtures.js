@@ -76,7 +76,7 @@ const test = bddBase.extend({
   // So every film a step scored is recorded here ({ key, title }) and
   // cleared whatever happens, the way a person clears it: the page loaded
   // afresh (whatever overlay the failure left open), the film found in the
-  // archive, its card opened and «Не дивився» pressed — the number and the
+  // archive, its card opened and the remove-score key pressed — the number and the
   // marks both go — and the marks batch sent before the page is let go.
   ctx: async ({ page }, use) => {
     const ctx = { marked: [], collections: [] };

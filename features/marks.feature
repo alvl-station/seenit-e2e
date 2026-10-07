@@ -4,12 +4,12 @@ Feature: Marking a film by its score
   2026-09-20): the shelf's cards carry no eye and no heart any more. The
   meter under the card's tabs sets a number from 1.0 to 10.0, «Оцінити»
   saves it, and the marks follow from it: any score means watched, 6.0 and
-  up also «Рекомендую», 8.0 and up also «Обовʼязково». «Не дивився» takes
-  the number and the marks off again.
+  up also «Рекомендую», 8.0 and up also «Обовʼязково». «Прибрати оцінку»
+  (until 2026-10-07 «Не дивився») takes the number and the marks off again.
 
   These scenarios write, into the test account's own lists only; the
   catalogue stays shared, so adding or deleting a film stays forbidden.
-  Every scenario clears its own score with «Не дивився», and the ctx
+  Every scenario clears its own score with «Прибрати оцінку», and the ctx
   fixture clears it as well if a step fails first. The film is followed
   by its key: a scored film leaves the default shelf at once, so "the
   first film" is another film right after.
@@ -28,7 +28,7 @@ Feature: Marking a film by its score
   count scenario in another file raced the same way against a mark being
   set here. A new scenario that marks, or counts, goes in this file.
 
-  Scenario: Scoring a film marks it watched, and «Не дивився» takes it back
+  Scenario: Scoring a film marks it watched, and removing the score takes it back
     Given I remember the "Дивився" count
     When I give the first film a score of "5.0"
     Then the card shows the score "5.0"

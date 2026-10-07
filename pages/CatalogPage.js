@@ -478,7 +478,7 @@ class CatalogPage {
       || (typeof scores === 'object' && scores !== null && scores[k] != null), key);
   }
   /**
-   * Sends the marks the app is holding. «Не дивився» queues its marks in a
+   * Sends the marks the app is holding. The remove-score key queues its marks in a
    * batch that leaves after five idle minutes or when the page is hidden
    * (flushMarks in 10-marks-and-events.js); a scenario that ends sooner
    * would leave them on the device and the mark on the server. This is the
