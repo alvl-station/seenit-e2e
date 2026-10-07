@@ -1,17 +1,19 @@
-Feature: The award breakdown and the critic popover
+Feature: The awards tab and the critic popover
   Covers REQ A-1/A-3 (curated English ceremony names only), REQ A-4/A-5
-  (categories in Ukrainian, revealed by a tap on a laurel) and REQ U-4 (an
-  explanation appears next to the tapped element, never covering it).
+  (categories in Ukrainian, and the result) and REQ U-4 (an explanation appears next to
+  the tapped element, never covering it). Since the film card of 2026-10-07
+  (design/seenit-film-card-spec.md) the awards are a tab of rows, not
+  laurels with a popover: the awards tile opens it, wins come first, and
+  past four rows the rest fold behind «Ще N».
 
-  Scenario: The awards stand as laurels in a niche, and a tap says them in Ukrainian
-    # The open card, under the runtime line: counts over a niche of laurels,
-    # English on each badge, Ukrainian in the popover (A-4/A-5, 2026-09-25).
-    Given a movie modal with awards is open
-    Then every laurel names a curated English ceremony and says WINNER or NOMINATION
-    When I tap the first laurel
-    Then the popover names that ceremony and says it in Ukrainian
-    When I tap the first laurel
-    Then the popover disappears
+  Scenario: The awards tile opens the awards tab, four rows shown and the rest folded
+    Given a movie modal with more than four awards is open
+    When I press the awards tile
+    Then the awards tab is open
+    And every award row names a curated English ceremony and says its result in Ukrainian, wins first
+    And at most four award rows are shown, and the fold key says how many more
+    When I unfold the rest of the awards
+    Then every award row is shown, and the key folds them again
 
   Scenario: The critic badge explains itself in an anchored popover
     Given a movie modal with a critic score is open

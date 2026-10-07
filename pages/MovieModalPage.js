@@ -8,11 +8,8 @@ class MovieModalPage {
   constructor(page) {
     this.page = page;
     this.overlay = page.locator('#modalOverlay');
-    // The title moved OUT of .modal-body: it sits on the title plate over
-    // the poster/trailer now (.film-head > .film-title-plate), which is what
-    // "card anatomy" changed. A locator left pointing into the body finds
-    // nothing at all, so the modal reads as opening empty.
-    this.title = page.locator('#modalOverlay .film-title-text h2');
+    // The film card of 2026-10-07 (design/seenit-film-card-spec.md): the title heads the left column's block.
+    this.title = page.locator('#modalBox .fc-ttl h2');
     this.closeButton = page.locator('.modal-close');
     // The score under the tabs: how a film is marked since 2026-09-20.
     this.meter = new MoviemeterPanel(page, '#modalOverlay');
@@ -51,24 +48,28 @@ class MovieModalPage {
     })));
   }
 
-  /* ---- the awards, as laurel badges under the runtime line ----
-   * (seenit-frontend A-5, 2026-09-25): each ceremony between two branches,
-   * WINNER or NOMINATION written on the badge, and a tap opens that
-   * ceremony's categories in the anchored popover. */
-  laurels() { return this.page.locator('#modalOverlay .film-awards .laurel'); }
-  /** The row the laurels stand in: it scrolls sideways. */
-  awardsRail() { return this.page.locator('#modalOverlay .film-awards-rail'); }
-  /** The counts over the niche. */
-  awardsCount() { return this.page.locator('#modalOverlay .film-awards-count'); }
-  laurelCategory(i) { return this.laurels().nth(i).locator('.laurel-cat'); }
-  laurelName(i) { return this.laurels().nth(i).locator('.laurel-name'); }
-  laurelKind(i) { return this.laurels().nth(i).locator('.laurel-kind'); }
-  /** The words as written, not as CSS capitalises them. */
-  async laurelText(i) {
-    return {
-      name: ((await this.laurelName(i).textContent()) || '').trim(),
-      kind: ((await this.laurelKind(i).textContent()) || '').trim(),
-    };
+  /* ---- the awards: a tab of rows since 2026-10-07 ----
+   * The awards tile among the score tiles opens the awards tab; each row names the ceremony in English,
+   * the category under it and the result in Ukrainian, wins first; past four rows the rest fold behind a key that counts them. */
+  awardsTile() { return this.page.locator('#modalBox .fc-tile--awards'); }
+  awardRows() { return this.page.locator('#modalBox [data-film-pane="awards"] .fc-award'); }
+  /** The rows in sight: the folded ones stand in the markup but are not shown. */
+  visibleAwardRows() { return this.awardRows().filter({ visible: true }); }
+  awardsMoreKey() { return this.page.locator('#modalBox [data-aw-more]'); }
+  /** Every row as written (not as CSS capitalises it): the ceremony, the category, the result. */
+  async awardRowTexts() {
+    return this.awardRows().evaluateAll(rows => rows.map(r => ({
+      name: ((r.querySelector('b') || {}).textContent || '').trim(),
+      category: ((r.querySelector('small') || {}).textContent || '').trim(),
+      result: ((r.querySelector('em') || {}).textContent || '').trim(),
+      win: r.classList.contains('is-win'),
+    })));
+  }
+  async pressAwardsTile() { await this.awardsTile().click(); }
+  async pressAwardsMore() { await this.awardsMoreKey().click(); }
+  /** Which tab is open: the key whose aria-selected is true. */
+  async openTabId() {
+    return this.page.locator('#modalBox [data-film-tab][aria-selected="true"]').getAttribute('data-film-tab');
   }
   /** The sound control on the title plate — present only with a trailer. */
   soundButton() { return this.page.locator('#modalOverlay .film-sound'); }
@@ -86,21 +87,37 @@ class MovieModalPage {
   }
 
   /* ---- the facts under the title ----
-   * «year · type · genre» on one line and the country on a line of its own
-   * (2026-09-16): a co-production's countries broke the shared line. */
-  facts() { return this.page.locator('#modalOverlay .film-facts'); }
-  factsLine() { return this.page.locator('#modalOverlay .film-facts .film-facts-line:not(.film-country)'); }
-  countryLine() { return this.page.locator('#modalOverlay .film-facts .film-country'); }
+   * One grey line since 2026-10-07: year · kind · genre · country, the dots drawn apart from the words. */
+  factsLine() { return this.page.locator('#modalBox .fc-facts'); }
+  /** The facts line's words, without the dots between them. */
+  async factsWords() {
+    return this.factsLine().evaluate(el => [...el.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent.trim()).filter(Boolean));
+  }
+  /** The details tab's cell that names the country, as text ('' when the card draws none). */
+  async detailsCountryText() {
+    return this.page.locator('#modalBox [data-film-pane="details"] .film-detail')
+      .evaluateAll(cells => {
+        const cell = cells.find(c => /^Країна/.test(((c.querySelector('.lbl') || {}).textContent || '').trim()));
+        return cell ? ((cell.querySelector('.fc-det-txt') || {}).textContent || '').trim() : '';
+      });
+  }
   /** The country on the record the open card was drawn from ('' when none). */
   async openFilmCountry() {
     return this.page.evaluate(() => String((_modalMovie && _modalMovie.country) || ''));
   }
+  /** The record's own year, type, genre and country, as the facts line should say them. */
+  async openFilmFacts() {
+    return this.page.evaluate(() => [_modalMovie.year, _modalMovie.type, _modalMovie.genre, _modalMovie.country]
+      .filter(Boolean).map(v => String(v).trim()));
+  }
 
-  /* ---- the card's tabs (2026-09-19) ----
-   * Synopsis, people, seasons (series only), details, where to watch — one
-   * open at a time. A card without the row (an older release) has every
+  /* ---- the card's tabs (2026-09-19; icon keys since 2026-10-07) ----
+   * Synopsis, people, awards, seasons (series only), related, details, where
+   * to watch — one open at a time. A card without the row (an older release) has every
    * block in sight already, so opening a tab it lacks does nothing. */
   tabButton(id) { return this.page.locator(`#modalOverlay [data-film-tab="${id}"]`); }
+  /** A tab is an icon key since 2026-10-07: its full name, count included, is its aria-label. */
+  async tabLabel(id) { return this.tabButton(id).getAttribute('aria-label'); }
   async openTab(id) {
     if (!(await this.tabButton(id).count())) return false;
     await this.tabButton(id).click();
@@ -109,7 +126,7 @@ class MovieModalPage {
   }
 
   /* ---- a series' seasons ----
-   * On a tab of their own («Сезони [N]»), filled by a request after the card
+   * On a tab of their own (its name counts them in square brackets), filled by a request after the card
    * opens and left hidden when the series has no season data on file. Every
    * season is a row that names itself and comes SHUT (owner's ask,
    * 2026-09-21): its caret opens the episodes. Read-only here: the caret

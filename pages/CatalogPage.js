@@ -294,6 +294,15 @@ class CatalogPage {
       '.card-awards',
     );
   }
+  /** A film whose card draws at least `n` award rows, counted by the app's own rule (filmAwardBadges). */
+  async firstCardIndexWithAwardRows(n) {
+    // A renamed helper must fail loudly, not read as a catalogue with no awards.
+    if (!(await this.page.evaluate(() => typeof filmAwardBadges === 'function'))) {
+      throw new Error('filmAwardBadges is not reachable on the page: the bundle changed shape');
+    }
+    const src = `(m) => typeof filmAwardBadges === 'function' && filmAwardBadges(m.awards_won, m.awards_nominated).badges.length >= ${Number(n)}`;
+    return this.revealCardWhere(src, null);
+  }
   async firstCardIndexWithCriticScore() {
     return this.revealCardWhere(m => m.critic_score != null, '.critic-badge');
   }

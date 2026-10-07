@@ -1,5 +1,5 @@
-// Steps over MovieModalPage/AddModalPage: opening cards, award/critic
-// popovers, scroll-lock assertions. Selectors live in pages/ only.
+// Steps over MovieModalPage/AddModalPage: opening cards, the awards tab, the
+// critic popover, scroll-lock assertions. Selectors live in pages/ only.
 const { createBdd } = require('playwright-bdd');
 const { test, expect } = require('../support/fixtures');
 const { modalOf } = require('../support/modal-of');
@@ -72,9 +72,9 @@ Then('the modal is closed', async ({ ctx, page }) => {
 });
 
 /* ---- modal preconditions (Given) ---- */
-Given('a movie modal with awards is open', async ({ catalog, ctx, page }) => {
-  const i = await catalog.firstCardIndexWithAwards();
-  skipWithoutData(i === -1, 'no movie with awards in the catalog right now');
+Given('a movie modal with more than four awards is open', async ({ catalog, ctx, page }) => {
+  const i = await catalog.firstCardIndexWithAwardRows(5);
+  skipWithoutData(i === -1, 'no film in the catalog has more than four award rows');
   await catalog.openCard(i);
   await modalOf(ctx, page).waitUntilOpen();
 });
@@ -87,40 +87,45 @@ Given('a movie modal with a critic score is open', async ({ catalog, ctx, page }
   await modalOf(ctx, page).waitUntilOpen();
 });
 
-/* ---- the awards as laurels + their popover ---- */
-Then('every laurel names a curated English ceremony and says WINNER or NOMINATION', async ({ ctx, page }) => {
+/* ---- the awards: a tab of rows since 2026-10-07 (the laurels and their popover are gone) ---- */
+When('I press the awards tile', async ({ ctx, page }) => {
+  await modalOf(ctx, page).pressAwardsTile();
+});
+Then('the awards tab is open', async ({ ctx, page }) => {
+  await expect.poll(() => modalOf(ctx, page).openTabId()).toBe('awards');
+});
+Then('every award row names a curated English ceremony and says its result in Ukrainian, wins first', async ({ ctx, page }) => {
   const modal = modalOf(ctx, page);
   const names = await curatedNames(page);
-  const n = await modal.laurels().count();
-  expect(n).toBeGreaterThan(0);
-  let wonDone = false;
-  for (let i = 0; i < n; i++) {
-    const { name, kind } = await modal.laurelText(i);
-    expect(names, `laurel "${name}" is not a curated English name (A-1/A-3)`).toContain(name);
-    expect(kind).toMatch(/^(WINNER|NOMINATION)( ×\d+)?$/);
+  const rows = await modal.awardRowTexts();
+  expect(rows.length).toBeGreaterThan(0);
+  let winsDone = false;
+  for (const { name, result, win } of rows) {
+    expect(names, `award row "${name}" is not a curated English name (A-1/A-3)`).toContain(name);
+    expect(result).toMatch(win ? /^перемога( ×\d+)?$/ : /^номінація( ×\d+)?$/);
     // Wins first: once a nomination appears, no win may follow it.
-    if (kind.startsWith('NOMINATION')) wonDone = true;
-    else expect(wonDone, 'wins come before nominations').toBe(false);
+    if (!win) winsDone = true;
+    else expect(winsDone, 'wins come before nominations').toBe(false);
   }
-  // Nothing on a laurel is translated: its category is English.
-  await expect(modal.awardsRail()).not.toContainText(/[\u0400-\u04FF]/);
-  // The counts stand over the niche, and add up to what the laurels carry.
-  await expect(modal.awardsCount()).toBeVisible();
+  // A-4: the categories are said in Ukrainian; one left in English is the fallback, not the rule.
+  expect(rows.some(r => /[\u0400-\u04FF]/.test(r.category)), 'no award category is in Ukrainian').toBe(true);
 });
-When('I tap the first laurel', async ({ ctx, page }) => {
-  await modalOf(ctx, page).laurels().first().click();
-});
-Then('the popover names that ceremony and says it in Ukrainian', async ({ ctx, page }) => {
+Then('at most four award rows are shown, and the fold key says how many more', async ({ ctx, page }) => {
   const modal = modalOf(ctx, page);
-  await expect.poll(() => modal.popoverIsShown()).toBe(true);
-  const text = ((await modal.popover().textContent()) || '').trim();
-  const { name } = await modal.laurelText(0);
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-  // «Oscar · перемога», «Oscar · номінація ×2»: the ceremony and the result.
-  expect(lines[0].startsWith(`${name} · `), `popover opens with the ceremony: ${lines[0]}`).toBe(true);
-  expect(lines[0]).toMatch(/· (перемога|номінація)( ×\d+)?$/);
-  // And the rest of it is Ukrainian: the category, what the ceremony is.
-  expect(lines.slice(1).some(l => /[\u0400-\u04FF]/.test(l))).toBe(true);
+  const all = await modal.awardRows().count();
+  await expect(modal.visibleAwardRows()).toHaveCount(4);
+  const more = all - 4;
+  await expect(modal.awardsMoreKey()).toHaveText(new RegExp(`^Ще ${more} (номінац|нагород)`));
+  await expect(modal.awardsMoreKey()).toHaveAttribute('aria-expanded', 'false');
+});
+When('I unfold the rest of the awards', async ({ ctx, page }) => {
+  await modalOf(ctx, page).pressAwardsMore();
+});
+Then('every award row is shown, and the key folds them again', async ({ ctx, page }) => {
+  const modal = modalOf(ctx, page);
+  await expect(modal.visibleAwardRows()).toHaveCount(await modal.awardRows().count());
+  await expect(modal.awardsMoreKey()).toHaveText('Згорнути');
+  await expect(modal.awardsMoreKey()).toHaveAttribute('aria-expanded', 'true');
 });
 When('I tap the critic badge', async ({ ctx, page }) => {
   await modalOf(ctx, page).criticBadge().first().click();
@@ -283,23 +288,22 @@ Then('the modal shows either an autoplaying trailer or a poster', async ({ ctx, 
   }
 });
 
-/* ---- the facts under the title ---- */
+/* ---- the facts under the title: one line since 2026-10-07 ---- */
 Then('the card shows the year, type and genre on one line', async ({ ctx, page }) => {
   const modal = modalOf(ctx, page);
-  await expect(modal.facts()).toBeVisible();
   await expect(modal.factsLine()).toHaveCount(1);
-  await expect(modal.factsLine()).toContainText('·');
+  await expect(modal.factsLine()).toBeVisible();
+  // The whole line, as the record has it: a film without a genre or a country simply has fewer words.
+  expect(await modal.factsWords()).toEqual(await modal.openFilmFacts());
 });
-Then('the country, when the film has one, stands on a line of its own', async ({ ctx, page }) => {
+Then('the country, when the film has one, ends that line and is named in the details', async ({ ctx, page }) => {
   const modal = modalOf(ctx, page);
   const country = await modal.openFilmCountry();
-  if (!country) {
-    await expect(modal.countryLine()).toHaveCount(0);
-    return;
-  }
-  await expect(modal.countryLine()).toHaveCount(1);
-  await expect(modal.countryLine()).toHaveText(country);
-  await expect(modal.factsLine(), 'the country is back on the shared line').not.toContainText(country);
+  if (!country) return;
+  const words = await modal.factsWords();
+  expect(words[words.length - 1]).toBe(country);
+  await modal.openTab('details');
+  expect(await modal.detailsCountryText()).toContain(country);
 });
 
 /* ---- a series' seasons (read-only: nothing is marked) ---- */
@@ -318,9 +322,10 @@ Given('a series card with seasons is open', async ({ catalog, ctx, page }) => {
 });
 Then('the seasons tab counts the seasons in square brackets', async ({ ctx, page }) => {
   const modal = modalOf(ctx, page);
-  await expect(modal.tabButton('seasons')).toHaveText(/^Сезони \[\d+\]$/);
+  // An icon key since 2026-10-07: the open one says its word and the count, its full name is the aria-label.
+  await expect(modal.tabButton('seasons')).toHaveAttribute('aria-label', /^Сезони \[\d+\]$/);
   // The number is the numbered seasons the tab lists, the specials not among them.
-  const label = await modal.tabButton('seasons').textContent();
+  const label = await modal.tabLabel('seasons');
   expect(Number(/\[(\d+)\]/.exec(label)[1])).toBe(await modal.numberedSeasonBlocks().count());
 });
 Then('every season is listed by name, shut', async ({ ctx, page }) => {
