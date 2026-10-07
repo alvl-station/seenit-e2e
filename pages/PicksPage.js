@@ -25,6 +25,22 @@ class PicksPage {
   }
   /** A frame's chip under the screen: "+ label" when it went on the strip, "minus label" when it was cut. */
   madeFromChip(label) { return this.madeFrom.filter({ hasText: exactly(label, '[+\u2212-]\\s*') }); }
+  /** A tab of the library: 'genre', 'years', 'actor' or 'director'. */
+  categoryKey(kind) { return this.page.locator(`#picksKitchen [data-pick-cat="${kind}"]`); }
+  /** The people of a list, each the shared square person frame since 2026-10-07. */
+  personFrames(kind) { return this.page.locator(`#picksKitchen [data-pick-list="${kind}"] .pick-frame.person-frame`); }
+  async openCategory(kind) {
+    await this.categoryKey(kind).click();
+    await this.page.locator(`#picksKitchen [data-pick-list="${kind}"].is-up`).waitFor();
+  }
+  /** Each frame of a list as it lies on the screen: its size, its row, and the name it carries. */
+  async personFrameGeometry(kind) {
+    return this.personFrames(kind).evaluateAll(els => els.map((el) => {
+      const r = el.getBoundingClientRect();
+      return { width: r.width, height: r.height, top: Math.round(r.top),
+        name: ((el.querySelector('.person-frame-name') || {}).textContent || '').trim() };
+    }));
+  }
   /** A key of the transport deck, wherever it stands (the library's foot, or under the screen). */
   key(act) { return this.page.locator(`#picksSheet [data-pick-act="${act}"]`); }
   async step() { return this.sheet.getAttribute('data-step'); }

@@ -22,3 +22,10 @@ Feature: Picks — the catalogue edited onto a strip and shown by a projector
     Then films are off and series stay on
     When I start the show
     Then every title on the screen is a series, and the show says so
+
+  Scenario: Actors stand as the shared square person frames, four a row
+    # Owner's design update of 2026-10-07: one person frame for the film
+    # card's cast and the picks, a square with the name over a fade.
+    When I open the address "picks"
+    And I open the actors' frames
+    Then every actor stands in a square frame with a name, four a row
