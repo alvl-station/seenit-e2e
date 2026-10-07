@@ -28,3 +28,15 @@ Feature: The open card — facts, a series' seasons and sharing
     When I shut that season
     Then every season is listed by name, shut
 
+  Scenario: The share key opens the share sheet, a post or a story, with its two switches
+    When I open the first card
+    And I press the card's share key
+    Then the share sheet is open for the film, with its picture drawn
+    And it offers a post or a story, the post chosen
+    And the 3D logo is on and the comment is off
+    When I choose a story
+    Then the story is chosen, and the picture is a story's size
+    When I switch the comment on
+    Then a field for the comment is shown
+    When I close the share sheet
+    Then the share sheet is closed and the card is still open

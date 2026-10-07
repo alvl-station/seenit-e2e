@@ -24,6 +24,10 @@ class MovieModalPage {
     await this.overlay.waitFor({ state: 'hidden' });
   }
 
+  /** The square share key beside the collection key: it opens the share sheet (pages/ShareSheetPage.js) since 2026-10-07. */
+  shareKey() { return this.page.locator('#filmShareKey'); }
+  async pressShareKey() { await this.shareKey().click(); }
+
   /* ---- the poster/trailer slot ----
    * A modal shows exactly one of these: the autoplaying muted embed when the
    * film has a trailer_url on file, the static poster when it does not. */
