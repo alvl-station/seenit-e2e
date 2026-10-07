@@ -3,22 +3,16 @@
 const { createBdd } = require('playwright-bdd');
 const { test, expect } = require('../support/fixtures');
 const { SitePage } = require('../pages/SitePage');
-const { MovieModalPage } = require('../pages/MovieModalPage');
+const { StoriesPage } = require('../pages/StoriesPage');
 const { CatalogPage } = require('../pages/CatalogPage');
 const { baseUrl: BASE } = require('../support/base-url');
+const { asStranger } = require('../support/stranger');
 const { When, Then } = createBdd(test);
 
-const PAGES = ['main', 'week', 'stories', 'about', 'legal', 'terms', 'privacy', 'community', 'sources', 'contacts'];
+const PAGES = ['main', 'calendar', 'stories', 'about', 'legal', 'terms', 'privacy', 'community', 'sources', 'contacts'];
 const DOCUMENTS = ['terms', 'privacy', 'community', 'sources'];
 const DRAFTS = ['terms', 'privacy', 'community'];
 const TMDB_NOTICE = /This product uses the TMDB API but is not endorsed or certified by TMDB\./;
-
-// A stranger: a context with no saved session at all.
-async function asStranger(browser, fn) {
-  const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
-  const page = await ctx.newPage();
-  try { await fn(new SitePage(page), page); } finally { await ctx.close(); }
-}
 
 Then('a fresh visitor at the root meets the front page', async ({ browser }) => {
   await asStranger(browser, async (site, page) => {
@@ -27,32 +21,6 @@ Then('a fresh visitor at the root meets the front page', async ({ browser }) => 
     await expect(site.homeHeader).toBeVisible();
     await expect(site.tabbar).toHaveCount(0);
     await expect(site.tunnelPosters.first()).toBeAttached({ timeout: 15000 });
-  });
-});
-
-Then("the week's tab shows this week's news", async ({ browser }) => {
-  await asStranger(browser, async (site, page) => {
-    await site.goto('main', BASE());
-    await site.homeTabs.filter({ hasText: /^Цього тижня$/ }).click();
-    await expect(page).toHaveURL(/\/week$/, { timeout: 15000 });
-    // The news comes from the Worker's /public/home after the page paints: the days, the filter, the shelf's cards.
-    await expect(site.weekCards.first()).toBeAttached({ timeout: 15000 });
-    expect(await site.weekCards.count()).toBeGreaterThan(0);
-    await expect(site.weekDays).toHaveCount(7);
-    await expect(site.activeTab).toHaveText('Цього тижня');
-  });
-});
-
-Then("the week's section filter narrows the page and stays in the address", async ({ browser }) => {
-  await asStranger(browser, async (site, page) => {
-    await site.goto('week', BASE());
-    await expect(site.weekFilter.nth(1)).toBeVisible({ timeout: 15000 });
-    const section = await site.weekFilter.nth(1).getAttribute('data-section');
-    await site.weekFilter.nth(1).click();
-    await expect(page).toHaveURL(new RegExp(`[?&]s=${section}`));
-    await expect(site.weekFilter.nth(1)).toHaveAttribute('aria-pressed', 'true');
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await expect(site.weekFilter.nth(1)).toHaveAttribute('aria-pressed', 'true', { timeout: 15000 });
   });
 });
 
@@ -66,7 +34,7 @@ Then('the rating scene answers a hand on its tape', async ({ browser }) => {
   });
 });
 
-Then("the projector stands inside its scene on a phone", async ({ page }) => {
+Then('the projector stands inside its scene on a phone', async ({ page }) => {
   const site = new SitePage(page);
   await site.goto('main', BASE());
   await site.scrollToScene('pot', 0.1);
@@ -147,48 +115,51 @@ Then('I am still signed in', async ({ page }) => {
   expect(await catalog.cardCount()).toBeGreaterThan(0);
 });
 
-When("I open the first film on the week's tab", async ({ catalog, page, ctx }) => {
-  await catalog.waitForCatalogLoaded();
-  const site = new SitePage(page);
-  await site.goto('week', BASE());
-  const first = site.openableWeekCards.first();
-  await expect(first).toBeAttached({ timeout: 15000 });
-  ctx.frontPageTitle = await site.weekCardTitle(first);
-  await first.click();
-});
-
-Then("that film's card is open in the app", async ({ page, ctx }) => {
-  await expect(page).toHaveURL(/\/(films|series)$/, { timeout: 15000 });
-  const modal = new MovieModalPage(page);
-  await modal.waitUntilOpen(30000);
-  await expect(modal.title).toHaveText(ctx.frontPageTitle);
-});
-
 Then('the stories page shows sourced stories with credited photos', async ({ browser }) => {
-  await asStranger(browser, async (site) => {
-    await site.goto('stories', BASE());
-    expect(await site.stories.count()).toBeGreaterThan(0);
+  await asStranger(browser, async (stories) => {
+    await stories.goto('stories', BASE());
+    expect(await stories.stories.count()).toBeGreaterThan(0);
+    await expect(stories.rows).toHaveCount(await stories.stories.count());
     // Every story names where it came from; every photo, whose it is.
-    for (const story of await site.stories.all()) {
-      expect(await story.locator('.st-src li').count()).toBeGreaterThan(0);
+    for (const story of await stories.stories.all()) {
+      expect(await stories.sourcesOf(story).count()).toBeGreaterThan(0);
     }
-    for (const credit of await site.storyPhotoCredits.all()) {
+    expect(await stories.photoCredits.count()).toBeGreaterThan(0);
+    for (const credit of await stories.photoCredits.all()) {
       await expect(credit).toContainText('Wikimedia Commons');
     }
-  });
+  }, StoriesPage);
+});
+
+Then('a row of the list opens its story in the panel, and the address follows', async ({ browser }) => {
+  await asStranger(browser, async (stories, page) => {
+    await stories.goto('stories', BASE());
+    // The first story stands in the panel before anything is pressed; the second row is pressed.
+    await expect(stories.openStory).toHaveCount(1);
+    const row = stories.rows.nth(1);
+    const slug = await stories.rowSlug(row);
+    await row.click();
+    await expect(page).toHaveURL(new RegExp(`/stories#${slug}$`));
+    await expect.poll(() => stories.openSlug()).toBe(slug);
+    await expect(stories.openStory).toBeVisible();
+    await expect(stories.selectedRow()).toHaveAttribute('data-open', slug);
+  }, StoriesPage);
 });
 
 Then('a trailer loads only when it is tapped, from the no-cookie player', async ({ browser }) => {
-  await asStranger(browser, async (site) => {
-    await site.goto('stories', BASE());
-    expect(await site.storyCards.count()).toBeGreaterThan(0);
+  await asStranger(browser, async (stories) => {
+    await stories.goto('stories', BASE());
+    expect(await stories.rows.count()).toBeGreaterThan(0);
     // A story opens at its own address; its trailer is a button until it is tapped.
-    await site.goto('stories#' + await site.storyWithTrailer(), BASE());
-    await expect(site.trailerFrames).toHaveCount(0);
-    await site.trailerButtons.first().click();
-    await expect(site.trailerFrames).toHaveCount(1);
-    await expect(site.trailerFrames.first()).toHaveAttribute('src', /^https:\/\/www\.youtube-nocookie\.com\/embed\/[\w-]{11}\?/);
-  });
+    const slug = await stories.storyWithTrailer();
+    await stories.goto('stories#' + slug, BASE());
+    await expect.poll(() => stories.openSlug()).toBe(slug);
+    await expect(stories.trailerButtons).toHaveCount(1);
+    await expect(stories.trailerFrames).toHaveCount(0);
+    await stories.trailerButtons.first().click();
+    await expect(stories.trailerFrames).toHaveCount(1);
+    await expect(stories.trailerFrames.first()).toHaveAttribute('src', /^https:\/\/www\.youtube-nocookie\.com\/embed\/[\w-]{11}\?/);
+  }, StoriesPage);
 });
 
 Then("the front page leads to the newest stories", async ({ browser }) => {
@@ -199,6 +170,21 @@ Then("the front page leads to the newest stories", async ({ browser }) => {
     const anchor = (await first.getAttribute('href')).split('#')[1];
     await first.click();
     await expect(page).toHaveURL(new RegExp(`/stories#${anchor}$`));
-    await expect(page.locator(`article.st-read#${anchor}`)).toBeVisible();
+    const stories = new StoriesPage(page);
+    await expect.poll(() => stories.openSlug()).toBe(anchor);
+    await expect(stories.openStory).toBeVisible();
   });
+});
+
+Then("the site's tabs stand behind the menu key, and a tab leads to its page", async ({ page }) => {
+  const site = new SitePage(page);
+  await site.goto('about', BASE());
+  expect(await site.tabsShown()).toBe(false);
+  await expect(site.menuKey).toHaveAttribute('aria-expanded', 'false');
+  await site.pressMenuKey();
+  await expect(site.menuKey).toHaveAttribute('aria-expanded', 'true');
+  expect(await site.tabsShown()).toBe(true);
+  await expect(site.tabs).toHaveCount(5);
+  await site.tab('Календар').click();
+  await expect(page).toHaveURL(/\/calendar(\?|$)/, { timeout: 15000 });
 });
