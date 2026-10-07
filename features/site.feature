@@ -1,19 +1,15 @@
 Feature: The site — the pages read before sign-in
   The front page tells what the app does in scenes under its own glass header
   (owner's designs, 2026-10-05 and 2026-10-06); every other page wears one calm
-  frame with five tabs (design/site-pages); this week's news is a page of days,
-  filters and the shelf's cards, which open the film in the app.
+  frame with five tabs (design/site-pages), folded behind a menu key on a
+  phone (2026-10-07). The stories are a list and a panel since 2026-10-07: a
+  row opens its story beside the list, and the address follows. The calendar,
+  which took the week's place, has a feature of its own (calendar.feature).
   Read-only (REQ T-4): nothing here writes anything.
 
   Scenario: A fresh visitor at the root meets the front page
     Then a fresh visitor at the root meets the front page
     And the front page offers a stranger a way in and an account
-
-  Scenario: This week's news has a tab of its own
-    Then the week's tab shows this week's news
-
-  Scenario: The week's page filters by section, and the address keeps it
-    Then the week's section filter narrows the page and stays in the address
 
   Scenario: The rating scene answers a hand
     Then the rating scene answers a hand on its tape
@@ -24,6 +20,10 @@ Feature: The site — the pages read before sign-in
   @phone-portrait
   Scenario: On a phone the projector stands inside its scene
     Then the projector stands inside its scene on a phone
+
+  @phone-portrait
+  Scenario: On a phone the site's tabs fold behind a menu key
+    Then the site's tabs stand behind the menu key, and a tab leads to its page
 
   Scenario: Every page of the site carries its tabs and TMDB's notice
     Then every page of the site shows the tab strip and TMDB's notice
@@ -36,12 +36,9 @@ Feature: The site — the pages read before sign-in
     Then the front page offers the way back into the app
     And I am still signed in
 
-  Scenario: A card of the week opens that film in the app
-    When I open the first film on the week's tab
-    Then that film's card is open in the app
-
   Scenario: Stories name their sources and credit their photos
     Then the stories page shows sourced stories with credited photos
+    And a row of the list opens its story in the panel, and the address follows
 
   Scenario: A story's trailer asks YouTube nothing until it is tapped
     Then a trailer loads only when it is tapped, from the no-cookie player

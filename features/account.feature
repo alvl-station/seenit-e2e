@@ -41,6 +41,25 @@ Feature: Account panel
     When I open the account's "Друзі" page
     Then the friends' two lists stand in the account, as a switch on the page
 
+  Scenario: The head's numbers open their pages, and only the open icon tab says its word
+    # The account of 2026-10-07 (design/seenit-account-page-spec.md): the
+    # head's four numbers are keys to their pages, and a tab is an icon key
+    # whose word shows only while it is open. Read-only: pages are switched,
+    # nothing is saved; the numbers are compared with the lists they count,
+    # never with what the account is assumed to hold.
+    When I open the account panel
+    Then the head's numbers are: "переглянуто, підписки, підписники, досягнень"
+    And only the open tab "Статистика" says its word
+    When I press the head's number "досягнень"
+    Then only the open tab "Досягнення" says its word
+    When I press the head's number "підписники"
+    Then only the open tab "Друзі" says its word
+    And the friends page is open on "Підписники", counting what the head counts
+    When I press the head's number "підписки"
+    Then the friends page is open on "Підписки", counting what the head counts
+    When I press the head's number "переглянуто"
+    Then only the open tab "Статистика" says its word
+
   Scenario: The swipe is a page of the account, and «Дивлюся» has its header cell
     # Owner's ask, 2026-09-25. Read-only: the deck is looked at, not swiped —
     # a swipe up would open the meter and a swipe down records «not seen».

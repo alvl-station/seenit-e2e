@@ -83,3 +83,17 @@ Then('every title on the screen is a series, and the show says so', async ({ ctx
   for (const key of keys) expect(key, 'a film in a series-only show').toMatch(/^tv:/);
   await expect(picks.dishNote).toContainText('серіали');
 });
+When("I open the actors' frames", async ({ ctx, page, catalog: _ }) => {
+  await picksOf(ctx, page).openCategory('actor');
+});
+Then('every actor stands in a square frame with a name, four a row', async ({ ctx, page, catalog: _ }) => {
+  const picks = picksOf(ctx, page);
+  await expect.poll(() => picks.personFrames('actor').count(), POLL).toBeGreaterThan(0);
+  const frames = await picks.personFrameGeometry('actor');
+  for (const f of frames) {
+    expect(f.name, 'a person frame with no name').not.toBe('');
+    expect(Math.abs(f.width - f.height), `the frame of ${f.name} is not square`).toBeLessThanOrEqual(2);
+  }
+  const firstRow = frames.filter(f => f.top === frames[0].top).length;
+  expect(firstRow).toBe(Math.min(4, frames.length));
+});

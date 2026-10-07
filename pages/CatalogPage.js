@@ -294,6 +294,15 @@ class CatalogPage {
       '.card-awards',
     );
   }
+  /** A film whose card draws at least `n` award rows, counted by the app's own rule (filmAwardBadges). */
+  async firstCardIndexWithAwardRows(n) {
+    // A renamed helper must fail loudly, not read as a catalogue with no awards.
+    if (!(await this.page.evaluate(() => typeof filmAwardBadges === 'function'))) {
+      throw new Error('filmAwardBadges is not reachable on the page: the bundle changed shape');
+    }
+    const src = `(m) => typeof filmAwardBadges === 'function' && filmAwardBadges(m.awards_won, m.awards_nominated).badges.length >= ${Number(n)}`;
+    return this.revealCardWhere(src, null);
+  }
   async firstCardIndexWithCriticScore() {
     return this.revealCardWhere(m => m.critic_score != null, '.critic-badge');
   }
@@ -469,7 +478,7 @@ class CatalogPage {
       || (typeof scores === 'object' && scores !== null && scores[k] != null), key);
   }
   /**
-   * Sends the marks the app is holding. «Не дивився» queues its marks in a
+   * Sends the marks the app is holding. The remove-score key queues its marks in a
    * batch that leaves after five idle minutes or when the page is hidden
    * (flushMarks in 10-marks-and-events.js); a scenario that ends sooner
    * would leave them on the device and the mark on the server. This is the
@@ -520,6 +529,26 @@ class CatalogPage {
   get profileNumbers() { return this.page.locator('#accHead .acc-num'); }
   /** The four figures on the head, as text. */
   async profileFigures() { return this.page.locator('#accHead .acc-num b').allTextContents(); }
+  /** The head's numbers as { go, figure, word }: what each counts and the page it opens. */
+  async profileNumberList() {
+    return this.profileNumbers.evaluateAll(els => els.map(el => ({
+      go: el.dataset.accGo,
+      figure: Number((el.querySelector('b') || {}).textContent),
+      word: ((el.querySelector('span') || {}).textContent || '').trim(),
+    })));
+  }
+  /** Presses a number on the head by the word under it (watched, following, followers, achievements). */
+  async pressProfileNumber(word) {
+    await this.profileNumbers.filter({ has: this.page.locator('span', { hasText: new RegExp(`^${word}$`) }) }).click();
+  }
+  /** The account's icon tabs as { name, open, wordShown }: only the open one shows its word. */
+  async accountTabStates() {
+    return this.accountTabs.evaluateAll(els => els.map(el => {
+      const word = el.querySelector('.acc-tab-word');
+      return { name: el.getAttribute('aria-label'), open: el.getAttribute('aria-selected') === 'true',
+        wordShown: !!word && getComputedStyle(word).display !== 'none' };
+    }));
+  }
   /* The two rows a page can lend the bar: the account lends neither. */
   get stripWindowRow() { return this.page.locator('#tabbarWindowRow'); }
   get stripSubRow() { return this.page.locator('#tabbarSubRow'); }
@@ -553,14 +582,23 @@ class CatalogPage {
   async headerWords() {
     return (await this.page.locator('#topbarTabs .topbar-tab').allTextContents()).map(t => t.trim());
   }
-  get accountServices() { return this.page.locator('#accServices input[data-service]'); }
+  /* Toggle keys since 2026-10-07 (owner's design): pressed is aria-pressed, no checkbox under them. */
+  get accountServices() { return this.page.locator('#accServices [data-service]'); }
   get accountAchievements() { return this.page.locator('#accountBox .ach'); }
   get accountAvatar() { return this.page.locator('#accAvatarBtn .acc-avatar'); }
   /* «Друзі» is a page of the account since 2026-10-02: its box stands in the
    * account's pane; its two lists are a switch on the page (2026-10-03). */
   get accountFriends() { return this.page.locator('#accountBox #friendsBox'); }
+  /** The two lists' words, without the count each carries after it (a bare number since 2026-10-07). */
   async friendsLists() {
-    return (await this.page.locator('#friendsBox [data-friends-tab]').allTextContents()).map(t => t.trim().replace(/\s*\(\d+\)$/, ''));
+    return (await this.friendsListKeys()).map(k => k.word);
+  }
+  /** The two lists as the switch says them: the word, and the count after it (0 when none is shown). */
+  async friendsListKeys() {
+    return this.page.locator('#friendsBox [data-friends-tab]').evaluateAll(els => els.map(el => {
+      const m = /^(.*?)\s*(\d+)?$/.exec((el.textContent || '').trim());
+      return { id: el.dataset.friendsTab, word: m[1], count: Number(m[2] || 0), open: el.getAttribute('aria-selected') === 'true' };
+    }));
   }
   /** The lit tab closes its page. */
   async closeAccountPanel() {

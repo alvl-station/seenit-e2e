@@ -8,7 +8,7 @@
 //   6.0-7.9  watched + liked («Рекомендую»)
 //   8.0-10   watched + liked + must («Обовʼязково»)
 //
-// «Не дивився» takes the number AND the marks off. The meter stands in the
+// The remove-score key takes the number AND the marks off. The meter stands in the
 // film card and, alone, in the rate window, so it is a component the page
 // objects hold, scoped by the root it lives in.
 //
@@ -58,7 +58,7 @@ class MoviemeterPanel {
     expect(body && Number(body.score), 'the server kept another score than the one dialled').toBe(Number(score));
   }
 
-  /** «Не дивився»: the number and the marks go; resolves once the number is off. */
+  /** The remove-score key: the number and the marks go; resolves once the number is off. */
   async clear() {
     const cleared = this.page.waitForResponse(res => res.request().method() === 'DELETE'
       && res.url().includes('/library/scores/'));
