@@ -19,7 +19,7 @@ Feature: Account panel
     When I close the account panel
     Then the account panel is closed
 
-  Scenario: The account is a profile with five icon tabs, and statistics past its first page is PRO's
+  Scenario: The account is a profile with six icon tabs, and statistics past its first page is PRO's
     # REQUIREMENTS PR-9. Read-only: the tabs switch pages, nothing is saved.
     # The lock is asserted against the account's own tier, so the scenario
     # holds whether or not the test account has PRO.
@@ -28,7 +28,7 @@ Feature: Account panel
     # head's edit button rather than a tab.
     When I open the account panel
     Then the profile head shows four numbers
-    And the account's pages are: "Статистика, Досягнення, Друзі, Сервіси, Свайп"
+    And the account's pages are: "Добірки, Друзі, Досягнення, Статистика, Сервіси, Свайп"
     And the strip lends the account no row
     # Open to everybody since 2026-10-03: its first page is the archive.
     And the statistics page is open to everybody, and its pages past the first are PRO's
@@ -49,7 +49,8 @@ Feature: Account panel
     # never with what the account is assumed to hold.
     When I open the account panel
     Then the head's numbers are: "переглянуто, підписки, підписники, досягнень"
-    And only the open tab "Статистика" says its word
+    # The account opens on its own collections since 2026-10-08 (owner's ask).
+    And only the open tab "Добірки" says its word
     When I press the head's number "досягнень"
     Then only the open tab "Досягнення" says its word
     When I press the head's number "підписники"
@@ -87,3 +88,16 @@ Feature: Account panel
   Scenario: Registering asks for an address and shows the four conditions
     # The owner's auth design (2026-10-04). Nothing is submitted: the suite never makes accounts.
     Then registering asks a fresh visitor for an address and lights the four conditions
+
+  Scenario: The account opens on my own collections, and a collection opened there comes back to it
+    # The owner's ask, 2026-10-08: «Добірки» is the account's first page, the
+    # collections page's «Мої» alone. The test makes its collection and the
+    # fixture deletes it again.
+    Given I have a collection of my own
+    When I open the account panel
+    Then the account's open page is "Добірки"
+    And the account's collections list the collection I made
+    When I open the collection I made from the account
+    Then the collection's head reads that collection's name
+    When I go back from the collection
+    Then the account's open page is "Добірки"
