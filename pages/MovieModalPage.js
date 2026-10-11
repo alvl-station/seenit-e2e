@@ -32,6 +32,9 @@ class MovieModalPage {
    * A modal shows exactly one of these: the autoplaying muted embed when the
    * film has a trailer_url on file, the static poster when it does not. */
   trailerFrame() { return this.page.locator('#modalOverlay .modal-trailer iframe'); }
+  /** The trailer's cover since 2026-10-08: a still and a play key; YouTube is asked for nothing until it is pressed. */
+  trailerCover() { return this.page.locator('#modalOverlay .modal-trailer [data-trailer-play]'); }
+  async playTrailer() { await this.trailerCover().click(); }
   poster() { return this.page.locator('#modalOverlay .modal-poster'); }
 
   /* ---- "Де подивитись" ----

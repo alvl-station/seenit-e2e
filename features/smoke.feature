@@ -60,12 +60,11 @@ Feature: Core smoke — login, search, movie modal
   Scenario: Opening and closing the movie modal
     When I open the first card
     Then the modal is open with a non-empty title
-    # Strengthened alongside "Де подивитись": the trailer embed took over this
-    # slot from the poster and shipped with no smoke cover at all. Exactly one
-    # of the two must be there — neither means a blank panel, both means they
-    # are fighting over the slot — and an embed must stay muted, since it
-    # starts playing on its own.
-    And the modal shows either an autoplaying trailer or a poster
+    # Exactly one of the two must be there — neither means a blank panel, both
+    # means they are fighting over the slot. Since 2026-10-08 (owner's ask)
+    # nothing plays by itself: the trailer is a cover until it is pressed, and
+    # the embed the press puts in starts muted.
+    And the modal shows either a trailer cover or a poster, and nothing plays by itself
     When I close the modal
     Then the modal is closed
 

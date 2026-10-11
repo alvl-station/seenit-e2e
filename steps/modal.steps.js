@@ -273,18 +273,20 @@ Then('no Megogo row claims a subscription or a price', async ({ ctx }) => {
 });
 
 /* ---- the poster/trailer slot ---- */
-Then('the modal shows either an autoplaying trailer or a poster', async ({ ctx, page }) => {
+Then('the modal shows either a trailer cover or a poster, and nothing plays by itself', async ({ ctx, page }) => {
   const modal = modalOf(ctx, page);
-  const frames = await modal.trailerFrame().count();
+  const covers = await modal.trailerCover().count();
   const posters = await modal.poster().count();
-  expect(frames + posters, 'the modal rendered neither a trailer nor a poster').toBeGreaterThan(0);
-  expect(frames && posters, 'the modal rendered BOTH — they share one slot').toBeFalsy();
-  if (frames) {
+  expect(covers + posters, 'the modal rendered neither a trailer cover nor a poster').toBeGreaterThan(0);
+  expect(covers && posters, 'the modal rendered BOTH — they share one slot').toBeFalsy();
+  // No autoplay (owner's ask, 2026-10-08): the player is not there until the cover is pressed.
+  expect(await modal.trailerFrame().count(), 'a trailer started by itself').toBe(0);
+  if (covers) {
+    await modal.playTrailer();
+    await expect(modal.trailerFrame()).toHaveCount(1);
     const src = await modal.trailerFrame().first().getAttribute('src');
-    // Muted autoplay is what makes an embed-on-open acceptable; a modal that
-    // starts making noise by itself is the regression worth catching.
     expect(src, 'the trailer embed is not a YouTube embed URL').toContain('youtube.com/embed/');
-    expect(src, 'the trailer would autoplay with sound').toMatch(/mute=1/);
+    expect(src, 'the trailer would start with sound before it is going').toMatch(/mute=1/);
   }
 });
 
