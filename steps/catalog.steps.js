@@ -225,6 +225,15 @@ Then('the account panel entry point is visible', async ({ catalog }) => {
 Then('the account panel shows my picture in a circle', async ({ catalog }) => {
   await expect(catalog.accountAvatar).toBeVisible();
 });
+Then('the account\'s open page is {string}', async ({ catalog }, name) => {
+  await expect.poll(() => catalog.openAccountPageName()).toBe(name);
+});
+Then('the account\'s collections list the collection I made', async ({ catalog, ctx }) => {
+  await expect.poll(() => catalog.accountCollectionNames()).toContain(ctx.collectionName);
+});
+When('I open the collection I made from the account', async ({ catalog, ctx }) => {
+  await catalog.openAccountCollection(ctx.collectionName);
+});
 Then('the account\'s pages are: {string}', async ({ catalog }, names) => {
   expect(await catalog.accountPageNames()).toEqual(names.split(',').map(s => s.trim()));
 });

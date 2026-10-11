@@ -516,6 +516,18 @@ class CatalogPage {
    * to the strip. «Мої дані» opens from the head's edit button. */
   get accountTabs() { return this.page.locator('#accTabs .acc-tab'); }
   accountTab(name) { return this.page.locator(`#accTabs .acc-tab[aria-label="${name}"]`); }
+  /** The name of the account's page that is up. */
+  async openAccountPageName() {
+    return this.page.locator('#accountOverlay.open #accTabs .acc-tab.active').getAttribute('aria-label');
+  }
+  /* The account's «Добірки» (2026-10-08): the hub's own collections, in the account's pane. */
+  async accountCollectionNames() {
+    await this.page.locator('#accColsBody').waitFor();
+    return (await this.page.locator('#accColsBody .col-tile-name, #accColsBody .col-row-name, #accColsBody .col-rail-name').allTextContents()).map(t => t.trim());
+  }
+  async openAccountCollection(title) {
+    await this.page.locator('#accColsBody [data-col-open]', { hasText: title }).first().click();
+  }
   async accountPageNames() {
     return this.accountTabs.evaluateAll(els => els.map(el => el.getAttribute('aria-label')));
   }
