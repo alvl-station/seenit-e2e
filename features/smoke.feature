@@ -65,9 +65,9 @@ Feature: Core smoke — login, search, movie modal
     # nothing plays by itself: the trailer is a cover until it is pressed, and
     # the embed the press puts in starts muted.
     And the modal shows either a trailer cover or a poster, and nothing plays by itself
-    # Owner's ask, 2026-10-13: the age certificates, if the film has any, in the
-    # order UA, PL, DE, US, each with its country mark and read as an age.
-    And any age certificates are in the order UA, PL, DE, US, each marked and read as an age
+    # Owner's ask, 2026-10-13: the age, if the film has one, is one number with
+    # no country; a tap shows every country's, in the order UA, PL, DE, US.
+    And any age is one number, and a tap shows the countries in the order UA, PL, DE, US
     When I close the modal
     Then the modal is closed
 

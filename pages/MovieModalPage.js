@@ -37,13 +37,9 @@ class MovieModalPage {
   async playTrailer() { await this.trailerCover().click(); }
   poster() { return this.page.locator('#modalOverlay .modal-poster'); }
 
-  /** The age certificates under the title since 2026-10-13: each a country mark (UA, PL, DE, US) and an age. */
-  async ageCertificates() {
-    return this.page.locator('#modalBox .fc-run .age-cert').evaluateAll(els => els.map(e => ({
-      country: (e.querySelector('.age-mark') || {}).textContent || '',
-      age: e.textContent.replace((e.querySelector('.age-mark') || {}).textContent || '', '').trim(),
-    })));
-  }
+  /** The age under the title since 2026-10-13: one number; a tap opens every country's in the info popup. */
+  ageKey() { return this.page.locator('#modalBox .fc-run [data-age-key]'); }
+  infoPopover() { return this.page.locator('#infoPopover.show'); }
 
   /* ---- "Де подивитись" ----
    * Absent entirely for a film with no providers on file, which is the normal
