@@ -273,6 +273,15 @@ Then('no Megogo row claims a subscription or a price', async ({ ctx }) => {
 });
 
 /* ---- the poster/trailer slot ---- */
+Then('any age certificates are in the order UA, PL, DE, US, each marked and read as an age', async ({ ctx, page }) => {
+  const certs = await modalOf(ctx, page).ageCertificates();
+  const order = ['UA', 'PL', 'DE', 'US'];
+  const at = certs.map(c => order.indexOf(c.country));
+  expect(at.every(i => i >= 0), `an unknown country mark: ${JSON.stringify(certs)}`).toBe(true);
+  expect(at, 'the certificates are out of order or repeated').toEqual([...at].sort((a, b) => a - b).filter((v, i, a) => a.indexOf(v) === i));
+  for (const c of certs) expect(c.age, `${c.country} is not read as an age`).toMatch(/^\d{1,2}\+$/);
+});
+
 Then('the modal shows either a trailer cover or a poster, and nothing plays by itself', async ({ ctx, page }) => {
   const modal = modalOf(ctx, page);
   const covers = await modal.trailerCover().count();
