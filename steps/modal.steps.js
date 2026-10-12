@@ -273,6 +273,22 @@ Then('no Megogo row claims a subscription or a price', async ({ ctx }) => {
 });
 
 /* ---- the poster/trailer slot ---- */
+Then('any age is one number, and a tap shows the countries in the order UA, PL, DE, US', async ({ ctx, page }) => {
+  const modal = modalOf(ctx, page);
+  if (!(await modal.ageKey().count())) return;
+  await expect(modal.ageKey()).toHaveText(/^\d{1,2}\+$/);
+  await modal.ageKey().click();
+  const line = (await modal.infoPopover().textContent()) || '';
+  const parts = line.split(' · ').map(p => p.trim().split(' '));
+  const order = ['UA', 'PL', 'DE', 'US'];
+  const at = parts.map(([c]) => order.indexOf(c));
+  expect(at.every(i => i >= 0), `an unknown country in the popup: ${line}`).toBe(true);
+  expect(at, `the countries are out of order: ${line}`).toEqual([...new Set(at)].sort((x, y) => x - y));
+  for (const [c, age] of parts) expect(age, `${c} is not read as an age`).toMatch(/^\d{1,2}\+$/);
+  expect(parts[0][1], 'the number on the card is not the first country\'s').toBe(await modal.ageKey().textContent());
+  await modal.ageKey().click();
+});
+
 Then('the modal shows either a trailer cover or a poster, and nothing plays by itself', async ({ ctx, page }) => {
   const modal = modalOf(ctx, page);
   const covers = await modal.trailerCover().count();
