@@ -591,8 +591,9 @@ class CatalogPage {
   async pressHeaderWord(word) {
     await this.page.locator('#topbarTabs .topbar-tab', { hasText: word }).click();
   }
+  /* Each word by its name: a word with a short form for the phone (AI picks, 2026-10-16) carries both in its text. */
   async headerWords() {
-    return (await this.page.locator('#topbarTabs .topbar-tab').allTextContents()).map(t => t.trim());
+    return this.page.locator('#topbarTabs .topbar-tab').evaluateAll(els => els.map(el => (el.getAttribute('aria-label') || el.textContent).trim()));
   }
   /* Toggle keys since 2026-10-07 (owner's design): pressed is aria-pressed, no checkbox under them. */
   get accountServices() { return this.page.locator('#accServices [data-service]'); }
