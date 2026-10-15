@@ -64,7 +64,8 @@ Feature: Account panel
   Scenario: The swipe is a page of the account, and «Дивлюся» has its header cell
     # Owner's ask, 2026-09-25. Read-only: the deck is looked at, not swiped —
     # a swipe up would open the meter and a swipe down records «not seen».
-    Then the header's words are: "Фільми, Серіали, Добірки, Дивлюся, Підбір"
+    # AI picks is the sixth word since 2026-10-16.
+    Then the header's words are: "Фільми, Серіали, Добірки, Дивлюся, Підбір, AI підбір"
     When I open the account panel
     And I open the account's "Свайп" page
     Then the swipe deck stands in the account with one film on it
