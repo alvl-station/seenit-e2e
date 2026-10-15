@@ -8,7 +8,7 @@ const { AddModalPage } = require('../pages/AddModalPage');
 const { Given, When, Then } = createBdd(test);
 
 // The facts fetched from TMDb / Wikidata, in render order. The critics'
-// share left the form with OMDb (seenit-frontend #387): the score is
+// share left the form with the old ratings proxy (seenit-frontend #387): the score is
 // SeenIt's own now, computed by the Worker, and the add flow never shows
 // or writes it.
 //
