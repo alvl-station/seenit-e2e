@@ -5,7 +5,7 @@
 // the route, never a header.
 const { baseUrl } = require('../../support/base-url');
 
-const API = process.env.API_URL || 'https://seenit-proxy.seenit.workers.dev';
+const API = process.env.API_URL || 'https://seenit-proxy.alvl.workers.dev';
 const SITE = baseUrl();
 const APP_ORIGIN = new URL(SITE).origin;
 // The app signs in with a username, which Firebase knows as this address.
