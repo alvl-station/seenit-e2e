@@ -60,11 +60,12 @@ Feature: Core smoke — login, search, movie modal
   Scenario: Opening and closing the movie modal
     When I open the first card
     Then the modal is open with a non-empty title
-    # Exactly one of the two must be there — neither means a blank panel, both
-    # means they are fighting over the slot. Since 2026-10-08 (owner's ask)
+    # Something must fill the slot, or the panel is blank; a cover and a poster
+    # together would be fighting over it. A film with no trailer shows a still,
+    # or its poster when it has no stills. Since 2026-10-08 (owner's ask)
     # nothing plays by itself: the trailer is a cover until it is pressed, and
     # the embed the press puts in starts muted.
-    And the modal shows either a trailer cover or a poster, and nothing plays by itself
+    And the modal shows a trailer cover, a still or a poster, and nothing plays by itself
     # Owner's ask, 2026-10-13: the age, if the film has one, is one number with
     # no country; a tap shows every country's, in the order UA, PL, DE, US.
     And any age is one number, and a tap shows the countries in the order UA, PL, DE, US
