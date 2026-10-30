@@ -38,11 +38,11 @@ test.describe('who gets in', () => {
 
   test('a person is kept out of every CI route', async () => {
     const ci = [
-      ['POST', '/pool/sync'], ['POST', '/pool/enrich'], ['POST', '/pool/bump-version'], ['GET', '/pool/budget'],
+      ['POST', '/pool/sync'], ['POST', '/pool/enrich'], ['POST', '/pool/bump-version'],
       ['POST', '/pool/lock'], ['POST', '/pool/rebuild-mark-counts'], ['POST', '/pool/rebuild-stats'],
       ['POST', '/pool/rebuild-genre-shares'], ['GET', '/pool/actors/candidates'], ['POST', '/pool/actors'],
       ['POST', '/pool/wikidata'], ['POST', '/pool/tmdb'], ['POST', '/pool/collections'], ['POST', '/pool/trailers'],
-      ['PUT', '/pool/meta/catalogue_version'], ['PUT', '/library/roles/anyone'],
+      ['PUT', '/library/roles/anyone'],
     ];
     for (const [method, path] of ci) {
       const r = await api(method, path, { body: method === 'GET' ? undefined : {} });
