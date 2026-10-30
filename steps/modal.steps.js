@@ -289,11 +289,12 @@ Then('any age is one number, and a tap shows the countries in the order UA, PL, 
   await modal.ageKey().click();
 });
 
-Then('the modal shows either a trailer cover or a poster, and nothing plays by itself', async ({ ctx, page }) => {
+Then('the modal shows a trailer cover, a still or a poster, and nothing plays by itself', async ({ ctx, page }) => {
   const modal = modalOf(ctx, page);
   const covers = await modal.trailerCover().count();
   const posters = await modal.poster().count();
-  expect(covers + posters, 'the modal rendered neither a trailer cover nor a poster').toBeGreaterThan(0);
+  const stills = await modal.still().count();
+  expect(covers + posters + stills, 'the modal rendered no trailer cover, still or poster').toBeGreaterThan(0);
   expect(covers && posters, 'the modal rendered BOTH — they share one slot').toBeFalsy();
   // No autoplay (owner's ask, 2026-10-08): the player is not there until the cover is pressed.
   expect(await modal.trailerFrame().count(), 'a trailer started by itself').toBe(0);

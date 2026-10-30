@@ -36,6 +36,8 @@ class MovieModalPage {
   trailerCover() { return this.page.locator('#modalOverlay .modal-trailer [data-trailer-play]'); }
   async playTrailer() { await this.trailerCover().click(); }
   poster() { return this.page.locator('#modalOverlay .modal-poster'); }
+  /** A film with no trailer shows a frame from the film in the same slot; it stands there while the details load too. */
+  still() { return this.page.locator('#modalOverlay .modal-still'); }
 
   /** The age under the title since 2026-10-13: one number; a tap opens every country's in the info popup. */
   ageKey() { return this.page.locator('#modalBox .fc-run [data-age-key]'); }
